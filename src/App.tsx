@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { Circle, CircleMarker, GeoJSON, MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 import L, { LatLngBoundsExpression } from 'leaflet'
 import type { GeoJsonObject } from 'geojson'
-import { ArrowRight, BookOpen, Check, CheckCircle2, ChevronRight, Compass, HelpCircle, Images, Lightbulb, ListChecks, LocateFixed, MapPin, Maximize2, RotateCcw, Sparkles, Trophy, X, XCircle } from 'lucide-react'
+import { ArrowRight, BookOpen, CheckCircle2, ChevronRight, Compass, Images, Lightbulb, ListChecks, LocateFixed, MapPin, Maximize2, RotateCcw, Sparkles, Trophy, X, XCircle } from 'lucide-react'
 import { Breed, breeds } from './data'
 import { BreedPhoto, photosForBreed } from './media'
 import { distanceToOriginZone, OriginZone, originZoneBounds, originZones } from './originRegions'
@@ -117,9 +117,17 @@ function MagnificationToggle() {
   )
 }
 
-function MagnifiableImage({ src, alt, loading = 'eager' }: { src: string; alt: string; loading?: 'eager' | 'lazy' }) {
+function MagnifiableImage({ src, alt, loading = 'eager', fallbacks = [] }: { src: string; alt: string; loading?: 'eager' | 'lazy'; fallbacks?: string[] }) {
   const [expanded, setExpanded] = useState(false)
+  const [candidateIndex, setCandidateIndex] = useState(0)
+  const [loaded, setLoaded] = useState(false)
   const { enabled } = useContext(MagnificationContext)
+  const candidates = useMemo(() => [...new Set([src, ...fallbacks, `${import.meta.env.BASE_URL}horses/akhal-teke.jpg`])], [src, fallbacks])
+  const activeSrc = candidates[Math.min(candidateIndex, candidates.length - 1)]
+  const tryNextPhoto = () => {
+    setLoaded(false)
+    setCandidateIndex(index => Math.min(index + 1, candidates.length - 1))
+  }
   useEffect(() => {
     if (!expanded) return
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -129,20 +137,41 @@ function MagnifiableImage({ src, alt, loading = 'eager' }: { src: string; alt: s
     return () => window.removeEventListener('keydown', closeOnEscape)
   }, [expanded])
   return (
-    <span className="magnifiable-image">
-      <img src={src} alt={alt} loading={loading} />
+    <span className={`magnifiable-image ${loaded ? 'is-loaded' : 'is-loading'}`}>
+      {!loaded && <span className="photo-loading" aria-hidden="true"><i>♥</i><small>loading horse...</small></span>}
+      <img src={activeSrc} alt={alt} loading={loading} onLoad={() => setLoaded(true)} onError={tryNextPhoto} />
       {enabled && <button type="button" className="magnify-hint" onClick={event => { event.preventDefault(); event.stopPropagation(); setExpanded(true) }}><Maximize2 size={13} /> Full view</button>}
       {expanded && enabled && createPortal(
         <div className="magnified-preview magnified-preview--open" role="dialog" aria-modal="true" aria-label={`Full view of ${alt}`} onMouseDown={() => setExpanded(false)}>
           <div className="magnified-preview__frame" onMouseDown={event => event.stopPropagation()}>
             <button type="button" className="magnified-preview__close" onClick={() => setExpanded(false)} aria-label="Close full view"><X size={20} /></button>
-            <img src={src} alt={alt} />
+            <img src={activeSrc} alt={alt} />
             <small>Full-proportion photo · click outside or press Esc to close</small>
           </div>
         </div>,
         document.body,
       )}
     </span>
+  )
+}
+
+function SuccessSparkles({ show }: { show: boolean }) {
+  if (!show) return null
+  return createPortal(
+    <div className="success-sparkles" aria-hidden="true">
+      {Array.from({ length: 18 }).map((_, index) => {
+        const angle = index / 18 * Math.PI * 2
+        const distance = 125 + index % 4 * 32
+        const style = {
+          '--spark-x': `${Math.cos(angle) * distance}px`,
+          '--spark-y': `${Math.sin(angle) * distance}px`,
+          '--spark-delay': `${index % 4 * 35}ms`,
+        } as React.CSSProperties
+        return <i key={index} style={style}>{index % 3 === 0 ? '♥' : index % 2 === 0 ? '✦' : '★'}</i>
+      })}
+      <strong>Perfect! + sparkle power</strong>
+    </div>,
+    document.body,
   )
 }
 
@@ -224,7 +253,7 @@ function ResultReviewMap({ results, kind }: { results: ReviewResult[]; kind: 'ri
         {selected && (
           <article className="review-map-card" aria-live="polite">
             <button className="review-map-card__close" onClick={() => setSelectedIndex(null)} aria-label="Close breed review"><X size={18} /></button>
-            <div className="review-map-card__photo"><MagnifiableImage src={selected.photo.src} alt={selected.breed.name} /></div>
+            <div className="review-map-card__photo"><MagnifiableImage key={selected.photo.src} src={selected.photo.src} fallbacks={photosForBreed(selected.breed).map(photo => photo.src)} alt={selected.breed.name} /></div>
             <div className="review-map-card__body">
               <span className="review-map-card__index">HORSE {String(selectedIndex! + 1).padStart(2, '0')} · {selected.breed.country}</span>
               <h3>{selected.breed.name}</h3>
@@ -254,7 +283,6 @@ function Home({ onStart, onPractice, onBreedQuiz, onPhotoQuiz, onGuide }: { onSt
         <div className="home-nav-actions">
           <MagnificationToggle />
           <button className="text-button" onClick={onGuide}><BookOpen size={17} /> Field guide</button>
-          <button className="icon-button icon-button--light" onClick={onGuide} aria-label="How to play"><HelpCircle size={20} /></button>
         </div>
       </nav>
 
@@ -264,6 +292,7 @@ function Home({ onStart, onPractice, onBreedQuiz, onPhotoQuiz, onGuide }: { onSt
           <div className="specimen-label"><span>Today’s specimen</span><strong>01</strong></div>
         </div>
         <div className="hero-copy">
+          <div className="club-ticker"><span>★ WELCOME 2 HORSEGUESSR ★ 58 BREEDS ONLINE ★ BEST VIEWED WITH HORSE POWER ★</span></div>
           <div className="y2k-badge"><span>★</span> Horse Club Online <span>★</span></div>
           <p className="eyebrow"><span /> The daily equine geography game</p>
           <h1>From hoofprints<br />to <em>homelands.</em></h1>
@@ -313,7 +342,7 @@ function Home({ onStart, onPractice, onBreedQuiz, onPhotoQuiz, onGuide }: { onSt
   )
 }
 
-function QuizHeader({ round, correct, onHelp }: { round: number; correct: number; onHelp: () => void }) {
+function QuizHeader({ round, correct }: { round: number; correct: number }) {
   return (
     <header className="game-header quiz-header">
       <Brand />
@@ -325,12 +354,11 @@ function QuizHeader({ round, correct, onHelp }: { round: number; correct: number
       </div>
       <div className="score-box"><span>Correct</span><strong>{correct}</strong><small>/ {MAX_ROUNDS}</small></div>
       <MagnificationToggle />
-      <button className="icon-button" onClick={onHelp} aria-label="How to play"><HelpCircle size={20} /></button>
     </header>
   )
 }
 
-function GameHeader({ round, total, onHelp }: { round: number; total: number; onHelp: () => void }) {
+function GameHeader({ round, total }: { round: number; total: number }) {
   return (
     <header className="game-header">
       <Brand />
@@ -342,7 +370,6 @@ function GameHeader({ round, total, onHelp }: { round: number; total: number; on
       </div>
       <div className="score-box"><span>Score</span><strong>{formatNumber(total)}</strong><small>/ 40,000</small></div>
       <MagnificationToggle />
-      <button className="icon-button" onClick={onHelp} aria-label="How to play"><HelpCircle size={20} /></button>
     </header>
   )
 }
@@ -355,7 +382,6 @@ function Game({ mode, onFinish, onExit }: { mode: 'daily' | 'practice'; onFinish
   const [result, setResult] = useState<RoundResult | null>(null)
   const [results, setResults] = useState<RoundResult[]>([])
   const [hintOpen, setHintOpen] = useState(false)
-  const [helpOpen, setHelpOpen] = useState(false)
   const breed = roundBreeds[round]
   const originZone = originZones[breed.id]
   const photoPool = photosForBreed(breed)
@@ -387,7 +413,7 @@ function Game({ mode, onFinish, onExit }: { mode: 'daily' | 'practice'; onFinish
 
   return (
     <main className="game-screen">
-      <GameHeader round={round} total={total} onHelp={() => setHelpOpen(true)} />
+      <GameHeader round={round} total={total} />
       <div className="game-stage">
         <section className="breed-panel">
           <div className="breed-panel__topline">
@@ -401,7 +427,7 @@ function Game({ mode, onFinish, onExit }: { mode: 'daily' | 'practice'; onFinish
           </div>
 
           <figure className={`horse-photo ${result ? 'horse-photo--revealed' : ''}`}>
-            <MagnifiableImage key={currentPhoto.src} src={currentPhoto.src} alt={result ? breed.name : 'Mystery horse breed'} />
+            <MagnifiableImage key={currentPhoto.src} src={currentPhoto.src} fallbacks={photoPool.map(photo => photo.src)} alt={result ? breed.name : 'Mystery horse breed'} />
             <div className="photo-corners" aria-hidden="true"><i /><i /><i /><i /></div>
             {!result && <figcaption>Observe closely <span>•</span> no reverse image search</figcaption>}
             {result && <a href={currentPhoto.source} target="_blank" rel="noreferrer">Image source ↗ · photo {photoIndex + 1} of {photoPool.length}</a>}
@@ -449,7 +475,7 @@ function Game({ mode, onFinish, onExit }: { mode: 'daily' | 'practice'; onFinish
           <div className="map-label"><span>{result ? 'FULL-SCORE REGION' : 'SELECT A LOCATION'}</span><strong>{result ? `${originZone.label} · ${result.insideRegion ? 'your pin is inside!' : `${formatNumber(result.distance)} km away`}` : 'Click anywhere on the map to place your pin'}</strong></div>
         </section>
       </div>
-      {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
+      <SuccessSparkles show={Boolean(result?.insideRegion)} />
     </main>
   )
 }
@@ -460,7 +486,6 @@ function BreedQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
   const [round, setRound] = useState(0)
   const [choice, setChoice] = useState<Breed | null>(null)
   const [results, setResults] = useState<QuizResult[]>([])
-  const [helpOpen, setHelpOpen] = useState(false)
   const breed = roundBreeds[round]
   const originZone = originZones[breed.id]
   const photoPool = photosForBreed(breed)
@@ -491,7 +516,7 @@ function BreedQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
 
   return (
     <main className="game-screen quiz-screen">
-      <QuizHeader round={round} correct={correctCount} onHelp={() => setHelpOpen(true)} />
+      <QuizHeader round={round} correct={correctCount} />
       <div className="game-stage quiz-stage">
         <section className="breed-panel quiz-panel">
           <div className="breed-panel__topline">
@@ -505,7 +530,7 @@ function BreedQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
           </div>
 
           <figure className={`horse-photo quiz-photo ${choice ? 'horse-photo--revealed' : ''}`}>
-            <MagnifiableImage key={currentPhoto.src} src={currentPhoto.src} alt={choice ? breed.name : 'Mystery horse breed'} />
+            <MagnifiableImage key={currentPhoto.src} src={currentPhoto.src} fallbacks={photoPool.map(photo => photo.src)} alt={choice ? breed.name : 'Mystery horse breed'} />
             <div className="photo-corners" aria-hidden="true"><i /><i /><i /><i /></div>
             {!choice && <figcaption>Study build, coat, head, mane, and proportions</figcaption>}
             {choice && <a href={currentPhoto.source} target="_blank" rel="noreferrer">Image source ↗ · photo {photoIndex + 1} of {photoPool.length}</a>}
@@ -569,7 +594,7 @@ function BreedQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
           </div>
         </section>
       </div>
-      {helpOpen && <QuizHelpModal onClose={() => setHelpOpen(false)} />}
+      <SuccessSparkles show={Boolean(choice && answeredCorrectly)} />
     </main>
   )
 }
@@ -580,7 +605,6 @@ function PhotoQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
   const [round, setRound] = useState(0)
   const [choice, setChoice] = useState<Breed | null>(null)
   const [results, setResults] = useState<QuizResult[]>([])
-  const [helpOpen, setHelpOpen] = useState(false)
   const breed = roundBreeds[round]
   const originZone = originZones[breed.id]
   const photoOptions = useMemo(() => {
@@ -615,7 +639,7 @@ function PhotoQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
 
   return (
     <main className="game-screen quiz-screen photo-quiz-screen">
-      <QuizHeader round={round} correct={correctCount} onHelp={() => setHelpOpen(true)} />
+      <QuizHeader round={round} correct={correctCount} />
       <div className="game-stage photo-quiz-stage">
         <section className="breed-panel photo-quiz-panel">
           <div className="breed-panel__topline">
@@ -650,7 +674,7 @@ function PhotoQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
                   aria-disabled={Boolean(choice)}
                   aria-label={`Photo ${letter}${choice ? `: ${option.breed.name}` : ''}`}
                 >
-                  <MagnifiableImage src={option.photo.src} alt={`Horse option ${letter}`} />
+                  <MagnifiableImage src={option.photo.src} fallbacks={photosForBreed(option.breed).map(photo => photo.src)} alt={`Horse option ${letter}`} />
                   <span className="photo-choice__letter">{letter}</span>
                   {choice && <span className="photo-choice__name">{option.breed.name}</span>}
                   {isCorrect && <span className="photo-choice__status"><CheckCircle2 size={18} /> Correct</span>}
@@ -698,67 +722,8 @@ function PhotoQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
           )}
         </section>
       </div>
-      {helpOpen && <PhotoQuizHelpModal onClose={() => setHelpOpen(false)} />}
+      <SuccessSparkles show={Boolean(choice && answeredCorrectly)} />
     </main>
-  )
-}
-
-function QuizHelpModal({ onClose }: { onClose: () => void }) {
-  return (
-    <div className="modal-backdrop" onMouseDown={onClose}>
-      <section className="modal" onMouseDown={event => event.stopPropagation()}>
-        <button className="modal-close" onClick={onClose} aria-label="Close"><X size={20} /></button>
-        <span className="modal-icon"><ListChecks size={25} /></span>
-        <p className="eyebrow"><span /> Breed quiz</p>
-        <h2>Read the horse.<br />Name the breed.</h2>
-        <ol>
-          <li><b>Study the photograph.</b><span>Look for distinctive build, coat, head, mane, and feathering.</span></li>
-          <li><b>Choose one answer.</b><span>Select the breed from five shuffled possibilities.</span></li>
-          <li><b>Explore its homeland.</b><span>See the correct answer, origin map, and breed story before continuing.</span></li>
-        </ol>
-        <button className="primary-button modal-button" onClick={onClose}>Start identifying <Check size={18} /></button>
-      </section>
-    </div>
-  )
-}
-
-function PhotoQuizHelpModal({ onClose }: { onClose: () => void }) {
-  return (
-    <div className="modal-backdrop" onMouseDown={onClose}>
-      <section className="modal" onMouseDown={event => event.stopPropagation()}>
-        <button className="modal-close" onClick={onClose} aria-label="Close"><X size={20} /></button>
-        <span className="modal-icon"><Images size={25} /></span>
-        <p className="eyebrow"><span /> Photo match</p>
-        <h2>Know the name.<br />Find the horse.</h2>
-        <ol>
-          <li><b>Read the target breed.</b><span>Recall its build, coat, profile, mane, and proportions.</span></li>
-          <li><b>Compare four photographs.</b><span>Each horse belongs to a different breed; choose the match.</span></li>
-          <li><b>Study the reveal.</b><span>See every option’s breed, then explore the correct horse’s homeland and profile.</span></li>
-        </ol>
-        <button className="primary-button modal-button" onClick={onClose}>Start matching <Check size={18} /></button>
-      </section>
-    </div>
-  )
-}
-
-function HelpModal({ onClose }: { onClose: () => void }) {
-  return (
-    <div className="modal-backdrop" onMouseDown={onClose}>
-      <section className="modal" onMouseDown={event => event.stopPropagation()}>
-        <button className="modal-close" onClick={onClose} aria-label="Close"><X size={20} /></button>
-        <span className="modal-icon"><Compass size={25} /></span>
-        <p className="eyebrow"><span /> How to play</p>
-        <h2>Read the horse.<br />Find its homeland.</h2>
-        <ol>
-          <li><b>Study the photograph.</b><span>Look at build, coat, mane, and proportions.</span></li>
-          <li><b>Place your pin.</b><span>Click the world map where you think the breed began.</span></li>
-          <li><b>Reach the accepted homeland.</b><span>Every pin inside the shown region earns the same 5,000-point base score.</span></li>
-          <li><b>Missed the border?</b><span>Outside guesses fade by distance from the region’s nearest edge—not from an arbitrary city.</span></li>
-        </ol>
-        <p className="hint-note"><Lightbulb size={17} /> Hints cost 25% of that round’s score.</p>
-        <button className="primary-button modal-button" onClick={onClose}>Got it <Check size={18} /></button>
-      </section>
-    </div>
   )
 }
 
@@ -828,7 +793,7 @@ function FieldGuide({ onBack }: { onBack: () => void }) {
       <section className="guide-grid">
         {breeds.map(breed => (
           <article className="guide-card" key={breed.id}>
-            <MagnifiableImage src={breed.image} alt={breed.name} loading="lazy" />
+            <MagnifiableImage src={breed.image} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} loading="lazy" />
             <div><span>{breed.country} · {photosForBreed(breed).length} photos</span><h2>{breed.name}</h2><BreedBio breed={breed} /><a href={breed.source} target="_blank" rel="noreferrer">Open breed profile <ArrowRight size={15} /></a></div>
           </article>
         ))}

@@ -129,9 +129,16 @@ const alternatePhotos: Record<string, BreedPhoto[]> = {
   ...extraPhotos,
 }
 
+export function resolvePhotoPath(path: string) {
+  if (!path.startsWith('/')) return path
+  const base = import.meta.env.BASE_URL
+  if (base !== '/' && path.startsWith(base)) return path
+  return `${base}${path.slice(1)}`
+}
+
 export function photosForBreed(breed: Breed): BreedPhoto[] {
   return [{ src: breed.image, source: breed.imageSource }, ...(alternatePhotos[breed.id] ?? [])].map(photo => ({
     ...photo,
-    src: photo.src.startsWith('/') ? `${import.meta.env.BASE_URL}${photo.src.slice(1)}` : photo.src,
+    src: resolvePhotoPath(photo.src),
   }))
 }
