@@ -1,0 +1,265 @@
+import { extraBreeds } from './extraData'
+
+export type Breed = {
+  id: string
+  name: string
+  image: string
+  imageSource: string
+  location: string
+  country: string
+  lat: number
+  lng: number
+  hint: string
+  fact: string
+  tags: string[]
+  source: string
+}
+
+const breedData: Breed[] = [
+  {
+    id: 'akhal-teke', name: 'Akhal-Teke', image: '/horses/akhal-teke.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Dagat-Geli.jpg',
+    location: 'Karakum Desert', country: 'Turkmenistan', lat: 38.97, lng: 59.56,
+    hint: 'Built for heat and distance, this breed is famous for the metallic sheen of its coat.',
+    fact: 'One of the world’s oldest horse breeds, the Akhal-Teke was shaped by Turkmen nomads for endurance across the Karakum Desert.',
+    tags: ['Hotblood', 'Endurance', 'Ancient'], source: 'https://en.wikipedia.org/wiki/Akhal-Teke',
+  },
+  {
+    id: 'andalusian', name: 'Andalusian', image: '/horses/andalusian.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Andalusierhengst_93c.jpg',
+    location: 'Andalusia', country: 'Spain', lat: 37.39, lng: -5.99,
+    hint: 'A powerful, elegant riding horse closely associated with classical dressage.',
+    fact: 'Also known as the Pure Spanish Horse, the Andalusian developed on the Iberian Peninsula and has influenced breeds across Europe and the Americas.',
+    tags: ['Baroque', 'Dressage', 'Iberian'], source: 'https://en.wikipedia.org/wiki/Andalusian_horse',
+  },
+  {
+    id: 'arabian', name: 'Arabian', image: '/horses/arabian.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Halterstandingshotarabianone.jpg',
+    location: 'Arabian Peninsula', country: 'Saudi Arabia', lat: 24.1, lng: 45.1,
+    hint: 'Look for a dished profile, arched neck, and a high-carried tail.',
+    fact: 'Developed in the deserts of the Arabian Peninsula, the Arabian is prized for stamina and has contributed to many modern light-horse breeds.',
+    tags: ['Hotblood', 'Endurance', 'Desert'], source: 'https://en.wikipedia.org/wiki/Arabian_horse',
+  },
+  {
+    id: 'clydesdale', name: 'Clydesdale', image: '/horses/clydesdale.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Clydesdale_horse_by_Bonnie_Gruenberg.JPG',
+    location: 'Lanarkshire', country: 'Scotland', lat: 55.67, lng: -3.78,
+    hint: 'A tall draft horse known for white feathering around its lower legs.',
+    fact: 'The breed takes its name from Clydesdale, the historic name for the River Clyde valley in Scotland, where it worked farms and hauled heavy loads.',
+    tags: ['Draft', 'Cold-blood', 'Feathered'], source: 'https://en.wikipedia.org/wiki/Clydesdale_horse',
+  },
+  {
+    id: 'friesian', name: 'Friesian', image: '/horses/friesian.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Friesian_Horse_Side_View_3.jpg',
+    location: 'Friesland', country: 'Netherlands', lat: 53.16, lng: 5.78,
+    hint: 'Usually jet black, with a flowing mane and an expressive, high-stepping trot.',
+    fact: 'The Friesian comes from the northern Dutch province of Friesland and is instantly recognizable by its black coat and abundant mane.',
+    tags: ['Baroque', 'Driving', 'Black coat'], source: 'https://en.wikipedia.org/wiki/Friesian_horse',
+  },
+  {
+    id: 'icelandic', name: 'Icelandic Horse', image: '/horses/icelandic.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:White_Horse_and_Big_Cliff.jpg',
+    location: 'Iceland', country: 'Iceland', lat: 64.86, lng: -18.61,
+    hint: 'Small, hardy, and celebrated for an extra-smooth four-beat gait called the tölt.',
+    fact: 'Descended from horses brought by Norse settlers, the Icelandic has remained isolated for centuries under strict import rules.',
+    tags: ['Gaited', 'Nordic', 'Hardy'], source: 'https://en.wikipedia.org/wiki/Icelandic_horse',
+  },
+  {
+    id: 'marwari', name: 'Marwari', image: '/horses/marwari.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Humayun,_Marwari_Stallion_of_Virendra_Kankariya.jpg',
+    location: 'Marwar, Rajasthan', country: 'India', lat: 26.24, lng: 73.02,
+    hint: 'Its most unmistakable feature is a pair of inward-curving ears whose tips may touch.',
+    fact: 'Bred in the Marwar region of Rajasthan, the Marwari was the cavalry horse of Rajput warriors and is adapted to desert travel.',
+    tags: ['Desert', 'Cavalry', 'Rare'], source: 'https://en.wikipedia.org/wiki/Marwari_horse',
+  },
+  {
+    id: 'mongolian', name: 'Mongolian Horse', image: '/horses/mongolian.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Ko%C5%84_mongolski_w_Parku_Narodowym_Gorchi-Tereld%C5%BC_10.JPG',
+    location: 'Mongolian Steppe', country: 'Mongolia', lat: 47.92, lng: 106.91,
+    hint: 'A compact steppe horse central to a nomadic herding culture and able to live outdoors year-round.',
+    fact: 'Mongolian horses remain deeply embedded in daily life on the steppe, providing transport, racing, and mare’s milk for airag.',
+    tags: ['Steppe', 'Primitive', 'Hardy'], source: 'https://en.wikipedia.org/wiki/Mongolian_horse',
+  },
+  {
+    id: 'appaloosa', name: 'Appaloosa', image: '/horses/appaloosa.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:THIEL_619.jpg',
+    location: 'Palouse region', country: 'United States', lat: 46.73, lng: -117.0,
+    hint: 'A colorful stock horse often carrying a leopard-spotted coat pattern.',
+    fact: 'The Nez Perce developed spotted horses in the Pacific Northwest; the breed’s modern name is linked to the Palouse River.',
+    tags: ['Stock horse', 'Spotted', 'American'], source: 'https://en.wikipedia.org/wiki/Appaloosa',
+  },
+  {
+    id: 'percheron', name: 'Percheron', image: '/horses/percheron.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Cheval-percheron-gris_SDA2014_(cropped).jpg',
+    location: 'Le Perche', country: 'France', lat: 48.38, lng: 0.65,
+    hint: 'A muscular gray or black draft horse with a notably refined head.',
+    fact: 'The Percheron takes its name from the former province of Le Perche in northwestern France, where it was developed as a versatile heavy horse.',
+    tags: ['Draft', 'French', 'Powerful'], source: 'https://en.wikipedia.org/wiki/Percheron',
+  },
+  {
+    id: 'shire', name: 'Shire', image: '/horses/shire.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Shire_horses_arp.jpg',
+    location: 'English Midlands', country: 'England', lat: 52.72, lng: -1.73,
+    hint: 'Among the tallest horses in the world, traditionally used for hauling and farm work.',
+    fact: 'The Shire was developed in England from the old Great Horse tradition and became a mainstay of farms, canals, and breweries.',
+    tags: ['Draft', 'Tall', 'English'], source: 'https://en.wikipedia.org/wiki/Shire_horse',
+  },
+  {
+    id: 'fjord', name: 'Norwegian Fjord', image: '/horses/fjord.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Cheval_fjord_00003.jpg',
+    location: 'Western Norway', country: 'Norway', lat: 61.77, lng: 6.22,
+    hint: 'A compact dun horse with a two-tone mane often clipped to stand upright.',
+    fact: 'One of the world’s oldest breeds, the Norwegian Fjord was shaped by the steep farms and fjords of western Norway.',
+    tags: ['Dun', 'Nordic', 'Versatile'], source: 'https://en.wikipedia.org/wiki/Fjord_horse',
+  },
+  {
+    id: 'lipizzan', name: 'Lipizzan', image: '/horses/lipizzan.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Lipizzanerweide-2848.jpg',
+    location: 'Lipica', country: 'Slovenia', lat: 45.67, lng: 13.88,
+    hint: 'Foals are usually dark and lighten with age; adults are famous for classical airs above the ground.',
+    fact: 'The Habsburg court established the breed at the Lipica stud in 1580. Lipizzans later became icons of the Spanish Riding School.',
+    tags: ['Baroque', 'Classical', 'Gray'], source: 'https://en.wikipedia.org/wiki/Lipizzan',
+  },
+  {
+    id: 'haflinger', name: 'Haflinger', image: '/horses/haflinger.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Haflinger_Westfalensonne_und_Almfee.JPG',
+    location: 'Hafling, South Tyrol', country: 'Italy', lat: 46.65, lng: 11.22,
+    hint: 'Compact and sure-footed, with a chestnut coat and flaxen mane and tail.',
+    fact: 'Named for the village of Hafling in the South Tyrolean Alps, the Haflinger developed as a sturdy mountain horse.',
+    tags: ['Mountain', 'Chestnut', 'Versatile'], source: 'https://en.wikipedia.org/wiki/Haflinger',
+  },
+  {
+    id: 'falabella', name: 'Falabella', image: '/horses/falabella.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:FalabellaFestivo.jpg',
+    location: 'Buenos Aires Province', country: 'Argentina', lat: -35.06, lng: -58.75,
+    hint: 'A true miniature horse, selectively bred to stand far shorter than most ponies.',
+    fact: 'The Falabella was developed by the Falabella family in Argentina through generations of selective breeding for small size.',
+    tags: ['Miniature', 'Argentine', 'Companion'], source: 'https://en.wikipedia.org/wiki/Falabella',
+  },
+  {
+    id: 'australian-stock', name: 'Australian Stock Horse', image: '/horses/australian-stock.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Stock_Horse_ready_for_work-crop.jpg',
+    location: 'New South Wales', country: 'Australia', lat: -32.16, lng: 147.02,
+    hint: 'An athletic working horse bred for cattle country, agility, and endurance.',
+    fact: 'Developed from horses brought to Australia after 1788, the Australian Stock Horse was selected for the demands of vast pastoral stations.',
+    tags: ['Stock horse', 'Working', 'Australian'], source: 'https://en.wikipedia.org/wiki/Australian_Stock_Horse',
+  },
+  {
+    id: 'shetland', name: 'Shetland Pony', image: '/horses/shetland.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Shetland_Pony_in_Field_-_Roker_Lane_-_geograph.org.uk_-_420905.jpg',
+    location: 'Shetland Islands', country: 'Scotland', lat: 60.35, lng: -1.21,
+    hint: 'Tiny but exceptionally strong, with a dense coat suited to harsh island weather.',
+    fact: 'Centuries of wind, cold, and sparse grazing on the Shetland Islands produced a small pony with remarkable strength for its size.',
+    tags: ['Pony', 'Island', 'Hardy'], source: 'https://en.wikipedia.org/wiki/Shetland_pony',
+  },
+  {
+    id: 'belgian-draft', name: 'Belgian Draft', image: '/horses/belgian-draft.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Galmaarden_-_Vollezele_-_Congobergstraat_3_(cropped).jpg',
+    location: 'Brabant', country: 'Belgium', lat: 50.88, lng: 4.70,
+    hint: 'A massive, broad-chested draft horse whose ancestors were known as Brabant horses.',
+    fact: 'The Belgian Draft descends from the heavy horses of Brabant in central Belgium and became one of the most influential draft breeds.',
+    tags: ['Draft', 'Cold-blood', 'Powerful'], source: 'https://en.wikipedia.org/wiki/Belgian_Draught',
+  },
+  {
+    id: 'quarter-horse', name: 'American Quarter Horse', image: '/horses/quarter-horse-1.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Mara_from_side_in_sun.jpg',
+    location: 'Colonial Virginia', country: 'United States', lat: 37.43, lng: -77.44,
+    hint: 'This muscular stock horse takes its name from explosive speed over a short race distance.',
+    fact: 'Colonial settlers crossed English horses with horses of Spanish ancestry to create a compact sprinter that later became indispensable on western cattle ranches.',
+    tags: ['Stock horse', 'Sprinter', 'American'], source: 'https://en.wikipedia.org/wiki/American_Quarter_Horse',
+  },
+  {
+    id: 'thoroughbred', name: 'Thoroughbred', image: '/horses/thoroughbred-1.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Sato_-_Palomino_sabino_Purebred_Thoroughbred_Stallion_(5966320009).jpg',
+    location: 'England', country: 'England', lat: 52.36, lng: -1.17,
+    hint: 'A tall, fine-boned athlete synonymous with flat racing around the world.',
+    fact: 'The Thoroughbred was developed in 17th- and 18th-century England by crossing native mares with imported Oriental stallions.',
+    tags: ['Racehorse', 'Hotblood', 'Athletic'], source: 'https://en.wikipedia.org/wiki/Thoroughbred',
+  },
+  {
+    id: 'tennessee-walker', name: 'Tennessee Walking Horse', image: '/horses/tennessee-walker-1.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Tennessee_Walking_Horse3.jpg',
+    location: 'Middle Tennessee', country: 'United States', lat: 35.86, lng: -86.35,
+    hint: 'Its signature running walk made long hours in the saddle remarkably comfortable.',
+    fact: 'Plantation owners in the American South developed this smooth-gaited riding horse to travel farms and plantations comfortably all day.',
+    tags: ['Gaited', 'Trail', 'American'], source: 'https://en.wikipedia.org/wiki/Tennessee_Walking_Horse',
+  },
+  {
+    id: 'morgan', name: 'Morgan', image: '/horses/morgan-1.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Morgan_HOrse_(2788561646).jpg',
+    location: 'Vermont', country: 'United States', lat: 44.26, lng: -72.58,
+    hint: 'A compact American breed whose history traces back to one famously prepotent stallion.',
+    fact: 'Nearly every Morgan traces to Figure, a late-18th-century Vermont stallion owned by teacher and composer Justin Morgan.',
+    tags: ['American', 'Versatile', 'Historic'], source: 'https://en.wikipedia.org/wiki/Morgan_horse',
+  },
+  {
+    id: 'peruvian-paso', name: 'Peruvian Paso', image: '/horses/peruvian-paso-1.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Lima_Peruvian_Paso_0083.jpg',
+    location: 'Coastal Peru', country: 'Peru', lat: -12.05, lng: -77.04,
+    hint: 'This elegant riding horse has a naturally smooth lateral gait and a distinctive outward foreleg action.',
+    fact: 'Centuries of selective breeding on Peru’s coastal haciendas produced a comfortable, sure-footed horse famous for the paso llano gait.',
+    tags: ['Gaited', 'Peruvian', 'Smooth'], source: 'https://en.wikipedia.org/wiki/Peruvian_Paso',
+  },
+  {
+    id: 'orlov-trotter', name: 'Orlov Trotter', image: '/horses/orlov-trotter-1.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:%D0%9E%D1%80%D0%BB%D0%BE%D0%B2%D1%81%D0%BA%D0%B8%D0%B9_%D1%80%D1%8B%D1%81%D0%B0%D0%BA.jpg',
+    location: 'Khrenovoye Stud', country: 'Russia', lat: 51.91, lng: 40.35,
+    hint: 'Often gray, this carriage breed was selected for a fast, sustained trot in a cold climate.',
+    fact: 'Count Alexei Orlov developed the breed at Khrenovoye Stud in the late 18th century, combining Arabian, European, and Russian horses.',
+    tags: ['Trotter', 'Driving', 'Russian'], source: 'https://en.wikipedia.org/wiki/Orlov_Trotter',
+  },
+  {
+    id: 'finnhorse', name: 'Finnhorse', image: '/horses/finnhorse-1.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:BJ,_a_Finnhorse_gelding.jpg',
+    location: 'Finland', country: 'Finland', lat: 61.92, lng: 25.75,
+    hint: 'A hardy all-rounder and the only horse breed developed entirely in its Nordic homeland.',
+    fact: 'The Finnhorse is Finland’s national breed, valued as a riding horse, harness racer, farm worker, and military mount.',
+    tags: ['Nordic', 'Versatile', 'Cold-climate'], source: 'https://en.wikipedia.org/wiki/Finnhorse',
+  },
+  {
+    id: 'merens', name: 'Mérens', image: '/horses/merens-1.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Nickel_de_Vives.jpg',
+    location: 'Ariège Pyrenees', country: 'France', lat: 42.97, lng: 1.60,
+    hint: 'This small mountain horse is almost always black and thrives on steep, rugged ground.',
+    fact: 'The Mérens comes from the Ariège region of the Pyrenees, where its sure-footedness and hardiness suited mountain farming and transport.',
+    tags: ['Mountain', 'Black coat', 'French'], source: 'https://en.wikipedia.org/wiki/M%C3%A9rens_horse',
+  },
+  {
+    id: 'knabstrupper', name: 'Knabstrupper', image: '/horses/knabstrupper-1.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Knabstrubber_at_the_kentucky_horse_park.jpg',
+    location: 'Knabstrup Manor', country: 'Denmark', lat: 55.69, lng: 11.53,
+    hint: 'A Danish warmblood best known for dramatic leopard-spotted coats.',
+    fact: 'The breed began at Denmark’s Knabstrup Manor in the early 1800s from a famously spotted mare and became popular as a cavalry and circus horse.',
+    tags: ['Spotted', 'Danish', 'Warmblood'], source: 'https://en.wikipedia.org/wiki/Knabstrupper',
+  },
+  {
+    id: 'paint-horse', name: 'American Paint Horse', image: '/horses/paint-horse-1.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Am_Paint_Horse.jpg',
+    location: 'American West', country: 'United States', lat: 38.00, lng: -103.00,
+    hint: 'This stock horse combines Quarter Horse type with bold patches of white and dark coat color.',
+    fact: 'Spotted horses of Spanish ancestry became part of western ranch culture; the modern breed pairs those patterns with American stock-horse conformation.',
+    tags: ['Stock horse', 'Pinto', 'American'], source: 'https://en.wikipedia.org/wiki/American_Paint_Horse',
+  },
+  {
+    id: 'connemara', name: 'Connemara Pony', image: '/horses/connemara-1.jpg',
+    imageSource: "https://commons.wikimedia.org/wiki/File:PONY'S_IN_CONNEMARA_NATIONAL_PARK_-_panoramio.jpg",
+    location: 'Connemara, County Galway', country: 'Ireland', lat: 53.49, lng: -9.85,
+    hint: 'An athletic native pony shaped by rocky ground, Atlantic weather, and sparse grazing.',
+    fact: 'The Connemara developed in western Ireland as a hardy family and farm pony and is now celebrated for jumping ability and an even temperament.',
+    tags: ['Pony', 'Irish', 'Sport'], source: 'https://en.wikipedia.org/wiki/Connemara_pony',
+  },
+  {
+    id: 'black-forest', name: 'Black Forest Horse', image: '/horses/black-forest-1.jpg',
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Marbach_Schwarzw%C3%A4lder_Profil.jpg',
+    location: 'Black Forest', country: 'Germany', lat: 47.99, lng: 8.13,
+    hint: 'A compact draft breed with a dark chestnut body and a striking flaxen mane.',
+    fact: 'Farmers in southwestern Germany’s Black Forest developed this agile draft horse for forestry and work on steep upland farms.',
+    tags: ['Draft', 'Flaxen', 'German'], source: 'https://en.wikipedia.org/wiki/Black_Forest_Horse',
+  },
+  ...extraBreeds,
+]
+
+export const breeds: Breed[] = breedData.map(breed => ({
+  ...breed,
+  image: breed.image.startsWith('/') ? `${import.meta.env.BASE_URL}${breed.image.slice(1)}` : breed.image,
+}))

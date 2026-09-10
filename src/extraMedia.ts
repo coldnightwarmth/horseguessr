@@ -1,0 +1,118 @@
+import type { BreedPhoto } from './media'
+
+const commons = (file: string) => `https://commons.wikimedia.org/wiki/File:${file}`
+
+export const extraPhotos: Record<string, BreedPhoto[]> = {
+  'ljutomer-trotter': [
+    { src: '/horses/ljutomer-trotter-2.jpg', source: commons('Ljutomer_(4).jpg') },
+    { src: '/horses/ljutomer-trotter-3.jpg', source: commons('Ljutomer_(5).jpg') },
+  ],
+  'cape-boerperd': [
+    { src: '/horses/cape-boerperd-2.jpg', source: commons('Boerperd.jpg') },
+    { src: '/horses/cape-boerperd-3.jpg', source: 'http://capeboerperd.co.za/wp-content/uploads/2022/03/8837-Snr-Kamp-Hings-Copy.jpg' },
+  ],
+  nonius: [
+    { src: '/horses/nonius-2.jpg', source: 'https://mezohegyesbirtok.hu/hu/noniusz/' },
+    { src: '/horses/nonius-3.jpg', source: 'https://mezohegyesbirtok.hu/hu/noniusz/' },
+  ],
+  gidran: [
+    { src: '/horses/gidran-2.jpg', source: commons('Gidran_Inland.jpeg') },
+    { src: '/horses/gidran-3.jpg', source: commons('Gidran_XL-10.jpg') },
+  ],
+  'furioso-north-star': [
+    { src: '/horses/furioso-north-star-2.jpg', source: commons('Furioso-Przedswit_Polish_breed.jpg') },
+    { src: '/horses/furioso-north-star-3.jpg', source: commons('North_Star_VI.jpg') },
+  ],
+  'kisber-felver': [
+    { src: '/horses/kisber-felver-2.jpg', source: commons('Fenek_Thoroughbred.jpg') },
+    { src: '/horses/kisber-felver-3.jpg', source: 'https://www.kisberifelver.hu/index.php/tenyesztes/menkatalogus/ajanlott-menek/26-cenzor-zeta' },
+  ],
+  'shagya-arabian': [
+    { src: '/horses/shagya-arabian-2.jpg', source: commons('Etalon-shagya-bai.JPG') },
+    { src: '/horses/shagya-arabian-3.jpg', source: commons('Jument-2-shagya-grise.JPG') },
+  ],
+  hucul: [
+    { src: '/horses/hucul-2.jpg', source: commons('Hucul_pony_in_Carpathians.jpg') },
+    { src: '/horses/hucul-3.jpg', source: commons('Mur%C3%A1nska_planina,_Maretkin%C3%A1,_Hucul_02.jpg') },
+  ],
+  kladruber: [
+    { src: '/horses/kladruber-2.jpg', source: commons('Overview_of_Starokladrubsk%C3%BD_k%C5%AF%C5%88_at_Kladruby_stud_farm_in_Kladruby_nad_Labem,_Pardubice_District.jpg') },
+    { src: '/horses/kladruber-3.jpg', source: commons('Kladruber%2C_Ramskopf.jpg') },
+  ],
+  konik: [
+    { src: '/horses/konik-2.jpg', source: commons('Konik_mare.jpg') },
+    { src: '/horses/konik-3.jpg', source: commons('Wild_horse_(Equus_caballus_var._konik),_in_the_Millingerwaard.jpg') },
+  ],
+  yakutian: [
+    { src: '/horses/yakutian-2.jpg', source: commons('The_yakut_horses,_Namski_uluus,_Yakutia,_Siberia_-_%D0%9B%D0%BE%D1%88%D0%B0%D0%B4%D0%B8_%D0%BD%D0%B0_%D0%BF%D1%80%D0%BE%D1%82%D0%BE%D0%BA%D0%B5_%D0%9B%D0%B5%D0%BD%D1%8B_-_panoramio.jpg') },
+    { src: '/horses/yakutian-3.jpg', source: commons('Oymyakon_-_190228_DSC_5733.jpg') },
+  ],
+  caspian: [
+    { src: '/horses/caspian-2.jpg', source: commons('Caspian_Horse_(144540153).jpeg') },
+    { src: '/horses/caspian-3.jpg', source: commons('Caspian_Horse_(180594129).jpeg') },
+  ],
+  kathiawari: [
+    { src: '/horses/kathiawari-2.jpg', source: commons('Kathiawari_2.jpg') },
+    { src: '/horses/kathiawari-3.jpg', source: commons('Kathi_breed.jpg') },
+  ],
+  sorraia: [
+    { src: '/horses/sorraia-2.jpg', source: commons('Rewildered_Sorraia_horses.jpg') },
+    { src: '/horses/sorraia-3.jpg', source: commons('Altamiro,_Purebred_Sorraia_Stallion.jpg') },
+  ],
+  'dales-pony': [
+    { src: '/horses/dales-pony-2.jpg', source: commons("Dales_Pony_Mare_-_Gulliver's_Mistral_owned_by_Baroque_Farm.jpg") },
+    { src: '/horses/dales-pony-3.jpg', source: commons('Dales_ponies_-_geograph.org.uk_-_1280137.jpg') },
+  ],
+  'eriskay-pony': [
+    { src: '/horses/eriskay-pony-2.jpg', source: commons('Eriskay_Church_and_Ponies_-_geograph.org.uk_-_65554.jpg') },
+    { src: '/horses/eriskay-pony-3.jpg', source: commons('Eriskay_ponies_by_Loch_Cracabhaig_(Geograph_2129787_by_Rob_Burke).jpg') },
+  ],
+  bardigiano: [
+    { src: '/horses/bardigiano-2.jpg', source: commons('Cavallo-bardigiano.jpg') },
+    { src: '/horses/bardigiano-3.jpg', source: commons('Bardigiano4_-_Laufstall_ruhend.jpg') },
+  ],
+  maremmano: [
+    { src: '/horses/maremmano-2.jpg', source: commons('Maremmano_horse_Tuscany.jpg') },
+    { src: '/horses/maremmano-3.jpg', source: commons('Marmemmano6_stehend_Gang.jpg') },
+  ],
+  nordlandshest: [
+    { src: '/horses/nordlandshest-2.jpg', source: commons('Ninni.JPG') },
+    { src: '/horses/nordlandshest-3.jpg', source: commons('Rimfakse_2.jpg') },
+  ],
+  'gotland-russ': [
+    { src: '/horses/gotland-russ-2.jpg', source: commons('Gotland_Pony.jpg') },
+    { src: '/horses/gotland-russ-3.jpg', source: commons('Gotlandsruss.jpg') },
+  ],
+  noriker: [
+    { src: '/horses/noriker-2.jpg', source: commons('Noriker_horse_in_Salzburg_(state)_3336.jpg') },
+    { src: '/horses/noriker-3.jpg', source: commons('Noriker-Stute_grasend.JPG') },
+  ],
+  'cleveland-bay': [
+    { src: '/horses/cleveland-bay-2.jpg', source: 'https://livestockconservancy.org/cleveland-bay-horse/' },
+    { src: '/horses/cleveland-bay-3.jpg', source: commons('2007_Cleveland_Bays_1.JPG') },
+  ],
+  giara: [
+    { src: '/horses/giara-2.jpg', source: commons('Giara_horses.jpg') },
+    { src: '/horses/giara-3.jpg', source: commons('Giara_horses_in_the_Pauli_Maiori.jpg') },
+  ],
+  garrano: [
+    { src: '/horses/garrano-2.jpg', source: commons('Garrano-02-2.jpg') },
+    { src: '/horses/garrano-3.jpg', source: commons('Garrano_do_Ger%C3%AAs.jpg') },
+  ],
+  'kerry-bog-pony': [
+    { src: '/horses/kerry-bog-pony-2.jpg', source: commons('Ring_of_Kerry_-_Bog_pony_at_Kerry_Bog_Village_-_geograph.org.uk_-_1569899.jpg') },
+    { src: '/horses/kerry-bog-pony-3.jpg', source: commons('Kerry_Bog_Pony,_Bog_Village,_Kerry,_Ireland.jpg') },
+  ],
+  'exmoor-pony': [
+    { src: '/horses/exmoor-pony-2.jpg', source: commons('Exmoor_PonyWindswept.jpg') },
+    { src: '/horses/exmoor-pony-3.jpg', source: commons('Exmoor_Pony_-_geograph.org.uk_-_2769842.jpg') },
+  ],
+  camargue: [
+    { src: '/horses/camargue-2.jpg', source: commons('Camargue_horse_Riserva_Naturale_Regionale_della_Foce_dell%E2%80%99Isonzo-0545.jpg') },
+    { src: '/horses/camargue-3.jpg', source: commons('Camargue_horse_Riserva_Naturale_Regionale_della_Foce_dell%E2%80%99Isonzo-7377.jpg') },
+  ],
+  poitevin: [
+    { src: '/horses/poitevin-2.jpg', source: commons('Poitevins02_SDA2011.JPG') },
+    { src: '/horses/poitevin-3.jpg', source: 'https://www.sfet.fr/les-races/2-chevaux-de-trait/12-le-trait-poitevin-mulassier' },
+  ],
+}
