@@ -19,10 +19,10 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // One immutable document per anonymous browser account and breed. A future
-    // top-horses view can count these documents without collecting personal data.
+    // One immutable document per anonymous browser account and breed. These stay
+    // private until a future server-side top-horses aggregate is added.
     match /breedHearts/{heartId} {
-      allow read: if true;
+      allow read: if false;
       allow create: if request.auth != null
         && request.resource.data.keys().hasOnly(['breedId', 'uid', 'heartedAt'])
         && request.resource.data.uid == request.auth.uid
