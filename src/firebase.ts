@@ -17,6 +17,7 @@ const apiKey = import.meta.env.VITE_FIREBASE_API_KEY?.trim()
 const localKey = 'horseguessr-local-leaderboard'
 const anonymousAuthKey = 'horseguessr-anonymous-auth'
 const pendingPhotoReportsKey = 'horseguessr-pending-photo-reports'
+const submittedPhotoReportsKey = 'horseguessr-submitted-photo-reports'
 
 export const firebaseConfigured = Boolean(projectId && apiKey)
 
@@ -178,6 +179,7 @@ export async function recordBreedFavorite(breedId: string): Promise<void> {
 export type PhotoReportReason = 'not-loading' | 'horse-too-small' | 'person-visible' | 'not-color-photo' | 'wrong-breed' | 'other'
 
 type PendingPhotoReport = {
+  reportId: string
   photoId: string
   breedId: string
   photoUrl: string
@@ -196,8 +198,12 @@ function photoFingerprint(value: string) {
 
 function readPendingPhotoReports(): PendingPhotoReport[] {
   try {
-    const parsed = JSON.parse(localStorage.getItem(pendingPhotoReportsKey) || '[]')
-    return Array.isArray(parsed) ? parsed : []
+    const parsed = JSON.parse(localStorage.getItem(pendingPhotoReportsKey) || '[]') as Array<Partial<PendingPhotoReport>>
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap(item => {
+      if (!item.photoId || !item.breedId || !item.photoUrl || !item.reason || !item.reportedAt) return []
+      return [{ ...item, reportId: item.reportId || crypto.randomUUID() } as PendingPhotoReport]
+    })
   } catch {
     return []
   }
@@ -208,7 +214,7 @@ function writePendingPhotoReports(reports: PendingPhotoReport[]) {
 }
 
 async function sendPhotoReport(report: PendingPhotoReport, auth: AnonymousAuth) {
-  const documentId = `${auth.localId}_${report.photoId}`
+  const documentId = report.reportId
   const response = await fetch(`https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId!)}/databases/(default)/documents/photoReports?documentId=${encodeURIComponent(documentId)}&key=${encodeURIComponent(apiKey!)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth.idToken}` },
@@ -217,7 +223,6 @@ async function sendPhotoReport(report: PendingPhotoReport, auth: AnonymousAuth) 
       breedId: { stringValue: report.breedId },
       photoUrl: { stringValue: report.photoUrl },
       reason: { stringValue: report.reason },
-      uid: { stringValue: auth.localId },
       reportedAt: { timestampValue: report.reportedAt },
     } }),
   })
@@ -225,8 +230,18 @@ async function sendPhotoReport(report: PendingPhotoReport, auth: AnonymousAuth) 
 }
 
 export async function recordPhotoQualityReport(breedId: string, photoUrl: string, reason: PhotoReportReason): Promise<'sent' | 'queued'> {
+  const photoId = photoFingerprint(photoUrl)
+  let submitted = new Set<string>()
+  try {
+    const saved = JSON.parse(localStorage.getItem(submittedPhotoReportsKey) || '[]')
+    if (Array.isArray(saved)) submitted = new Set(saved.filter((id): id is string => typeof id === 'string'))
+  } catch {
+    // A malformed local cache should never block a new report.
+  }
+  if (submitted.has(photoId)) return 'sent'
   const report: PendingPhotoReport = {
-    photoId: photoFingerprint(photoUrl),
+    reportId: crypto.randomUUID(),
+    photoId,
     breedId,
     photoUrl,
     reason,
@@ -240,18 +255,59 @@ export async function recordPhotoQualityReport(breedId: string, photoUrl: string
   try {
     const auth = await anonymousToken()
     const remaining: PendingPhotoReport[] = []
+    const sentPhotoIds: string[] = []
     for (const item of pending) {
       try {
         await sendPhotoReport(item, auth)
+        sentPhotoIds.push(item.photoId)
       } catch {
         remaining.push(item)
       }
     }
     writePendingPhotoReports(remaining)
+    sentPhotoIds.forEach(id => submitted.add(id))
+    localStorage.setItem(submittedPhotoReportsKey, JSON.stringify([...submitted]))
     return remaining.some(item => item.photoId === report.photoId) ? 'queued' : 'sent'
   } catch {
     return 'queued'
   }
+}
+
+export type PhotoQualityReport = {
+  id: string
+  photoId: string
+  breedId: string
+  photoUrl: string
+  reason: PhotoReportReason
+  reportedAt: string
+}
+
+export async function fetchPhotoQualityReports(): Promise<PhotoQualityReport[]> {
+  if (!firebaseConfigured) throw new Error('Firebase is not configured for this build.')
+  const auth = await anonymousToken()
+  const response = await fetch(`https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId!)}/databases/(default)/documents:runQuery?key=${encodeURIComponent(apiKey!)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth.idToken}` },
+    body: JSON.stringify({ structuredQuery: {
+      from: [{ collectionId: 'photoReports' }],
+      orderBy: [{ field: { fieldPath: 'reportedAt' }, direction: 'DESCENDING' }],
+      limit: 500,
+    } }),
+  })
+  if (!response.ok) throw new Error(`Photo report list returned ${response.status}`)
+  const rows = await response.json() as Array<{ document?: { name: string; fields?: Record<string, unknown> } }>
+  return rows.flatMap(row => {
+    if (!row.document?.fields) return []
+    const fields = row.document.fields
+    return [{
+      id: row.document.name.split('/').pop() || crypto.randomUUID(),
+      photoId: stringField(fields.photoId),
+      breedId: stringField(fields.breedId),
+      photoUrl: stringField(fields.photoUrl),
+      reason: stringField(fields.reason) as PhotoReportReason,
+      reportedAt: timestampField(fields.reportedAt),
+    }]
+  })
 }
 
 export async function submitLeaderboardScore(initials: string, score: number, dayKey: string): Promise<LeaderboardResult> {

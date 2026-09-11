@@ -3,9 +3,9 @@ import { createPortal } from 'react-dom'
 import { Circle, CircleMarker, GeoJSON, MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 import L, { LatLngBoundsExpression } from 'leaflet'
 import type { GeoJsonObject } from 'geojson'
-import { ArrowRight, Award, BookHeart, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, Compass, Flag, Heart, Images, Lightbulb, ListChecks, LocateFixed, MapPin, Maximize2, RotateCcw, Search, Share2, Sparkles, Star, Trophy, X, XCircle } from 'lucide-react'
+import { ArrowRight, Award, BookHeart, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, Compass, Flag, Heart, Images, Lightbulb, ListChecks, LocateFixed, MapPin, Maximize2, RotateCcw, Search, Share2, Sparkles, Trophy, X, XCircle } from 'lucide-react'
 import { Breed, breeds } from './data'
-import { fetchLeaderboard, LeaderboardResult, PhotoReportReason, recordBreedFavorite, recordPhotoQualityReport, submitLeaderboardScore } from './firebase'
+import { fetchLeaderboard, fetchPhotoQualityReports, LeaderboardResult, PhotoQualityReport, PhotoReportReason, recordBreedFavorite, recordPhotoQualityReport, submitLeaderboardScore } from './firebase'
 import { BreedPhoto, photosForBreed } from './media'
 import { distanceToOriginZone, OriginZone, originZoneBounds, originZones } from './originRegions'
 import { cookieNames, readCookie, readDailyStreak, readFavoriteIds, readPassportIds, readPersonalBest, sanitizeInitials, updateDailyStreak, updatePersonalBest, writeCookie, writeFavoriteIds, writePassportIds } from './preferences'
@@ -254,8 +254,8 @@ const MagnificationContext = createContext<MagnificationContextValue>({ enabled:
 type FavoritesContextValue = { favoriteIds: string[]; toggleFavorite: (breedId: string) => void }
 const FavoritesContext = createContext<FavoritesContextValue>({ favoriteIds: [], toggleFavorite: () => {} })
 
-type PassportContextValue = { passportIds: string[]; awardPassportStar: (breedId: string) => void }
-const PassportContext = createContext<PassportContextValue>({ passportIds: [], awardPassportStar: () => {} })
+type PassportContextValue = { passportIds: string[]; awardPassportMedal: (breedId: string) => void }
+const PassportContext = createContext<PassportContextValue>({ passportIds: [], awardPassportMedal: () => {} })
 
 function FavoriteButton({ breed }: { breed: Breed }) {
   const { favoriteIds, toggleFavorite } = useContext(FavoritesContext)
@@ -278,10 +278,10 @@ function BreedName({ breed }: { breed: Breed }) {
   return <span className="breed-name-with-heart"><span>{breed.name}</span><FavoriteButton breed={breed} /></span>
 }
 
-function PassportStar({ breed }: { breed: Breed }) {
+function PassportMedal({ breed }: { breed: Breed }) {
   const { passportIds } = useContext(PassportContext)
   if (!passportIds.includes(breed.id)) return null
-  return <span className="passport-earned-star" title="Correctly identified · Passport star earned" aria-label="Passport star earned"><Star size={21} fill="currentColor" /></span>
+  return <span className="passport-earned-medal" title="Correctly identified · Passport medal earned" aria-label="Passport medal earned"><Award size={19} /></span>
 }
 
 function MagnificationToggle() {
@@ -342,7 +342,8 @@ function PhotoViewer({ photos, startSrc, alt, breedId, onClose }: { photos: Bree
     if (!breedId) return
     setReportOpen(false)
     setReportStatus('Saving…')
-    const result = await recordPhotoQualityReport(breedId, current.src, reason)
+    const photoUrl = new URL(current.src, window.location.href).href
+    const result = await recordPhotoQualityReport(breedId, photoUrl, reason)
     setReportStatus(result === 'sent' ? 'Thanks—report sent!' : 'Saved—will send when online.')
   }
   return createPortal(
@@ -617,7 +618,7 @@ function CookieNotice() {
   const dismiss = () => { writeCookie(cookieNames.cookieNotice, 'ok'); setVisible(false) }
   return (
     <aside className="cookie-notice">
-      <span>🍪</span><p><b>Stable cookies!</b> HorseGuessr saves your initials, records, daily streak, passport stars, and favorite breeds on this device.</p>
+      <span>🍪</span><p><b>Stable cookies!</b> HorseGuessr saves your initials, records, daily streak, passport medals, and favorite breeds on this device.</p>
       <button onClick={dismiss}>Okay!</button>
     </aside>
   )
@@ -852,7 +853,7 @@ function Game({ mode, onFinish, onExit }: { mode: 'daily' | 'practice'; onFinish
 }
 
 function BreedQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => void; onExit: () => void }) {
-  const { awardPassportStar } = useContext(PassportContext)
+  const { awardPassportMedal } = useContext(PassportContext)
   const [gameSeed] = useState(() => `breed-quiz-${Date.now()}-${Math.random()}`)
   const roundBreeds = useMemo(() => seededShuffle(breeds, gameSeed).slice(0, MAX_ROUNDS), [gameSeed])
   const [round, setRound] = useState(0)
@@ -880,7 +881,7 @@ function BreedQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
   const selectBreed = (selected: Breed) => {
     if (choice) return
     const nextResult = { breed, choice: selected, correct: selected.id === breed.id, photo: currentPhoto }
-    if (nextResult.correct) awardPassportStar(breed.id)
+    if (nextResult.correct) awardPassportMedal(breed.id)
     setChoice(selected)
     setResults(current => [...current, nextResult])
   }
@@ -981,7 +982,7 @@ function BreedQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
 }
 
 function PhotoQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => void; onExit: () => void }) {
-  const { awardPassportStar } = useContext(PassportContext)
+  const { awardPassportMedal } = useContext(PassportContext)
   const [gameSeed] = useState(() => `photo-quiz-${Date.now()}-${Math.random()}`)
   const roundBreeds = useMemo(() => seededShuffle(breeds, gameSeed).slice(0, MAX_ROUNDS), [gameSeed])
   const [round, setRound] = useState(0)
@@ -1021,7 +1022,7 @@ function PhotoQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
   const selectPhoto = (selected: Breed) => {
     if (choice) return
     const nextResult = { breed, choice: selected, correct: selected.id === breed.id, photo: correctOption.photo }
-    if (nextResult.correct) awardPassportStar(breed.id)
+    if (nextResult.correct) awardPassportMedal(breed.id)
     setChoice(selected)
     setResults(current => [...current, nextResult])
   }
@@ -1239,16 +1240,15 @@ function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, onBack }: { s
           <label className="guide-search"><Search size={18} /><span>Search breeds</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Name, region, coat, or trait…" /></label>
           <label><span>Country</span><select value={country} onChange={event => setCountry(event.target.value)}><option value="">All countries</option>{countries.map(item => <option key={item}>{item}</option>)}</select></label>
           <label><span>Type</span><select value={tag} onChange={event => setTag(event.target.value)}><option value="">All breed types</option>{tags.map(item => <option key={item}>{item}</option>)}</select></label>
-          <label><span>Passport</span><select value={passportFilter} onChange={event => setPassportFilter(event.target.value)}><option value="all">All breeds</option><option value="earned">Star earned</option><option value="unearned">Not identified yet</option></select></label>
+          <label><span>Passport</span><select value={passportFilter} onChange={event => setPassportFilter(event.target.value)}><option value="all">All breeds</option><option value="earned">Medal earned</option><option value="unearned">Not identified yet</option></select></label>
           <div className="guide-filter-result"><strong>{filteredBreeds.length}</strong><span>breeds shown</span><button type="button" onClick={resetFilters}>Reset</button></div>
         </section>
       )}
       <section className="guide-grid">
         {filteredBreeds.map(breed => (
           <article className={`guide-card ${passportIds.includes(breed.id) ? 'guide-card--passport-earned' : ''}`} key={breed.id}>
-            <PassportStar breed={breed} />
             <MagnifiableImage src={breed.image} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} breedId={breed.id} loading="lazy" />
-            <div><span>{breed.country} · <button type="button" className="guide-photo-count" onClick={() => setGalleryBreed(breed)}>{photosForBreed(breed).length} photos <Images size={13} /></button></span><h2><BreedName breed={breed} /></h2><BreedBio breed={breed} /><a href={breed.source} target="_blank" rel="noreferrer">Open breed profile <ArrowRight size={15} /></a></div>
+            <div><span>{breed.country} · <button type="button" className="guide-photo-count" onClick={() => setGalleryBreed(breed)}>{photosForBreed(breed).length} photos <Images size={13} /></button></span><h2><BreedName breed={breed} /><PassportMedal breed={breed} /></h2><BreedBio breed={breed} /><a href={breed.source} target="_blank" rel="noreferrer">Open breed profile <ArrowRight size={15} /></a></div>
           </article>
         ))}
         {shownBreeds.length > 0 && filteredBreeds.length === 0 && <p className="guide-empty">No breeds match this stable search. Try clearing one of the filters.</p>}
@@ -1278,7 +1278,7 @@ function BreedPassport({ onBack }: { onBack: () => void }) {
       <section className="guide-heading passport-heading">
         <p className="eyebrow"><span /> Your breed passport</p>
         <h1>Stable sticker book</h1>
-        <p>Correctly identify a breed in either identification quiz to earn its glossy passport star.</p>
+        <p>Correctly identify a breed in either identification quiz to earn its glossy passport medal.</p>
         <div className="passport-progress"><div><strong>{earned}</strong><span>of {breeds.length} breeds earned</span><b>{percentage}%</b></div><i><span style={{ width: `${percentage}%` }} /></i></div>
       </section>
       <section className="passport-grid">
@@ -1291,12 +1291,92 @@ function BreedPassport({ onBack }: { onBack: () => void }) {
                   ? <MagnifiableImage src={breed.image} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} breedId={breed.id} loading="lazy" />
                   : <div className="passport-sticker__mystery"><img src={`${import.meta.env.BASE_URL}horse-head-logo.png`} alt="" /><span>?</span></div>}
               </div>
-              <span className="passport-sticker__star"><Star size={24} fill={isEarned ? 'currentColor' : 'none'} /></span>
+              <span className="passport-sticker__medal"><Award size={23} /></span>
               <div><small>{isEarned ? `${breed.flag} ${breed.country}` : 'Keep guessing to unlock'}</small><strong>{isEarned ? breed.name : 'Mystery breed'}</strong></div>
             </article>
           )
         })}
       </section>
+    </main>
+  )
+}
+
+type PhotoReportGroup = {
+  photoId: string
+  photoUrl: string
+  breedId: string
+  reports: PhotoQualityReport[]
+}
+
+function PhotoReportDashboard() {
+  const [reports, setReports] = useState<PhotoQualityReport[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const loadReports = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      setReports(await fetchPhotoQualityReports())
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'The report list could not be loaded.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { void loadReports() }, [])
+
+  const groups = useMemo(() => {
+    const grouped = new Map<string, PhotoReportGroup>()
+    reports.forEach(report => {
+      const existing = grouped.get(report.photoId)
+      if (existing) existing.reports.push(report)
+      else grouped.set(report.photoId, { photoId: report.photoId, photoUrl: report.photoUrl, breedId: report.breedId, reports: [report] })
+    })
+    return [...grouped.values()].sort((a, b) => (b.reports[0]?.reportedAt || '').localeCompare(a.reports[0]?.reportedAt || ''))
+  }, [reports])
+
+  const formatReportTime = (value: string) => {
+    const date = new Date(value)
+    return Number.isNaN(date.getTime()) ? 'Unknown time' : new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(date)
+  }
+
+  return (
+    <main className="guide-screen report-dashboard">
+      <nav className="summary-nav"><Brand inverse /><button type="button" className="secondary-button" onClick={() => void loadReports()} disabled={loading}><RotateCcw size={16} /> Refresh reports</button></nav>
+      <section className="guide-heading report-dashboard__heading">
+        <p className="eyebrow"><span /> Stable office</p>
+        <h1>Photo quality reports</h1>
+        <p>Reported public horse photos, grouped by image. No player identity is stored with these reports.</p>
+        <div className="report-dashboard__totals"><strong>{groups.length}</strong> photos · <strong>{reports.length}</strong> reports</div>
+      </section>
+      {loading && <p className="report-dashboard__status">Loading the report box…</p>}
+      {!loading && error && <p className="report-dashboard__status report-dashboard__status--error">{error}</p>}
+      {!loading && !error && groups.length === 0 && <p className="report-dashboard__status">No photos have been reported yet.</p>}
+      {!loading && !error && groups.length > 0 && (
+        <section className="report-dashboard__grid">
+          {groups.map(group => {
+            const breed = breeds.find(item => item.id === group.breedId)
+            const counts = group.reports.reduce<Record<string, number>>((totals, report) => {
+              totals[report.reason] = (totals[report.reason] || 0) + 1
+              return totals
+            }, {})
+            return (
+              <article className="report-card" key={group.photoId}>
+                <a className="report-card__photo" href={group.photoUrl} target="_blank" rel="noreferrer"><img src={group.photoUrl} alt={breed ? `Reported ${breed.name} photo` : 'Reported horse photo'} /></a>
+                <div className="report-card__body">
+                  <span>{breed?.flag} {breed?.country || 'Unknown origin'} · {group.reports.length} {group.reports.length === 1 ? 'report' : 'reports'}</span>
+                  <h2>{breed?.name || group.breedId}</h2>
+                  <ul>{Object.entries(counts).map(([reason, count]) => <li key={reason}><b>{count}×</b> {photoReportOptions.find(option => option.value === reason)?.label || reason}</li>)}</ul>
+                  <small>Latest: {formatReportTime(group.reports[0]?.reportedAt || '')}</small>
+                  <a href={group.photoUrl} target="_blank" rel="noreferrer">Open original photo <ArrowRight size={14} /></a>
+                </div>
+              </article>
+            )
+          })}
+        </section>
+      )}
     </main>
   )
 }
@@ -1313,6 +1393,7 @@ export default function App() {
   const [dailyAttemptKey, setDailyAttemptKey] = useState(() => readCookie(cookieNames.dailyAttempt))
   const centralClock = useCentralClock()
   const dailyLocked = dailyAttemptKey === centralClock.key
+  const reportDashboard = new URLSearchParams(window.location.search).get('stable-view') === 'photo-reports'
   useEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'auto' }) }, [screen])
   useEffect(() => {
     if (dailyAttemptKey === centralClock.key) setDailyStreak(updateDailyStreak(centralClock.key))
@@ -1324,7 +1405,7 @@ export default function App() {
     writeFavoriteIds(next)
     if (isAdding) void recordBreedFavorite(breedId)
   }
-  const awardPassportStar = (breedId: string) => {
+  const awardPassportMedal = (breedId: string) => {
     if (passportIds.includes(breedId)) return
     const next = [...passportIds, breedId]
     setPassportIds(next)
@@ -1341,7 +1422,8 @@ export default function App() {
     setScreen('game')
   }
   let page
-  if (screen === 'game') page = <Game mode={mode} onExit={() => setScreen('home')} onFinish={finalResults => { setResults(finalResults); setScreen('summary') }} />
+  if (reportDashboard) page = <PhotoReportDashboard />
+  else if (screen === 'game') page = <Game mode={mode} onExit={() => setScreen('home')} onFinish={finalResults => { setResults(finalResults); setScreen('summary') }} />
   else if (screen === 'summary') page = <Summary results={results} mode={mode} dayKey={mode === 'daily' ? dailyAttemptKey : centralClock.key} onReplay={() => start('practice')} onHome={() => setScreen('home')} />
   else if (screen === 'breed-quiz') page = <BreedQuiz onExit={() => setScreen('home')} onFinish={finalResults => { setQuizResults(finalResults); setScreen('quiz-summary') }} />
   else if (screen === 'quiz-summary') page = <QuizSummary kind="name" results={quizResults} onReplay={() => { setQuizResults([]); setScreen('breed-quiz') }} onHome={() => setScreen('home')} />
@@ -1354,9 +1436,9 @@ export default function App() {
   return (
     <MagnificationContext.Provider value={{ enabled: magnificationEnabled, setEnabled: setMagnificationEnabled }}>
       <FavoritesContext.Provider value={{ favoriteIds, toggleFavorite }}>
-        <PassportContext.Provider value={{ passportIds, awardPassportStar }}>
+        <PassportContext.Provider value={{ passportIds, awardPassportMedal }}>
           {page}
-          <CookieNotice />
+          {!reportDashboard && <CookieNotice />}
         </PassportContext.Provider>
       </FavoritesContext.Provider>
     </MagnificationContext.Provider>

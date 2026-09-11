@@ -33,13 +33,13 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // Quality reports are private, immutable, and deduplicated per anonymous
-    // browser account and photograph.
+    // Quality reports contain only public photo metadata and the selected reason;
+    // no player identifier is stored. Reads still require Firebase authentication.
     match /photoReports/{reportId} {
-      allow read: if false;
+      allow read: if request.auth != null;
       allow create: if request.auth != null
-        && request.resource.data.keys().hasOnly(['photoId', 'breedId', 'photoUrl', 'reason', 'uid', 'reportedAt'])
-        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['photoId', 'breedId', 'photoUrl', 'reason', 'reportedAt'])
+        && reportId.matches('^[0-9a-f-]{36}$')
         && request.resource.data.photoId is string
         && request.resource.data.photoId.matches('^[a-z0-9]{1,20}$')
         && request.resource.data.breedId is string
@@ -47,7 +47,6 @@ service cloud.firestore {
         && request.resource.data.photoUrl is string
         && request.resource.data.photoUrl.size() <= 2000
         && request.resource.data.reason in ['not-loading', 'horse-too-small', 'person-visible', 'not-color-photo', 'wrong-breed', 'other']
-        && reportId == request.auth.uid + '_' + request.resource.data.photoId
         && request.resource.data.reportedAt is timestamp;
       allow update, delete: if false;
     }
