@@ -113,6 +113,19 @@ export const originZones: Record<string, OriginZone> = {
   karabakh: circle('Karabakh highlands', 'A generous highland region is accepted rather than a single modern administrative point.', 39.81, 46.75, 190),
   breton: circle('Brittany', namedRegion, 48.20, -2.93, 260),
   ardennais: circle('The Ardennes', 'The accepted zone spans the cross-border forested Ardennes region.', 49.85, 4.65, 230),
+  lusitano: circle('Portugal', broadHomeland, 39.40, -8.20, 430),
+  'suffolk-punch': circle('Suffolk and East Anglia', 'A generous regional zone covers the breed’s East Anglian farm homeland.', 52.19, 1.00, 150),
+  'irish-draught': manualPolygon('Ireland', broadHomeland, [[-10.8, 51.3], [-5.3, 51.3], [-5.3, 55.5], [-8.2, 55.5], [-10.8, 54.2]]),
+  'fell-pony': circle('Cumbria and the northern Pennines', 'The full-score area covers the fells and neighboring northern pack-horse country.', 54.58, -2.84, 145),
+  'highland-pony': circle('Scottish Highlands and Islands', 'A broad zone rewards recognition of the breed’s extensive Highland and island homeland.', 57.20, -4.70, 360),
+  pottok: circle('Western Basque Pyrenees', 'The accepted cross-border zone covers the mountain homeland on both sides of the western Pyrenees.', 43.20, -1.55, 170),
+  asturcon: circle('Asturias and the Cantabrian mountains', namedRegion, 43.36, -5.85, 190),
+  menorquin: circle('Menorca', 'The island is small on a world map, so its nearby waters also receive full credit.', 39.95, 4.11, 80),
+  standardbred: circle('Northeastern United States', 'A broad zone covers the early American trotting nurseries of New York and neighboring states.', 41.20, -74.20, 620),
+  'french-trotter': circle('Normandy', namedRegion, 49.05, 0.00, 260),
+  trakehner: circle('Trakehnen and historic East Prussia', specificStud, 54.63, 22.45, 210),
+  'american-cream-draft': circle('Iowa', 'The entire founding state receives full credit rather than requiring one farm.', 42.00, -93.50, 350),
+  'missouri-fox-trotter': circle('Ozark Mountains', 'A broad regional zone covers the Missouri and Arkansas Ozarks where the breed was formed.', 36.75, -92.50, 330),
 }
 
 function haversine(a: MapPoint, b: MapPoint) {

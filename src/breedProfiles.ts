@@ -335,4 +335,69 @@ export const breedProfiles: Record<string, BreedProfile> = {
     coatColors: 'Bay, roan, chestnut, and gray are common, with dark bay or brown and occasional palomino also seen.',
     relatedBreedIds: ['belgian-draft', 'breton', 'comtois'],
   },
+  lusitano: {
+    flag: '🇵🇹',
+    coatColors: 'Gray and bay are most common, with black, chestnut, palomino, buckskin, cremello, and perlino also occurring.',
+    relatedBreedIds: ['andalusian', 'sorraia', 'menorquin'],
+  },
+  'suffolk-punch': {
+    flag: '🇬🇧',
+    coatColors: 'Always chestnut, traditionally described in shades such as bright, red, golden, yellow, light, or dark chestnut; white is limited.',
+    relatedBreedIds: ['shire', 'clydesdale', 'belgian-draft'],
+  },
+  'irish-draught': {
+    flag: '🇮🇪',
+    coatColors: 'Gray, bay, chestnut, brown, and black are usual, with roan also occurring; excessive white is discouraged.',
+    relatedBreedIds: ['connemara', 'cleveland-bay', 'thoroughbred'],
+  },
+  'fell-pony': {
+    flag: '🇬🇧',
+    coatColors: 'Black is predominant, followed by dark brown, bay, and gray; white markings are generally limited to a small star or modest hind pasterns.',
+    relatedBreedIds: ['dales-pony', 'highland-pony', 'shire'],
+  },
+  'highland-pony': {
+    flag: '🇬🇧',
+    coatColors: 'Mouse, yellow, gray, cream, and fox dun are characteristic; gray, brown, black, bay, and liver chestnut with a flaxen mane also occur.',
+    relatedBreedIds: ['fell-pony', 'eriskay-pony', 'fjord'],
+  },
+  pottok: {
+    flag: '🇪🇸',
+    coatColors: 'Traditional mountain Pottoks are black or very dark bay; broader modern populations also include chestnut, bay, and tobiano pinto.',
+    relatedBreedIds: ['asturcon', 'garrano', 'sorraia'],
+  },
+  asturcon: {
+    flag: '🇪🇸',
+    coatColors: 'Black is classic, while chestnut and bay or brown lines are also recognized; markings are minimal, usually no more than a small star.',
+    relatedBreedIds: ['pottok', 'garrano', 'exmoor-pony'],
+  },
+  menorquin: {
+    flag: '🇪🇸',
+    coatColors: 'Black only, ranging from sun-faded brownish black to deep jet black; small white markings may occur within registry limits.',
+    relatedBreedIds: ['lusitano', 'andalusian', 'friesian'],
+  },
+  standardbred: {
+    flag: '🇺🇸',
+    coatColors: 'Bay and brown dominate, with black, chestnut, and gray also seen; roan is uncommon but recognized.',
+    relatedBreedIds: ['french-trotter', 'orlov-trotter', 'ljutomer-trotter'],
+  },
+  'french-trotter': {
+    flag: '🇫🇷',
+    coatColors: 'Bay and chestnut are most common, including dark bay and liver chestnut; brown, black, gray, and roan occur less often.',
+    relatedBreedIds: ['standardbred', 'orlov-trotter', 'ljutomer-trotter'],
+  },
+  trakehner: {
+    flag: '🇩🇪',
+    coatColors: 'All colors are accepted; bay, dark bay, chestnut, black, and gray are most familiar, with rare roan and pinto individuals.',
+    relatedBreedIds: ['thoroughbred', 'arabian', 'shagya-arabian'],
+  },
+  'american-cream-draft': {
+    flag: '🇺🇸',
+    coatColors: 'Gold champagne from light cream to rich gold, with ivory mane and tail, pink or mottled skin, and amber or hazel eyes.',
+    relatedBreedIds: ['belgian-draft', 'suffolk-punch', 'percheron'],
+  },
+  'missouri-fox-trotter': {
+    flag: '🇺🇸',
+    coatColors: 'Every solid equine color appears, including bay, chestnut, black, gray, palomino, buckskin, and roan, plus tobiano and other pinto patterns.',
+    relatedBreedIds: ['tennessee-walker', 'standardbred', 'morgan'],
+  },
 }

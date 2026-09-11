@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { Circle, CircleMarker, GeoJSON, MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 import L, { LatLngBoundsExpression } from 'leaflet'
 import type { GeoJsonObject } from 'geojson'
-import { ArrowRight, BookHeart, BookOpen, CheckCircle2, ChevronRight, Compass, Heart, Images, Lightbulb, ListChecks, LocateFixed, MapPin, Maximize2, RotateCcw, Sparkles, Trophy, X, XCircle } from 'lucide-react'
+import { ArrowRight, BookHeart, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, Compass, Heart, Images, Lightbulb, ListChecks, LocateFixed, MapPin, Maximize2, RotateCcw, Sparkles, Trophy, X, XCircle } from 'lucide-react'
 import { Breed, breeds } from './data'
 import { fetchLeaderboard, LeaderboardResult, submitLeaderboardScore } from './firebase'
 import { BreedPhoto, photosForBreed } from './media'
@@ -270,40 +270,80 @@ function MagnificationToggle() {
   )
 }
 
-function MagnifiableImage({ src, alt, loading = 'eager', fallbacks = [] }: { src: string; alt: string; loading?: 'eager' | 'lazy'; fallbacks?: string[] }) {
+function PhotoViewer({ photos, startSrc, alt, onClose }: { photos: BreedPhoto[]; startSrc: string; alt: string; onClose: () => void }) {
+  const uniquePhotos = useMemo(() => photos.filter((photo, index) => photos.findIndex(item => item.src === photo.src) === index), [photos])
+  const [photoIndex, setPhotoIndex] = useState(() => Math.max(0, uniquePhotos.findIndex(photo => photo.src === startSrc)))
+  const [loaded, setLoaded] = useState(false)
+  const [failed, setFailed] = useState<number[]>([])
+  const current = uniquePhotos[photoIndex] ?? uniquePhotos[0]
+  const move = (direction: number) => {
+    if (uniquePhotos.length < 2) return
+    setLoaded(false)
+    setPhotoIndex(index => (index + direction + uniquePhotos.length) % uniquePhotos.length)
+  }
+  useEffect(() => {
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+      if (event.key === 'ArrowLeft') move(-1)
+      if (event.key === 'ArrowRight') move(1)
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  })
+  if (!current) return null
+  const photoUnavailable = failed.length >= uniquePhotos.length
+  const handleError = () => {
+    setFailed(items => items.includes(photoIndex) ? items : [...items, photoIndex])
+    const next = uniquePhotos.findIndex((_, index) => index !== photoIndex && !failed.includes(index))
+    if (next >= 0) { setLoaded(false); setPhotoIndex(next) }
+  }
+  return createPortal(
+    <div className="magnified-preview magnified-preview--open" role="dialog" aria-modal="true" aria-label={`Photo gallery for ${alt}`} onMouseDown={onClose}>
+      <div className="magnified-preview__frame" onMouseDown={event => event.stopPropagation()}>
+        <button type="button" className="magnified-preview__close" onClick={onClose} aria-label="Close photo gallery"><X size={20} /></button>
+        <div className="magnified-preview__media">
+          {!loaded && !photoUnavailable && <span className="photo-loading" aria-hidden="true"><i>♥</i><small>loading horse...</small></span>}
+          {photoUnavailable
+            ? <p className="magnified-preview__error">This photo set is resting right now. Please try again later.</p>
+            : <img key={current.src} src={current.src} alt={`${alt}, photo ${photoIndex + 1} of ${uniquePhotos.length}`} onLoad={() => setLoaded(true)} onError={handleError} />}
+        </div>
+        {uniquePhotos.length > 1 && <>
+          <button type="button" className="gallery-arrow gallery-arrow--previous" onClick={() => move(-1)} aria-label="Previous horse photo"><ChevronLeft size={28} /></button>
+          <button type="button" className="gallery-arrow gallery-arrow--next" onClick={() => move(1)} aria-label="Next horse photo"><ChevronRight size={28} /></button>
+        </>}
+        <div className="photo-gallery-bar">
+          <strong>{alt}</strong>
+          <span>{photoIndex + 1} / {uniquePhotos.length}</span>
+          {current.source && <a href={current.source} target="_blank" rel="noreferrer">Photo source ↗</a>}
+        </div>
+        <small>Use the arrows or keyboard · one photo at a time · Esc closes</small>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
+function MagnifiableImage({ src, alt, loading = 'eager', fallbacks = [], photos = [] }: { src: string; alt: string; loading?: 'eager' | 'lazy'; fallbacks?: string[]; photos?: BreedPhoto[] }) {
   const [expanded, setExpanded] = useState(false)
   const [candidateIndex, setCandidateIndex] = useState(0)
   const [loaded, setLoaded] = useState(false)
   const { enabled } = useContext(MagnificationContext)
-  const candidates = useMemo(() => [...new Set([src, ...fallbacks, `${import.meta.env.BASE_URL}horses/akhal-teke.jpg`])], [src, fallbacks])
+  const candidates = useMemo(() => [...new Set([src, ...photos.map(photo => photo.src), ...fallbacks, `${import.meta.env.BASE_URL}horses/akhal-teke.jpg`])], [src, fallbacks, photos])
   const activeSrc = candidates[Math.min(candidateIndex, candidates.length - 1)]
+  const gallery = useMemo(() => {
+    const supplied = photos.length ? photos : candidates.map(candidate => ({ src: candidate, source: '' }))
+    return supplied.filter((photo, index) => supplied.findIndex(item => item.src === photo.src) === index)
+  }, [photos, candidates])
   const tryNextPhoto = () => {
     setLoaded(false)
     setCandidateIndex(index => Math.min(index + 1, candidates.length - 1))
   }
-  useEffect(() => {
-    if (!expanded) return
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setExpanded(false)
-    }
-    window.addEventListener('keydown', closeOnEscape)
-    return () => window.removeEventListener('keydown', closeOnEscape)
-  }, [expanded])
   return (
     <span className={`magnifiable-image ${loaded ? 'is-loaded' : 'is-loading'}`}>
       {!loaded && <span className="photo-loading" aria-hidden="true"><i>♥</i><small>loading horse...</small></span>}
       <img src={activeSrc} alt={alt} loading={loading} onLoad={() => setLoaded(true)} onError={tryNextPhoto} />
       {enabled && <button type="button" className="magnify-hint" onClick={event => { event.preventDefault(); event.stopPropagation(); setExpanded(true) }}><Maximize2 size={13} /> Full view</button>}
-      {expanded && enabled && createPortal(
-        <div className="magnified-preview magnified-preview--open" role="dialog" aria-modal="true" aria-label={`Full view of ${alt}`} onMouseDown={() => setExpanded(false)}>
-          <div className="magnified-preview__frame" onMouseDown={event => event.stopPropagation()}>
-            <button type="button" className="magnified-preview__close" onClick={() => setExpanded(false)} aria-label="Close full view"><X size={20} /></button>
-            <img src={activeSrc} alt={alt} />
-            <small>Full-proportion photo · click outside or press Esc to close</small>
-          </div>
-        </div>,
-        document.body,
-      )}
+      {expanded && enabled && <PhotoViewer photos={gallery} startSrc={activeSrc} alt={alt} onClose={() => setExpanded(false)} />}
     </span>
   )
 }
@@ -417,7 +457,7 @@ function ResultReviewMap({ results, kind }: { results: ReviewResult[]; kind: 'ri
         {selected && (
           <article className="review-map-card" aria-live="polite">
             <button className="review-map-card__close" onClick={() => setSelectedIndex(null)} aria-label="Close breed review"><X size={18} /></button>
-            <div className="review-map-card__photo"><MagnifiableImage key={selected.photo.src} src={selected.photo.src} fallbacks={photosForBreed(selected.breed).map(photo => photo.src)} alt={selected.breed.name} /></div>
+            <div className="review-map-card__photo"><MagnifiableImage key={selected.photo.src} src={selected.photo.src} photos={photosForBreed(selected.breed)} fallbacks={photosForBreed(selected.breed).map(photo => photo.src)} alt={selected.breed.name} /></div>
             <div className="review-map-card__body">
               <span className="review-map-card__index">HORSE {String(selectedIndex! + 1).padStart(2, '0')} · {selected.breed.country}</span>
               <h3><BreedName breed={selected.breed} /></h3>
@@ -448,7 +488,7 @@ function HorseDetailsModal({ breed, photo, onClose }: { breed: Breed; photo: Bre
     <div className="modal-backdrop horse-day-backdrop" role="dialog" aria-modal="true" aria-label={`${breed.name} horse of the day`} onMouseDown={onClose}>
       <article className="horse-day-card" onMouseDown={event => event.stopPropagation()}>
         <button className="horse-day-card__close" onClick={onClose} aria-label="Close horse of the day"><X size={20} /></button>
-        <div className="horse-day-card__photo"><MagnifiableImage src={photo.src} fallbacks={photosForBreed(breed).map(item => item.src)} alt={breed.name} /></div>
+        <div className="horse-day-card__photo"><MagnifiableImage src={photo.src} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(item => item.src)} alt={breed.name} /></div>
         <div className="horse-day-card__body">
           <span>♥ HORSE OF THE DAY ♥</span>
           <h2><BreedName breed={breed} /></h2>
@@ -688,7 +728,7 @@ function Game({ mode, onFinish, onExit }: { mode: 'daily' | 'practice'; onFinish
           </div>
 
           <figure className={`horse-photo ${result ? 'horse-photo--revealed' : ''}`}>
-            <MagnifiableImage key={currentPhoto.src} src={currentPhoto.src} fallbacks={photoPool.map(photo => photo.src)} alt={result ? breed.name : 'Mystery horse breed'} />
+            <MagnifiableImage key={currentPhoto.src} src={currentPhoto.src} photos={photoPool} fallbacks={photoPool.map(photo => photo.src)} alt={result ? breed.name : 'Mystery horse breed'} />
             <div className="photo-corners" aria-hidden="true"><i /><i /><i /><i /></div>
             {!result && <figcaption>Observe closely <span>•</span> no reverse image search</figcaption>}
             {result && <a href={currentPhoto.source} target="_blank" rel="noreferrer">Image source ↗ · photo {photoIndex + 1} of {photoPool.length}</a>}
@@ -792,7 +832,7 @@ function BreedQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
           </div>
 
           <figure className={`horse-photo quiz-photo ${choice ? 'horse-photo--revealed' : ''}`}>
-            <MagnifiableImage key={currentPhoto.src} src={currentPhoto.src} fallbacks={photoPool.map(photo => photo.src)} alt={choice ? breed.name : 'Mystery horse breed'} />
+            <MagnifiableImage key={currentPhoto.src} src={currentPhoto.src} photos={photoPool} fallbacks={photoPool.map(photo => photo.src)} alt={choice ? breed.name : 'Mystery horse breed'} />
             <div className="photo-corners" aria-hidden="true"><i /><i /><i /><i /></div>
             {!choice && <figcaption>Study build, coat, head, mane, and proportions</figcaption>}
             {choice && <a href={currentPhoto.source} target="_blank" rel="noreferrer">Image source ↗ · photo {photoIndex + 1} of {photoPool.length}</a>}
@@ -937,7 +977,7 @@ function PhotoQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
                   aria-disabled={Boolean(choice)}
                   aria-label={`Photo ${letter}${choice ? `: ${option.breed.name}` : ''}`}
                 >
-                  <MagnifiableImage src={option.photo.src} fallbacks={photosForBreed(option.breed).map(photo => photo.src)} alt={`Horse option ${letter}`} />
+                  <MagnifiableImage src={option.photo.src} photos={photosForBreed(option.breed)} fallbacks={photosForBreed(option.breed).map(photo => photo.src)} alt={`Horse option ${letter}`} />
                   <span className="photo-choice__letter">{letter}</span>
                   {choice && <span className="photo-choice__name">{option.breed.name}</span>}
                   {isCorrect && <span className="photo-choice__status"><CheckCircle2 size={18} /> Correct</span>}
@@ -1052,6 +1092,7 @@ function QuizSummary({ results, kind, onReplay, onHome }: { results: QuizResult[
 
 function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, onBack }: { shownBreeds: Breed[]; title: string; eyebrow: string; emptyCopy?: string; onBack: () => void }) {
   const photoCount = shownBreeds.reduce((total, breed) => total + photosForBreed(breed).length, 0)
+  const [galleryBreed, setGalleryBreed] = useState<Breed | null>(null)
   return (
     <main className="guide-screen">
       <nav className="summary-nav"><Brand inverse /><div className="summary-nav-actions"><MagnificationToggle /><button className="text-button" onClick={onBack}><ArrowRight className="arrow-back" size={17} /> Back</button></div></nav>
@@ -1059,11 +1100,12 @@ function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, onBack }: { s
       <section className="guide-grid">
         {shownBreeds.map(breed => (
           <article className="guide-card" key={breed.id}>
-            <MagnifiableImage src={breed.image} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} loading="lazy" />
-            <div><span>{breed.country} · {photosForBreed(breed).length} photos</span><h2><BreedName breed={breed} /></h2><BreedBio breed={breed} /><a href={breed.source} target="_blank" rel="noreferrer">Open breed profile <ArrowRight size={15} /></a></div>
+            <MagnifiableImage src={breed.image} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} loading="lazy" />
+            <div><span>{breed.country} · <button type="button" className="guide-photo-count" onClick={() => setGalleryBreed(breed)}>{photosForBreed(breed).length} photos <Images size={13} /></button></span><h2><BreedName breed={breed} /></h2><BreedBio breed={breed} /><a href={breed.source} target="_blank" rel="noreferrer">Open breed profile <ArrowRight size={15} /></a></div>
           </article>
         ))}
       </section>
+      {galleryBreed && <PhotoViewer photos={photosForBreed(galleryBreed)} startSrc={galleryBreed.image} alt={galleryBreed.name} onClose={() => setGalleryBreed(null)} />}
     </main>
   )
 }

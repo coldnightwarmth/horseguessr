@@ -151,4 +151,56 @@ export const extraPhotos: Record<string, BreedPhoto[]> = {
     { src: commonsPhoto('Ardennais 2.JPG'), source: commons('Ardennais_2.JPG') },
     { src: commonsPhoto('Ardennais 3.JPG'), source: commons('Ardennais_3.JPG') },
   ],
+  lusitano: [
+    { src: commonsPhoto('Horse December 2014-3.jpg'), source: commons('Horse_December_2014-3.jpg') },
+    { src: commonsPhoto('Beja lusitano.JPG'), source: commons('Beja_lusitano.JPG') },
+  ],
+  'suffolk-punch': [
+    { src: commonsPhoto('Suffolk Punch horses - geograph.org.uk - 454412.jpg'), source: commons('Suffolk_Punch_horses_-_geograph.org.uk_-_454412.jpg') },
+    { src: commonsPhoto('Suffolk Punch Horses. - geograph.org.uk - 2030378.jpg'), source: commons('Suffolk_Punch_Horses._-_geograph.org.uk_-_2030378.jpg') },
+  ],
+  'irish-draught': [
+    { src: commonsPhoto('Irish Draft Horse.jpg'), source: commons('Irish_Draft_Horse.jpg') },
+    { src: commonsPhoto('Bridon Belfrey, RID, Irish Draught Stallion.jpg'), source: commons('Bridon_Belfrey,_RID,_Irish_Draught_Stallion.jpg') },
+  ],
+  'fell-pony': [
+    { src: commonsPhoto('Fellpony Longstreamlet Kim.jpg'), source: commons('Fellpony_Longstreamlet_Kim.jpg') },
+    { src: commonsPhoto('Fell pony.jpg'), source: commons('Fell_pony.jpg') },
+  ],
+  'highland-pony': [
+    { src: commonsPhoto('Highland Pony Stallion.jpg'), source: commons('Highland_Pony_Stallion.jpg') },
+    { src: commonsPhoto('Highlandpony (2).jpg'), source: commons('Highlandpony_(2).jpg') },
+  ],
+  pottok: [
+    { src: commonsPhoto('2016 biriatu xoldokogaina 09.jpg'), source: commons('2016_biriatu_xoldokogaina_09.jpg') },
+    { src: commonsPhoto('Pottokak moxala martxan.JPG'), source: commons('Pottokak_moxala_martxan.JPG') },
+  ],
+  asturcon: [
+    { src: commonsPhoto('Caballo de montaña.jpg'), source: commons('Caballo_de_montaña.jpg') },
+    { src: commonsPhoto('Caballo de montaña1.jpg'), source: commons('Caballo_de_montaña1.jpg') },
+  ],
+  menorquin: [
+    { src: commonsPhoto('Barranc de Son Boter o de sa Vall (30 de julio de 2015, Alaior) 09.jpg'), source: commons('Barranc_de_Son_Boter_o_de_sa_Vall_(30_de_julio_de_2015,_Alaior)_09.jpg') },
+    { src: commonsPhoto('Cabbalos Baleares.jpg'), source: commons('Cabbalos_Baleares.jpg') },
+  ],
+  standardbred: [
+    { src: commonsPhoto('Bestineo Standartbred foal.jpg'), source: commons('Bestineo_Standartbred_foal.jpg') },
+    { src: commonsPhoto('Winter Horse Face Portrait.jpg'), source: commons('Winter_Horse_Face_Portrait.jpg') },
+  ],
+  'french-trotter': [
+    { src: commonsPhoto('Born Again at Guillac, 2019.jpg'), source: commons('Born_Again_at_Guillac,_2019.jpg') },
+    { src: commonsPhoto("Brave d'Arzal at Guillac, 2019.jpg"), source: commons("Brave_d'Arzal_at_Guillac,_2019.jpg") },
+  ],
+  trakehner: [
+    { src: commonsPhoto('Trakehner horse (Belagro-2021) 1.jpg'), source: commons('Trakehner_horse_(Belagro-2021)_1.jpg') },
+    { src: commonsPhoto('Trakehner foal.jpg'), source: commons('Trakehner_foal.jpg') },
+  ],
+  'american-cream-draft': [
+    { src: commonsPhoto('Draft horse.jpg'), source: commons('Draft_horse.jpg') },
+    { src: commonsPhoto('Horse Portrait.jpg'), source: commons('Horse_Portrait.jpg') },
+  ],
+  'missouri-fox-trotter': [
+    { src: commonsPhoto('Missouri Fox Trotter 1.jpg'), source: commons('Missouri_Fox_Trotter_1.jpg') },
+    { src: commonsPhoto('Missouri Fox Trotter 3.jpg'), source: commons('Missouri_Fox_Trotter_3.jpg') },
+  ],
 }
