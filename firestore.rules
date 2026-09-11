@@ -18,5 +18,19 @@ service cloud.firestore {
         && request.resource.data.playedAt is timestamp;
       allow update, delete: if false;
     }
+
+    // One immutable document per anonymous browser account and breed. A future
+    // top-horses view can count these documents without collecting personal data.
+    match /breedHearts/{heartId} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['breedId', 'uid', 'heartedAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.breedId is string
+        && request.resource.data.breedId.matches('^[a-z0-9-]{2,80}$')
+        && heartId == request.resource.data.breedId + '_' + request.auth.uid
+        && request.resource.data.heartedAt is timestamp;
+      allow update, delete: if false;
+    }
   }
 }

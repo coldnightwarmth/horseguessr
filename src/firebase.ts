@@ -15,6 +15,7 @@ export type LeaderboardResult = {
 const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID?.trim()
 const apiKey = import.meta.env.VITE_FIREBASE_API_KEY?.trim()
 const localKey = 'horseguessr-local-leaderboard'
+const anonymousAuthKey = 'horseguessr-anonymous-auth'
 
 export const firebaseConfigured = Boolean(projectId && apiKey)
 
@@ -81,14 +82,96 @@ export async function fetchLeaderboard(): Promise<LeaderboardResult> {
   }
 }
 
-async function anonymousToken() {
+type AnonymousAuth = {
+  idToken: string
+  localId: string
+  refreshToken: string
+  expiresAt: number
+}
+
+let authRequest: Promise<AnonymousAuth> | null = null
+
+function readAnonymousAuth(): AnonymousAuth | null {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(anonymousAuthKey) || 'null') as Partial<AnonymousAuth> | null
+    if (!parsed || typeof parsed.idToken !== 'string' || typeof parsed.localId !== 'string' || typeof parsed.refreshToken !== 'string' || typeof parsed.expiresAt !== 'number') return null
+    return parsed as AnonymousAuth
+  } catch {
+    return null
+  }
+}
+
+function saveAnonymousAuth(auth: AnonymousAuth) {
+  localStorage.setItem(anonymousAuthKey, JSON.stringify(auth))
+  return auth
+}
+
+async function refreshAnonymousToken(auth: AnonymousAuth): Promise<AnonymousAuth> {
+  const response = await fetch(`https://securetoken.googleapis.com/v1/token?key=${encodeURIComponent(apiKey!)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: auth.refreshToken }),
+  })
+  if (!response.ok) throw new Error(`Anonymous token refresh returned ${response.status}`)
+  const refreshed = await response.json() as { id_token: string; user_id: string; refresh_token: string; expires_in: string }
+  return saveAnonymousAuth({
+    idToken: refreshed.id_token,
+    localId: refreshed.user_id,
+    refreshToken: refreshed.refresh_token,
+    expiresAt: Date.now() + Math.max(60, Number(refreshed.expires_in) - 60) * 1000,
+  })
+}
+
+async function requestAnonymousToken(): Promise<AnonymousAuth> {
+  const cached = readAnonymousAuth()
+  if (cached && cached.expiresAt > Date.now()) return cached
+  if (cached?.refreshToken) {
+    try {
+      return await refreshAnonymousToken(cached)
+    } catch {
+      localStorage.removeItem(anonymousAuthKey)
+    }
+  }
+
   const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${encodeURIComponent(apiKey!)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ returnSecureToken: true }),
   })
   if (!response.ok) throw new Error(`Anonymous sign-in returned ${response.status}`)
-  return response.json() as Promise<{ idToken: string; localId: string }>
+  const created = await response.json() as { idToken: string; localId: string; refreshToken: string; expiresIn: string }
+  return saveAnonymousAuth({
+    idToken: created.idToken,
+    localId: created.localId,
+    refreshToken: created.refreshToken,
+    expiresAt: Date.now() + Math.max(60, Number(created.expiresIn) - 60) * 1000,
+  })
+}
+
+async function anonymousToken() {
+  if (!authRequest) authRequest = requestAnonymousToken().finally(() => { authRequest = null })
+  return authRequest
+}
+
+export async function recordBreedFavorite(breedId: string): Promise<void> {
+  if (!firebaseConfigured) return
+  try {
+    const auth = await anonymousToken()
+    const documentId = `${breedId}_${auth.localId}`
+    const response = await fetch(`https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId!)}/databases/(default)/documents/breedHearts?documentId=${encodeURIComponent(documentId)}&key=${encodeURIComponent(apiKey!)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth.idToken}` },
+      body: JSON.stringify({ fields: {
+        breedId: { stringValue: breedId },
+        uid: { stringValue: auth.localId },
+        heartedAt: { timestampValue: new Date().toISOString() },
+      } }),
+    })
+    // A conflict means this browser has already contributed its one heart for the breed.
+    if (!response.ok && response.status !== 409) throw new Error(`Favorite save returned ${response.status}`)
+  } catch (error) {
+    console.warn('HorseGuessr could not record this favorite for the future popularity count.', error)
+  }
 }
 
 export async function submitLeaderboardScore(initials: string, score: number, dayKey: string): Promise<LeaderboardResult> {

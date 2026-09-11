@@ -5,7 +5,7 @@ import L, { LatLngBoundsExpression } from 'leaflet'
 import type { GeoJsonObject } from 'geojson'
 import { ArrowRight, BookHeart, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, Compass, Heart, Images, Lightbulb, ListChecks, LocateFixed, MapPin, Maximize2, RotateCcw, Sparkles, Trophy, X, XCircle } from 'lucide-react'
 import { Breed, breeds } from './data'
-import { fetchLeaderboard, LeaderboardResult, submitLeaderboardScore } from './firebase'
+import { fetchLeaderboard, LeaderboardResult, recordBreedFavorite, submitLeaderboardScore } from './firebase'
 import { BreedPhoto, photosForBreed } from './media'
 import { distanceToOriginZone, OriginZone, originZoneBounds, originZones } from './originRegions'
 import { cookieNames, readCookie, readFavoriteIds, readPersonalBest, sanitizeInitials, updatePersonalBest, writeCookie, writeFavoriteIds } from './preferences'
@@ -362,7 +362,7 @@ function SuccessSparkles({ show }: { show: boolean }) {
         } as React.CSSProperties
         return <i key={index} style={style}>{index % 3 === 0 ? '♥' : index % 2 === 0 ? '✦' : '★'}</i>
       })}
-      <strong>Perfect! + sparkle power</strong>
+      <strong>Perfect!</strong>
     </div>,
     document.body,
   )
@@ -1131,11 +1131,11 @@ export default function App() {
   const centralClock = useCentralClock()
   const dailyLocked = dailyAttemptKey === centralClock.key
   const toggleFavorite = (breedId: string) => {
-    setFavoriteIds(current => {
-      const next = current.includes(breedId) ? current.filter(id => id !== breedId) : [...current, breedId]
-      writeFavoriteIds(next)
-      return next
-    })
+    const isAdding = !favoriteIds.includes(breedId)
+    const next = isAdding ? [...favoriteIds, breedId] : favoriteIds.filter(id => id !== breedId)
+    setFavoriteIds(next)
+    writeFavoriteIds(next)
+    if (isAdding) void recordBreedFavorite(breedId)
   }
   const start = (nextMode: 'daily' | 'practice') => {
     if (nextMode === 'daily') {

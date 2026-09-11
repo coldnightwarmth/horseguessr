@@ -676,7 +676,7 @@ button:focus-visible, a:focus-visible, [role='button']:focus-visible { outline-c
 .magnify-hint:hover { background: #fff589; }
 .magnified-preview {
   inset: 0;
-  z-index: 4000;
+  z-index: 8000;
   padding: 28px;
   border: 0;
   border-radius: 0;
@@ -1237,15 +1237,28 @@ body,
 .guide-screen,
 .game-screen {
   background-color: #48a849;
-  background-image:
-    linear-gradient(63deg, transparent 72%, rgba(212, 255, 139, .5) 73% 76%, transparent 77%),
-    linear-gradient(117deg, transparent 70%, rgba(20, 111, 34, .5) 71% 75%, transparent 76%),
-    linear-gradient(78deg, transparent 74%, rgba(133, 226, 74, .55) 75% 78%, transparent 79%),
-    radial-gradient(circle at 28% 22%, #73d15a 0 2px, transparent 3px),
-    linear-gradient(135deg, #55ba4d 25%, #47a845 25% 50%, #50b34a 50% 75%, #45a141 75%);
+  background-image: url('./assets/grass-meadow-tile.png');
   background-repeat: repeat;
-  background-size: 19px 23px, 23px 19px, 29px 25px, 17px 17px, 12px 12px;
+  background-size: 512px 512px;
   background-attachment: fixed;
+}
+
+.home-screen,
+.summary-screen,
+.guide-screen {
+  background-image:
+    linear-gradient(rgba(71, 31, 92, .24), rgba(71, 31, 92, .24)),
+    url('./assets/grass-meadow-tile.png');
+  background-repeat: repeat, repeat;
+  background-size: auto, 512px 512px;
+}
+
+.game-screen {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, .08), rgba(255, 255, 255, .08)),
+    url('./assets/grass-meadow-tile.png');
+  background-repeat: repeat, repeat;
+  background-size: auto, 512px 512px;
 }
 
 .home-screen::before, .summary-screen::before, .guide-screen::before { display: none; }
