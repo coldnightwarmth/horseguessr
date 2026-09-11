@@ -1,0 +1,22 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /leaderboard/{entryId} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['initials', 'score', 'dayKey', 'uid', 'playedAt'])
+        && request.resource.data.uid == request.auth.uid
+        && entryId == request.resource.data.dayKey + '_' + request.auth.uid
+        && request.resource.data.initials is string
+        && request.resource.data.initials.matches('^[A-Z0-9]{2,3}$')
+        && request.resource.data.score is int
+        && request.resource.data.score >= 0
+        && request.resource.data.score <= 40000
+        && request.resource.data.dayKey is string
+        && request.resource.data.dayKey.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.playedAt is timestamp;
+      allow update, delete: if false;
+    }
+  }
+}
