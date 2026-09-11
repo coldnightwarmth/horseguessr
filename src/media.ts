@@ -5,6 +5,33 @@ export type BreedPhoto = { src: string; source: string }
 
 const commons = (file: string) => `https://commons.wikimedia.org/wiki/File:${file}`
 
+// These otherwise valid archive images are intentionally kept out of the game pool:
+// monochrome/sepia references and landscape shots where the horse is too small to study.
+const excludedPhotoFiles = [
+  'arabian-3.jpg',
+  'caspian-1.jpg',
+  'caspian-2.jpg',
+  'connemara-1.jpg',
+  'eriskay-pony-2.jpg',
+  'eriskay-pony-3.jpg',
+  'exmoor-pony-1.jpg',
+  'furioso-north-star-3.jpg',
+  'gidran-2.jpg',
+  'gidran-3.jpg',
+  'giara-3.jpg',
+  'hucul-3.jpg',
+  'icelandic-3.jpg',
+  'kisber-felver-2.jpg',
+  'konik-1.jpg',
+  'morgan-2.jpg',
+  'nordlandshest-3.jpg',
+  'yakutian-2.jpg',
+]
+
+function isPlayablePhoto(photo: BreedPhoto) {
+  return !excludedPhotoFiles.some(file => photo.src.endsWith(`/horses/${file}`))
+}
+
 const alternatePhotos: Record<string, BreedPhoto[]> = {
   'akhal-teke': [
     { src: '/horses/akhal-teke-2.jpg', source: commons('Akhal-Teke_mare.jpg') },
@@ -137,8 +164,7 @@ export function resolvePhotoPath(path: string) {
 }
 
 export function photosForBreed(breed: Breed): BreedPhoto[] {
-  return [{ src: breed.image, source: breed.imageSource }, ...(alternatePhotos[breed.id] ?? [])].map(photo => ({
-    ...photo,
-    src: resolvePhotoPath(photo.src),
-  }))
+  return [{ src: breed.image, source: breed.imageSource }, ...(alternatePhotos[breed.id] ?? [])]
+    .map(photo => ({ ...photo, src: resolvePhotoPath(photo.src) }))
+    .filter(isPlayablePhoto)
 }

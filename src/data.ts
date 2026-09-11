@@ -1,4 +1,5 @@
 import { extraBreeds } from './extraData'
+import { breedProfiles } from './breedProfiles'
 
 export type Breed = {
   id: string
@@ -13,9 +14,14 @@ export type Breed = {
   fact: string
   tags: string[]
   source: string
+  flag: string
+  coatColors: string
+  relatedBreedIds: string[]
 }
 
-const breedData: Breed[] = [
+export type BreedSeed = Omit<Breed, 'flag' | 'coatColors' | 'relatedBreedIds'>
+
+const breedData: BreedSeed[] = [
   {
     id: 'akhal-teke', name: 'Akhal-Teke', image: '/horses/akhal-teke.jpg',
     imageSource: 'https://commons.wikimedia.org/wiki/File:Dagat-Geli.jpg',
@@ -261,5 +267,6 @@ const breedData: Breed[] = [
 
 export const breeds: Breed[] = breedData.map(breed => ({
   ...breed,
+  ...breedProfiles[breed.id],
   image: breed.image.startsWith('/') ? `${import.meta.env.BASE_URL}${breed.image.slice(1)}` : breed.image,
 }))

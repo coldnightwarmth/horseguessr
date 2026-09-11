@@ -1,23 +1,41 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { Children, createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Circle, CircleMarker, GeoJSON, MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 import L, { LatLngBoundsExpression } from 'leaflet'
 import type { GeoJsonObject } from 'geojson'
-import { ArrowRight, BookOpen, CheckCircle2, ChevronRight, Compass, Images, Lightbulb, ListChecks, LocateFixed, MapPin, Maximize2, RotateCcw, Sparkles, Trophy, X, XCircle } from 'lucide-react'
+import { ArrowRight, BookHeart, BookOpen, CheckCircle2, ChevronRight, Compass, Heart, Images, Lightbulb, ListChecks, LocateFixed, MapPin, Maximize2, RotateCcw, Sparkles, Trophy, X, XCircle } from 'lucide-react'
 import { Breed, breeds } from './data'
+import { fetchLeaderboard, LeaderboardResult, submitLeaderboardScore } from './firebase'
 import { BreedPhoto, photosForBreed } from './media'
 import { distanceToOriginZone, OriginZone, originZoneBounds, originZones } from './originRegions'
+import { cookieNames, readCookie, readFavoriteIds, readPersonalBest, sanitizeInitials, updatePersonalBest, writeCookie, writeFavoriteIds } from './preferences'
 
 type Point = { lat: number; lng: number }
-type Screen = 'home' | 'game' | 'summary' | 'guide' | 'breed-quiz' | 'quiz-summary' | 'photo-quiz' | 'photo-summary'
+type Screen = 'home' | 'game' | 'summary' | 'guide' | 'favorites' | 'breed-quiz' | 'quiz-summary' | 'photo-quiz' | 'photo-summary'
 type RoundResult = { breed: Breed; distance: number; points: number; guess: Point; usedHint: boolean; photo: BreedPhoto; insideRegion: boolean; nearest: Point }
 type QuizResult = { breed: Breed; choice: Breed; correct: boolean; photo: BreedPhoto }
 type ReviewResult = RoundResult | QuizResult
 
 const MAX_ROUNDS = 8
 
-function dateKey() {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'UTC' }).format(new Date())
+function dateKey(date = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(date)
+}
+
+function useCentralClock() {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 15_000)
+    return () => window.clearInterval(timer)
+  }, [])
+  const timeParts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  }).formatToParts(now)
+  const part = (type: Intl.DateTimeFormatPartTypes) => Number(timeParts.find(item => item.type === type)?.value || 0)
+  const secondsRemaining = 86_400 - (part('hour') * 3600 + part('minute') * 60 + part('second'))
+  const hours = Math.floor(secondsRemaining / 3600)
+  const minutes = Math.floor((secondsRemaining % 3600) / 60)
+  return { key: dateKey(now), resetIn: `${hours}h ${String(minutes).padStart(2, '0')}m` }
 }
 
 function seededShuffle<T>(items: T[], seedText: string): T[] {
@@ -40,6 +58,41 @@ function formatNumber(value: number) {
 
 function hashText(value: string) {
   return [...value].reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) >>> 0, 2166136261)
+}
+
+const nudgeOverrides: Record<string, string> = {
+  'ljutomer-trotter': 'Look for a balanced light-harness build, clean legs, and an efficient, even trotting action.',
+  'cape-boerperd': 'A tough, comfortable riding horse selected for stamina, sure-footedness, and an even temperament.',
+  nonius: 'Usually dark, substantial, and Roman-nosed, with the power and bone of a traditional harness horse.',
+  gidran: 'Traditionally chestnut, refined but strong, with a recognizable cavalry and Anglo-Arabian stamp.',
+  'furioso-north-star': 'A sturdy, athletic warmblood with strong Thoroughbred influence and a versatile riding-horse frame.',
+  'kisber-felver': 'An elegant, light-framed half-bred with long athletic lines and a strong Thoroughbred influence.',
+  hucul: 'A compact mountain horse with primitive markings, hard feet, and remarkable sure-footedness.',
+  konik: 'A small mouse-dun horse with a dark dorsal stripe and a hardy, primitive appearance.',
+  yakutian: 'A compact horse with an extraordinarily dense winter coat and extreme tolerance for cold.',
+  caspian: 'Tiny but horse-proportioned, with refined limbs and head rather than the heavy build of a pony.',
+  kathiawari: 'A desert-adapted riding horse whose inward-curving ears may meet at the tips.',
+  sorraia: 'Typically dun or grullo, with a dorsal stripe, dark points, and a narrow primitive frame.',
+  'dales-pony': 'A powerful pack pony, usually black, with abundant mane, tail, and lower-leg feather.',
+  bardigiano: 'A compact, dark-coated mountain horse with a sturdy body and notably strong feet.',
+  maremmano: 'A rugged stock horse with a substantial frame, tough feet, and a practical working build.',
+  nordlandshest: 'A small, versatile horse with a compact body, abundant mane, and hardy all-purpose type.',
+  'gotland-russ': 'A small forest pony with a lean, hardy frame and a talent for both riding and harness.',
+  noriker: 'A sure-footed heavy horse that can appear in dramatic leopard-spotted as well as solid coats.',
+  'cleveland-bay': 'Always bay, substantial but active, with clean legs and the frame of a traditional coach horse.',
+  giara: 'A small, hardy horse with a coarse mane, strong feet, and a compact semi-feral type.',
+  garrano: 'A small, dark, sure-footed mountain horse with a thick mane and primitive, hardy build.',
+  'kerry-bog-pony': 'A compact pony bred to carry loads across soft ground, with strong bone and a calm nature.',
+  camargue: 'A compact gray horse, born dark, with a sturdy body and the agility of a working cattle mount.',
+  poitevin: 'A large, shaggy draft horse with heavy bone, abundant hair, and a notably calm expression.',
+  morgan: 'A compact breed with an expressive head, arched neck, deep body, and famously consistent type.',
+  finnhorse: 'A hardy all-rounder combining trotting ability, pulling strength, and a dependable temperament.',
+  knabstrupper: 'A baroque riding horse best known for dramatic leopard-spotted coats and visible mottling.',
+  'black-forest': 'A compact draft horse with a dark chestnut body and a striking flaxen mane and tail.',
+}
+
+function nudgeForBreed(breed: Breed) {
+  return nudgeOverrides[breed.id] ?? breed.hint
 }
 
 const guessIcon = L.divIcon({
@@ -100,8 +153,108 @@ function ReviewMapBounds({ points }: { points: Point[] }) {
   return null
 }
 
+function MapResizeSync() {
+  const map = useMap()
+  useEffect(() => {
+    const container = map.getContainer()
+    const observer = new ResizeObserver(() => map.invalidateSize({ pan: false, debounceMoveend: true }))
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [map])
+  return null
+}
+
+function ResizableStage({ className = '', storageKey, defaultPercent, children }: { className?: string; storageKey: string; defaultPercent: number; children: React.ReactNode }) {
+  const stageRef = useRef<HTMLDivElement>(null)
+  const panes = Children.toArray(children)
+  const [split, setSplit] = useState(() => {
+    const saved = Number(localStorage.getItem(`horseguessr-split-${storageKey}`))
+    return Number.isFinite(saved) && saved >= 28 && saved <= 72 ? saved : defaultPercent
+  })
+  const splitRef = useRef(split)
+  const draggingRef = useRef(false)
+
+  const applySplit = (next: number, persist = false) => {
+    const clamped = Math.min(72, Math.max(28, next))
+    splitRef.current = clamped
+    setSplit(clamped)
+    if (persist) localStorage.setItem(`horseguessr-split-${storageKey}`, clamped.toFixed(1))
+  }
+
+  const updateFromPointer = (clientX: number) => {
+    const bounds = stageRef.current?.getBoundingClientRect()
+    if (!bounds || bounds.width === 0) return
+    applySplit((clientX - bounds.left) / bounds.width * 100)
+  }
+
+  const stopDragging = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!draggingRef.current) return
+    draggingRef.current = false
+    event.currentTarget.releasePointerCapture(event.pointerId)
+    localStorage.setItem(`horseguessr-split-${storageKey}`, splitRef.current.toFixed(1))
+  }
+
+  return (
+    <div ref={stageRef} className={`game-stage resizable-stage ${className}`} style={{ '--split-percent': `${split}%` } as React.CSSProperties}>
+      {panes[0]}
+      <div
+        className="split-divider"
+        role="separator"
+        aria-label="Resize horse panel and map"
+        aria-orientation="vertical"
+        aria-valuemin={28}
+        aria-valuemax={72}
+        aria-valuenow={Math.round(split)}
+        tabIndex={0}
+        title="Drag to resize · double-click to reset"
+        onPointerDown={event => {
+          draggingRef.current = true
+          event.currentTarget.setPointerCapture(event.pointerId)
+          updateFromPointer(event.clientX)
+        }}
+        onPointerMove={event => { if (draggingRef.current) updateFromPointer(event.clientX) }}
+        onPointerUp={stopDragging}
+        onPointerCancel={stopDragging}
+        onDoubleClick={() => applySplit(defaultPercent, true)}
+        onKeyDown={event => {
+          if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+          event.preventDefault()
+          applySplit(splitRef.current + (event.key === 'ArrowLeft' ? -2 : 2), true)
+        }}
+      >
+        <span aria-hidden="true"><i /><i /><i /></span>
+      </div>
+      {panes[1]}
+    </div>
+  )
+}
+
 type MagnificationContextValue = { enabled: boolean; setEnabled: (enabled: boolean) => void }
 const MagnificationContext = createContext<MagnificationContextValue>({ enabled: true, setEnabled: () => {} })
+
+type FavoritesContextValue = { favoriteIds: string[]; toggleFavorite: (breedId: string) => void }
+const FavoritesContext = createContext<FavoritesContextValue>({ favoriteIds: [], toggleFavorite: () => {} })
+
+function FavoriteButton({ breed }: { breed: Breed }) {
+  const { favoriteIds, toggleFavorite } = useContext(FavoritesContext)
+  const favorite = favoriteIds.includes(breed.id)
+  return (
+    <button
+      type="button"
+      className={`favorite-heart ${favorite ? 'is-favorite' : ''}`}
+      onClick={event => { event.preventDefault(); event.stopPropagation(); toggleFavorite(breed.id) }}
+      aria-pressed={favorite}
+      aria-label={`${favorite ? 'Remove' : 'Add'} ${breed.name} ${favorite ? 'from' : 'to'} favorite breeds`}
+      title={favorite ? 'Remove from favorite breeds' : 'Add to favorite breeds'}
+    >
+      <Heart size={18} fill={favorite ? 'currentColor' : 'none'} />
+    </button>
+  )
+}
+
+function BreedName({ breed }: { breed: Breed }) {
+  return <span className="breed-name-with-heart"><span>{breed.name}</span><FavoriteButton breed={breed} /></span>
+}
 
 function MagnificationToggle() {
   const { enabled, setEnabled } = useContext(MagnificationContext)
@@ -185,11 +338,21 @@ function Brand({ inverse = false }: { inverse?: boolean }) {
 }
 
 function BreedBio({ breed }: { breed: Breed }) {
+  const related = breed.relatedBreedIds
+    .map(id => breeds.find(candidate => candidate.id === id))
+    .filter((candidate): candidate is Breed => Boolean(candidate))
   return (
     <div className="breed-bio">
       <p>{breed.fact}</p>
       <p><b>Identification.</b> {breed.hint}</p>
-      <p><b>Historic homeland.</b> {breed.location}, {breed.country}.</p>
+      <p><b>Historic homeland.</b> <span className="country-flag" role="img" aria-label={`Primary country flag for ${breed.country}`}>{breed.flag}</span> {breed.location}, {breed.country}.</p>
+      <p><b>Common coats.</b> {breed.coatColors}</p>
+      {related.length > 0 && (
+        <div className="related-breeds">
+          <b>Related or similar breeds.</b>
+          <span>{related.map(item => item.name).join(' · ')}</span>
+        </div>
+      )}
     </div>
   )
 }
@@ -237,6 +400,7 @@ function ResultReviewMap({ results, kind }: { results: ReviewResult[]; kind: 'ri
       <div className="review-map-frame">
         <MapContainer center={[22, 7]} zoom={2} minZoom={1} maxZoom={7} maxBounds={[[-80, -190], [85, 190]]} zoomControl attributionControl worldCopyJump className="map review-map">
           <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          <MapResizeSync />
           {results.map((result, index) => (
             <Marker
               key={`${result.breed.id}-${index}`}
@@ -256,7 +420,7 @@ function ResultReviewMap({ results, kind }: { results: ReviewResult[]; kind: 'ri
             <div className="review-map-card__photo"><MagnifiableImage key={selected.photo.src} src={selected.photo.src} fallbacks={photosForBreed(selected.breed).map(photo => photo.src)} alt={selected.breed.name} /></div>
             <div className="review-map-card__body">
               <span className="review-map-card__index">HORSE {String(selectedIndex! + 1).padStart(2, '0')} · {selected.breed.country}</span>
-              <h3>{selected.breed.name}</h3>
+              <h3><BreedName breed={selected.breed} /></h3>
               <p className={`review-map-card__outcome ${isQuizResult(selected) ? (selected.correct ? 'is-correct' : 'is-wrong') : ''}`}>
                 {isQuizResult(selected)
                   ? (selected.correct ? 'Correctly identified' : `You chose ${selected.choice.name}`)
@@ -274,32 +438,126 @@ function ResultReviewMap({ results, kind }: { results: ReviewResult[]; kind: 'ri
   )
 }
 
-function Home({ onStart, onPractice, onBreedQuiz, onPhotoQuiz, onGuide }: { onStart: () => void; onPractice: () => void; onBreedQuiz: () => void; onPhotoQuiz: () => void; onGuide: () => void }) {
-  const best = Number(localStorage.getItem('horseguessr-best') || 0)
+function HorseDetailsModal({ breed, photo, onClose }: { breed: Breed; photo: BreedPhoto; onClose: () => void }) {
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [onClose])
+  return createPortal(
+    <div className="modal-backdrop horse-day-backdrop" role="dialog" aria-modal="true" aria-label={`${breed.name} horse of the day`} onMouseDown={onClose}>
+      <article className="horse-day-card" onMouseDown={event => event.stopPropagation()}>
+        <button className="horse-day-card__close" onClick={onClose} aria-label="Close horse of the day"><X size={20} /></button>
+        <div className="horse-day-card__photo"><MagnifiableImage src={photo.src} fallbacks={photosForBreed(breed).map(item => item.src)} alt={breed.name} /></div>
+        <div className="horse-day-card__body">
+          <span>♥ HORSE OF THE DAY ♥</span>
+          <h2><BreedName breed={breed} /></h2>
+          <BreedBio breed={breed} />
+          <div className="tag-row">{breed.tags.map(tag => <span key={tag}>{tag}</span>)}</div>
+          <div className="horse-day-card__links"><a href={photo.source} target="_blank" rel="noreferrer">Photo source ↗</a><a href={breed.source} target="_blank" rel="noreferrer">Breed profile ↗</a></div>
+        </div>
+      </article>
+    </div>,
+    document.body,
+  )
+}
+
+function LeaderboardPanel({ score, dayKey, allowEntry = false }: { score?: number; dayKey?: string; allowEntry?: boolean }) {
+  const [board, setBoard] = useState<LeaderboardResult>({ entries: [], backend: 'local' })
+  const [loading, setLoading] = useState(true)
+  const [initials, setInitials] = useState(() => sanitizeInitials(readCookie(cookieNames.initials)))
+  const [submitted, setSubmitted] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    fetchLeaderboard().then(result => {
+      if (active) { setBoard(result); setLoading(false) }
+    })
+    return () => { active = false }
+  }, [])
+
+  const cutoff = board.entries[9]?.score ?? -1
+  const qualifies = allowEntry && typeof score === 'number' && (board.entries.length < 10 || score > cutoff)
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!dayKey || initials.length < 2 || typeof score !== 'number') return
+    setSaving(true)
+    writeCookie(cookieNames.initials, initials)
+    const updated = await submitLeaderboardScore(initials, score, dayKey)
+    setBoard(updated)
+    setSubmitted(true)
+    setSaving(false)
+  }
+
+  return (
+    <section className="leaderboard-panel">
+      <div className="leaderboard-heading"><span><Trophy size={17} /> HIGH SCORE CORRAL</span><strong>Top 10 riders</strong><small>{board.backend === 'firebase' ? 'Live worldwide board' : 'Device preview board'}</small></div>
+      {qualifies && !submitted && (
+        <form className="initials-form" onSubmit={submit}>
+          <div><b>You made the top 10!</b><span>Enter 2–3 initials to hang your ribbon.</span></div>
+          <label><span>Initials</span><input value={initials} onChange={event => setInitials(sanitizeInitials(event.target.value))} minLength={2} maxLength={3} autoComplete="off" placeholder="PON" /></label>
+          <button className="primary-button" disabled={initials.length < 2 || saving}>{saving ? 'Saving…' : 'Post score'}</button>
+        </form>
+      )}
+      {submitted && <p className="leaderboard-success">✦ Score posted! Your initials are saved for next time. ✦</p>}
+      <ol className="leaderboard-list">
+        {loading && <li className="leaderboard-empty">Loading the ribbon board…</li>}
+        {!loading && !board.entries.length && <li className="leaderboard-empty">No ribbons yet—be the first rider on the board!</li>}
+        {board.entries.map((entry, index) => <li key={entry.id}><span>{index + 1}</span><b>{entry.initials}</b><strong>{formatNumber(entry.score)}</strong><small>{entry.dayKey}</small></li>)}
+      </ol>
+      {board.note && <p className="leaderboard-note">{board.note}</p>}
+    </section>
+  )
+}
+
+function CookieNotice() {
+  const [visible, setVisible] = useState(() => readCookie(cookieNames.cookieNotice) !== 'ok')
+  if (!visible) return null
+  const dismiss = () => { writeCookie(cookieNames.cookieNotice, 'ok'); setVisible(false) }
+  return (
+    <aside className="cookie-notice">
+      <span>🍪</span><p><b>Stable cookies!</b> HorseGuessr saves your initials, personal record, daily try, and favorite breeds on this device.</p>
+      <button onClick={dismiss}>Okay!</button>
+    </aside>
+  )
+}
+
+function Home({ dailyKey, dailyLocked, resetIn, onStart, onPractice, onBreedQuiz, onPhotoQuiz, onGuide, onFavorites }: { dailyKey: string; dailyLocked: boolean; resetIn: string; onStart: () => void; onPractice: () => void; onBreedQuiz: () => void; onPhotoQuiz: () => void; onGuide: () => void; onFavorites: () => void }) {
+  const best = readPersonalBest()
+  const [horseOpen, setHorseOpen] = useState(false)
+  const dailyHorse = useMemo(() => seededShuffle(breeds, `horse-of-day-${dailyKey}`)[0], [dailyKey])
+  const dailyPhoto = useMemo(() => {
+    const pool = photosForBreed(dailyHorse)
+    return pool[hashText(`horse-of-day-photo-${dailyKey}`) % pool.length]
+  }, [dailyHorse, dailyKey])
+  const photoCount = breeds.reduce((total, breed) => total + photosForBreed(breed).length, 0)
   return (
     <main className="home-screen">
       <nav className="home-nav">
         <Brand inverse />
         <div className="home-nav-actions">
           <MagnificationToggle />
+          <button className="text-button" onClick={onFavorites}><BookHeart size={17} /> Favorites</button>
           <button className="text-button" onClick={onGuide}><BookOpen size={17} /> Field guide</button>
         </div>
       </nav>
 
       <section className="hero">
-        <div className="hero-photo" aria-hidden="true">
-          <div className="hero-photo__wash" />
-          <div className="specimen-label"><span>Today’s specimen</span><strong>01</strong></div>
-        </div>
+        <button className="hero-photo" onClick={() => setHorseOpen(true)} aria-label={`Reveal today's horse: ${dailyHorse.name}`}>
+          <img src={dailyPhoto.src} alt="Today’s featured horse" />
+          <span className="hero-photo__wash" />
+          <span className="specimen-label"><span>Click to meet today’s horse</span><strong>♥</strong></span>
+        </button>
         <div className="hero-copy">
-          <div className="club-ticker"><span>★ WELCOME 2 HORSEGUESSR ★ 58 BREEDS ONLINE ★ BEST VIEWED WITH HORSE POWER ★</span></div>
+          <div className="club-ticker"><span>★ WELCOME 2 HORSEGUESSR ★ {breeds.length} BREEDS + {photoCount} PHOTOS ONLINE ★ BEST VIEWED WITH HORSE POWER ★</span></div>
           <div className="y2k-badge"><span>★</span> Horse Club Online <span>★</span></div>
           <p className="eyebrow"><span /> The daily equine geography game</p>
           <h1>From hoofprints<br />to <em>homelands.</em></h1>
           <p className="hero-description">Study the horse. Read the clues in its coat, build, and history. Then pin the breed’s birthplace on the map.</p>
           <div className="hero-actions">
-            <button className="primary-button primary-button--large" onClick={onStart}>
-              Play today’s ride <ArrowRight size={20} />
+            <button className="primary-button primary-button--large" onClick={onStart} disabled={dailyLocked}>
+              {dailyLocked ? 'Today’s ride completed' : 'Play today’s ride'} {!dailyLocked && <ArrowRight size={20} />}
             </button>
             <button className="secondary-button secondary-button--large" onClick={onPractice}>
               Practice mode
@@ -308,7 +566,7 @@ function Home({ onStart, onPractice, onBreedQuiz, onPhotoQuiz, onGuide }: { onSt
           <div className="quiz-launch-grid">
             <button className="quiz-launch" onClick={onBreedQuiz}>
               <span className="quiz-launch__icon"><ListChecks size={22} /></span>
-              <span><strong>Name the breed</strong><small>One photo · five breed choices</small></span>
+              <span><strong>Name the breed</strong><small>One photo · four breed choices</small></span>
               <span className="quiz-launch__meta">8 questions <ArrowRight size={18} /></span>
             </button>
             <button className="quiz-launch quiz-launch--photos" onClick={onPhotoQuiz}>
@@ -322,6 +580,7 @@ function Home({ onStart, onPractice, onBreedQuiz, onPhotoQuiz, onGuide }: { onSt
             <div><strong>40K</strong><span>max points</span></div>
             <div><strong>{best ? formatNumber(best) : '—'}</strong><span>your best</span></div>
           </div>
+          <p className="daily-reset">{dailyLocked ? `Next daily ride in ${resetIn}` : `One daily try · resets at 12:00 AM Central · ${dailyKey}`}</p>
         </div>
       </section>
 
@@ -338,6 +597,8 @@ function Home({ onStart, onPractice, onBreedQuiz, onPhotoQuiz, onGuide }: { onSt
           </div>
         ))}
       </section>
+      <LeaderboardPanel />
+      {horseOpen && <HorseDetailsModal breed={dailyHorse} photo={dailyPhoto} onClose={() => setHorseOpen(false)} />}
     </main>
   )
 }
@@ -414,7 +675,7 @@ function Game({ mode, onFinish, onExit }: { mode: 'daily' | 'practice'; onFinish
   return (
     <main className="game-screen">
       <GameHeader round={round} total={total} />
-      <div className="game-stage">
+      <ResizableStage storageKey="origin" defaultPercent={40}>
         <section className="breed-panel">
           <div className="breed-panel__topline">
             <span className="mode-pill"><Sparkles size={13} /> {mode === 'daily' ? 'Daily ride' : 'Practice'}</span>
@@ -422,7 +683,7 @@ function Game({ mode, onFinish, onExit }: { mode: 'daily' | 'practice'; onFinish
           </div>
           <div className="question-copy">
             <span className="question-index">BREED {String(round + 1).padStart(2, '0')}</span>
-            <h2>{result ? breed.name : 'Where did this breed originate?'}</h2>
+            <h2>{result ? <BreedName breed={breed} /> : 'Where did this breed originate?'}</h2>
             <p>{result ? `${breed.location}, ${breed.country}` : 'Place your pin on the map.'}</p>
           </div>
 
@@ -437,7 +698,7 @@ function Game({ mode, onFinish, onExit }: { mode: 'daily' | 'practice'; onFinish
             <>
               <div className={`hint-card ${hintOpen ? 'hint-card--open' : ''}`}>
                 <button onClick={() => setHintOpen(true)} disabled={hintOpen}>
-                  <Lightbulb size={18} /><span>{hintOpen ? breed.hint : 'Need a nudge?'}</span><small>{hintOpen ? '−25% score' : 'Reveal hint · −25%'}</small>
+                  <Lightbulb size={18} /><span>{hintOpen ? nudgeForBreed(breed) : 'Need a nudge?'}</span><small>{hintOpen ? '−25% score' : 'Reveal hint · −25%'}</small>
                 </button>
               </div>
               <button className="primary-button submit-button" disabled={!guess} onClick={submitGuess}>
@@ -461,6 +722,7 @@ function Game({ mode, onFinish, onExit }: { mode: 'daily' | 'practice'; onFinish
         <section className="map-wrap" aria-label="World map">
           <MapContainer center={[24, 6]} zoom={2} minZoom={2} maxZoom={7} maxBounds={[[-80, -190], [85, 190]]} zoomControl={true} attributionControl={true} worldCopyJump className="map">
             <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            <MapResizeSync />
             <ClickHandler disabled={Boolean(result)} onPick={setGuess} />
             {guess && <Marker position={[guess.lat, guess.lng]} icon={guessIcon}><Tooltip direction="top" offset={[0, -36]}>{result ? 'Your guess' : 'Your pin'}</Tooltip></Marker>}
             {result && (
@@ -474,7 +736,7 @@ function Game({ mode, onFinish, onExit }: { mode: 'daily' | 'practice'; onFinish
           </MapContainer>
           <div className="map-label"><span>{result ? 'FULL-SCORE REGION' : 'SELECT A LOCATION'}</span><strong>{result ? `${originZone.label} · ${result.insideRegion ? 'your pin is inside!' : `${formatNumber(result.distance)} km away`}` : 'Click anywhere on the map to place your pin'}</strong></div>
         </section>
-      </div>
+      </ResizableStage>
       <SuccessSparkles show={Boolean(result?.insideRegion)} />
     </main>
   )
@@ -492,7 +754,7 @@ function BreedQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
   const photoIndex = hashText(`${gameSeed}-${breed.id}-${round}`) % photoPool.length
   const currentPhoto = photoPool[photoIndex]
   const options = useMemo(() => {
-    const distractors = seededShuffle(breeds.filter(candidate => candidate.id !== breed.id), `${gameSeed}-options-${round}`).slice(0, 4)
+    const distractors = seededShuffle(breeds.filter(candidate => candidate.id !== breed.id), `${gameSeed}-options-${round}`).slice(0, 3)
     return seededShuffle([breed, ...distractors], `${gameSeed}-positions-${round}`)
   }, [breed, gameSeed, round])
   const correctCount = results.filter(item => item.correct).length
@@ -517,7 +779,7 @@ function BreedQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
   return (
     <main className="game-screen quiz-screen">
       <QuizHeader round={round} correct={correctCount} />
-      <div className="game-stage quiz-stage">
+      <ResizableStage className="quiz-stage" storageKey="breed-quiz" defaultPercent={46}>
         <section className="breed-panel quiz-panel">
           <div className="breed-panel__topline">
             <span className="mode-pill"><ListChecks size={13} /> Breed quiz</span>
@@ -526,7 +788,7 @@ function BreedQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
           <div className="question-copy quiz-question-copy">
             <span className="question-index">QUESTION {String(round + 1).padStart(2, '0')}</span>
             <h2>{choice ? (answeredCorrectly ? 'Correct!' : 'Not quite') : 'Which breed is this horse?'}</h2>
-            <p>{choice ? `The answer is ${breed.name}.` : 'Choose one of the five breeds below.'}</p>
+            <p>{choice ? `The answer is ${breed.name}.` : 'Choose one of the four breeds below.'}</p>
           </div>
 
           <figure className={`horse-photo quiz-photo ${choice ? 'horse-photo--revealed' : ''}`}>
@@ -562,7 +824,7 @@ function BreedQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
             <div className={`quiz-answer ${answeredCorrectly ? 'quiz-answer--correct' : 'quiz-answer--wrong'}`}>
               <div className="quiz-answer__title">
                 {answeredCorrectly ? <CheckCircle2 size={21} /> : <XCircle size={21} />}
-                <div><span>{answeredCorrectly ? 'You got it' : 'Correct answer'}</span><strong>{breed.name}</strong></div>
+                <div><span>{answeredCorrectly ? 'You got it' : 'Correct answer'}</span><strong><BreedName breed={breed} /></strong></div>
               </div>
               <BreedBio breed={breed} />
               <div className="tag-row">{breed.tags.map(tag => <span key={tag}>{tag}</span>)}</div>
@@ -577,6 +839,7 @@ function BreedQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
         <section className="map-wrap quiz-map-wrap" aria-label="Breed origin map">
           <MapContainer center={[24, 6]} zoom={2} minZoom={2} maxZoom={7} maxBounds={[[-80, -190], [85, 190]]} zoomControl attributionControl worldCopyJump className="map">
             <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            <MapResizeSync />
             {choice && (
               <>
                 <OriginZoneLayer zone={originZone} />
@@ -593,7 +856,7 @@ function BreedQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
             <strong>{choice ? `${originZone.label} · accepted homeland` : 'The origin map appears after your choice'}</strong>
           </div>
         </section>
-      </div>
+      </ResizableStage>
       <SuccessSparkles show={Boolean(choice && answeredCorrectly)} />
     </main>
   )
@@ -640,7 +903,7 @@ function PhotoQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
   return (
     <main className="game-screen quiz-screen photo-quiz-screen">
       <QuizHeader round={round} correct={correctCount} />
-      <div className="game-stage photo-quiz-stage">
+      <ResizableStage className="photo-quiz-stage" storageKey="photo-quiz" defaultPercent={55}>
         <section className="breed-panel photo-quiz-panel">
           <div className="breed-panel__topline">
             <span className="mode-pill"><Images size={13} /> Photo match</span>
@@ -648,7 +911,7 @@ function PhotoQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
           </div>
           <div className="question-copy photo-quiz-copy">
             <span className="question-index">QUESTION {String(round + 1).padStart(2, '0')}</span>
-            <h2>{choice ? (answeredCorrectly ? 'You found it!' : `${breed.name} was photo ${String.fromCharCode(65 + correctIndex)}.`) : `Find the ${breed.name}`}</h2>
+            <h2>{choice ? (answeredCorrectly ? 'You found it!' : <><BreedName breed={breed} /> was photo {String.fromCharCode(65 + correctIndex)}.</>) : <>Find the <BreedName breed={breed} /></>}</h2>
             <p>{choice ? `${breed.location}, ${breed.country}` : 'Which of these four horses is the named breed?'}</p>
           </div>
 
@@ -689,6 +952,7 @@ function PhotoQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
           <div className="map-wrap photo-map-wrap" aria-label="Breed origin map">
             <MapContainer center={[24, 6]} zoom={2} minZoom={2} maxZoom={7} maxBounds={[[-80, -190], [85, 190]]} zoomControl attributionControl worldCopyJump className="map">
               <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              <MapResizeSync />
               {choice && (
                 <>
                   <OriginZoneLayer zone={originZone} />
@@ -710,7 +974,7 @@ function PhotoQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
             <article className={`photo-profile ${answeredCorrectly ? 'photo-profile--correct' : 'photo-profile--wrong'}`}>
               <div className="photo-profile__heading">
                 {answeredCorrectly ? <CheckCircle2 size={22} /> : <XCircle size={22} />}
-                <div><span>{answeredCorrectly ? 'Correct photograph' : 'Correct photograph revealed'}</span><h3>{breed.name}</h3></div>
+                <div><span>{answeredCorrectly ? 'Correct photograph' : 'Correct photograph revealed'}</span><h3><BreedName breed={breed} /></h3></div>
               </div>
               <BreedBio breed={breed} />
               <div className="tag-row">{breed.tags.map(tag => <span key={tag}>{tag}</span>)}</div>
@@ -721,16 +985,16 @@ function PhotoQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
             </article>
           )}
         </section>
-      </div>
+      </ResizableStage>
       <SuccessSparkles show={Boolean(choice && answeredCorrectly)} />
     </main>
   )
 }
 
-function Summary({ results, onReplay, onHome }: { results: RoundResult[]; onReplay: () => void; onHome: () => void }) {
+function Summary({ results, mode, dayKey, onReplay, onHome }: { results: RoundResult[]; mode: 'daily' | 'practice'; dayKey: string; onReplay: () => void; onHome: () => void }) {
   const total = results.reduce((sum, result) => sum + result.points, 0)
-  const best = Math.max(total, Number(localStorage.getItem('horseguessr-best') || 0))
-  localStorage.setItem('horseguessr-best', String(best))
+  const [best] = useState(() => Math.max(total, readPersonalBest()))
+  useEffect(() => { updatePersonalBest(total) }, [total])
   const percentage = Math.round(total / 400)
   const rank = percentage >= 85 ? 'Master Equine Geographer' : percentage >= 65 ? 'Seasoned Trailblazer' : percentage >= 40 ? 'Curious Stablehand' : 'Fresh in the Saddle'
   return (
@@ -744,11 +1008,13 @@ function Summary({ results, onReplay, onHome }: { results: RoundResult[]; onRepl
           {results.map((result, index) => (
             <div className="result-row" key={result.breed.id}>
               <span>{String(index + 1).padStart(2, '0')}</span><img src={result.photo.src} alt="" />
-              <div><strong>{result.breed.name}</strong><small>{result.breed.country} · {result.insideRegion ? 'inside accepted region' : `${formatNumber(result.distance)} km from region`}</small></div>
+              <div><strong><BreedName breed={result.breed} /></strong><small>{result.breed.country} · {result.insideRegion ? 'inside accepted region' : `${formatNumber(result.distance)} km from region`}</small></div>
               <b>{formatNumber(result.points)}</b>
             </div>
           ))}
         </div>
+        <LeaderboardPanel score={total} dayKey={dayKey} allowEntry={mode === 'daily'} />
+        <p className="personal-best-ribbon">Your personal record: <b>{formatNumber(best)}</b> points</p>
         <div className="summary-actions"><button className="secondary-button" onClick={onHome}>Return home</button><button className="primary-button" onClick={onReplay}><RotateCcw size={18} /> Ride again</button></div>
       </section>
     </main>
@@ -773,7 +1039,7 @@ function QuizSummary({ results, kind, onReplay, onHome }: { results: QuizResult[
           {results.map((result, index) => (
             <div className="result-row quiz-result-row" key={`${result.breed.id}-${index}`}>
               <span>{String(index + 1).padStart(2, '0')}</span><img src={result.photo.src} alt="" />
-              <div><strong>{result.breed.name}</strong><small>{result.correct ? 'Correct' : `You chose ${result.choice.name}`} · {result.breed.country}</small></div>
+              <div><strong><BreedName breed={result.breed} /></strong><small>{result.correct ? 'Correct' : `You chose ${result.choice.name}`} · {result.breed.country}</small></div>
               <b className={result.correct ? 'quiz-result-correct' : 'quiz-result-wrong'}>{result.correct ? '✓' : '×'}</b>
             </div>
           ))}
@@ -784,22 +1050,32 @@ function QuizSummary({ results, kind, onReplay, onHome }: { results: QuizResult[
   )
 }
 
-function FieldGuide({ onBack }: { onBack: () => void }) {
-  const photoCount = breeds.reduce((total, breed) => total + photosForBreed(breed).length, 0)
+function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, onBack }: { shownBreeds: Breed[]; title: string; eyebrow: string; emptyCopy?: string; onBack: () => void }) {
+  const photoCount = shownBreeds.reduce((total, breed) => total + photosForBreed(breed).length, 0)
   return (
     <main className="guide-screen">
       <nav className="summary-nav"><Brand inverse /><div className="summary-nav-actions"><MagnificationToggle /><button className="text-button" onClick={onBack}><ArrowRight className="arrow-back" size={17} /> Back</button></div></nav>
-      <section className="guide-heading"><p className="eyebrow"><span /> The field guide</p><h1>Breeds of the world</h1><p>Meet {breeds.length} breeds across {photoCount} photographs—and follow their stories home.</p></section>
+      <section className="guide-heading"><p className="eyebrow"><span /> {eyebrow}</p><h1>{title}</h1><p>{shownBreeds.length ? `Meet ${shownBreeds.length} breeds across ${photoCount} photographs—and follow their stories home.` : emptyCopy}</p></section>
       <section className="guide-grid">
-        {breeds.map(breed => (
+        {shownBreeds.map(breed => (
           <article className="guide-card" key={breed.id}>
             <MagnifiableImage src={breed.image} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} loading="lazy" />
-            <div><span>{breed.country} · {photosForBreed(breed).length} photos</span><h2>{breed.name}</h2><BreedBio breed={breed} /><a href={breed.source} target="_blank" rel="noreferrer">Open breed profile <ArrowRight size={15} /></a></div>
+            <div><span>{breed.country} · {photosForBreed(breed).length} photos</span><h2><BreedName breed={breed} /></h2><BreedBio breed={breed} /><a href={breed.source} target="_blank" rel="noreferrer">Open breed profile <ArrowRight size={15} /></a></div>
           </article>
         ))}
       </section>
     </main>
   )
+}
+
+function FieldGuide({ onBack }: { onBack: () => void }) {
+  return <BreedCollection shownBreeds={breeds} eyebrow="The field guide" title="Breeds of the world" onBack={onBack} />
+}
+
+function FavoriteBreeds({ onBack }: { onBack: () => void }) {
+  const { favoriteIds } = useContext(FavoritesContext)
+  const favorites = breeds.filter(breed => favoriteIds.includes(breed.id))
+  return <BreedCollection shownBreeds={favorites} eyebrow="Your cookie-saved stable" title="Favorite breeds" emptyCopy="Your stable is empty. Tap the heart after any breed name to add it here." onBack={onBack} />
 }
 
 export default function App() {
@@ -808,15 +1084,43 @@ export default function App() {
   const [results, setResults] = useState<RoundResult[]>([])
   const [quizResults, setQuizResults] = useState<QuizResult[]>([])
   const [magnificationEnabled, setMagnificationEnabled] = useState(() => localStorage.getItem('horseguessr-photo-viewer') !== 'off')
-  const start = (nextMode: 'daily' | 'practice') => { setMode(nextMode); setResults([]); setScreen('game') }
+  const [favoriteIds, setFavoriteIds] = useState(readFavoriteIds)
+  const [dailyAttemptKey, setDailyAttemptKey] = useState(() => readCookie(cookieNames.dailyAttempt))
+  const centralClock = useCentralClock()
+  const dailyLocked = dailyAttemptKey === centralClock.key
+  const toggleFavorite = (breedId: string) => {
+    setFavoriteIds(current => {
+      const next = current.includes(breedId) ? current.filter(id => id !== breedId) : [...current, breedId]
+      writeFavoriteIds(next)
+      return next
+    })
+  }
+  const start = (nextMode: 'daily' | 'practice') => {
+    if (nextMode === 'daily') {
+      if (dailyLocked) return
+      writeCookie(cookieNames.dailyAttempt, centralClock.key)
+      setDailyAttemptKey(centralClock.key)
+    }
+    setMode(nextMode)
+    setResults([])
+    setScreen('game')
+  }
   let page
   if (screen === 'game') page = <Game mode={mode} onExit={() => setScreen('home')} onFinish={finalResults => { setResults(finalResults); setScreen('summary') }} />
-  else if (screen === 'summary') page = <Summary results={results} onReplay={() => start('practice')} onHome={() => setScreen('home')} />
+  else if (screen === 'summary') page = <Summary results={results} mode={mode} dayKey={mode === 'daily' ? dailyAttemptKey : centralClock.key} onReplay={() => start('practice')} onHome={() => setScreen('home')} />
   else if (screen === 'breed-quiz') page = <BreedQuiz onExit={() => setScreen('home')} onFinish={finalResults => { setQuizResults(finalResults); setScreen('quiz-summary') }} />
   else if (screen === 'quiz-summary') page = <QuizSummary kind="name" results={quizResults} onReplay={() => { setQuizResults([]); setScreen('breed-quiz') }} onHome={() => setScreen('home')} />
   else if (screen === 'photo-quiz') page = <PhotoQuiz onExit={() => setScreen('home')} onFinish={finalResults => { setQuizResults(finalResults); setScreen('photo-summary') }} />
   else if (screen === 'photo-summary') page = <QuizSummary kind="photo" results={quizResults} onReplay={() => { setQuizResults([]); setScreen('photo-quiz') }} onHome={() => setScreen('home')} />
   else if (screen === 'guide') page = <FieldGuide onBack={() => setScreen('home')} />
-  else page = <Home onStart={() => start('daily')} onPractice={() => start('practice')} onBreedQuiz={() => { setQuizResults([]); setScreen('breed-quiz') }} onPhotoQuiz={() => { setQuizResults([]); setScreen('photo-quiz') }} onGuide={() => setScreen('guide')} />
-  return <MagnificationContext.Provider value={{ enabled: magnificationEnabled, setEnabled: setMagnificationEnabled }}>{page}</MagnificationContext.Provider>
+  else if (screen === 'favorites') page = <FavoriteBreeds onBack={() => setScreen('home')} />
+  else page = <Home dailyKey={centralClock.key} dailyLocked={dailyLocked} resetIn={centralClock.resetIn} onStart={() => start('daily')} onPractice={() => start('practice')} onBreedQuiz={() => { setQuizResults([]); setScreen('breed-quiz') }} onPhotoQuiz={() => { setQuizResults([]); setScreen('photo-quiz') }} onGuide={() => setScreen('guide')} onFavorites={() => setScreen('favorites')} />
+  return (
+    <MagnificationContext.Provider value={{ enabled: magnificationEnabled, setEnabled: setMagnificationEnabled }}>
+      <FavoritesContext.Provider value={{ favoriteIds, toggleFavorite }}>
+        {page}
+        <CookieNotice />
+      </FavoritesContext.Provider>
+    </MagnificationContext.Provider>
+  )
 }

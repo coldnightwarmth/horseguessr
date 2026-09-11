@@ -1,6 +1,7 @@
 import type { BreedPhoto } from './media'
 
 const commons = (file: string) => `https://commons.wikimedia.org/wiki/File:${file}`
+const commonsPhoto = (file: string) => `https://commons.wikimedia.org/wiki/Special:Redirect/file/${encodeURIComponent(file)}?width=1200`
 
 export const extraPhotos: Record<string, BreedPhoto[]> = {
   'ljutomer-trotter': [
@@ -18,6 +19,7 @@ export const extraPhotos: Record<string, BreedPhoto[]> = {
   gidran: [
     { src: '/horses/gidran-2.jpg', source: commons('Gidran_Inland.jpeg') },
     { src: '/horses/gidran-3.jpg', source: commons('Gidran_XL-10.jpg') },
+    { src: commonsPhoto('Gidras mit Folen bei Köröshegy.JPG'), source: commons('Gidras_mit_Folen_bei_K%C3%B6r%C3%B6shegy.JPG') },
   ],
   'furioso-north-star': [
     { src: '/horses/furioso-north-star-2.jpg', source: commons('Furioso-Przedswit_Polish_breed.jpg') },
@@ -50,6 +52,7 @@ export const extraPhotos: Record<string, BreedPhoto[]> = {
   caspian: [
     { src: '/horses/caspian-2.jpg', source: commons('Caspian_Horse_(144540153).jpeg') },
     { src: '/horses/caspian-3.jpg', source: commons('Caspian_Horse_(180594129).jpeg') },
+    { src: commonsPhoto("BGD Ranch's Caspians.jpg"), source: commons("BGD_Ranch's_Caspians.jpg") },
   ],
   kathiawari: [
     { src: '/horses/kathiawari-2.jpg', source: commons('Kathiawari_2.jpg') },
@@ -66,6 +69,7 @@ export const extraPhotos: Record<string, BreedPhoto[]> = {
   'eriskay-pony': [
     { src: '/horses/eriskay-pony-2.jpg', source: commons('Eriskay_Church_and_Ponies_-_geograph.org.uk_-_65554.jpg') },
     { src: '/horses/eriskay-pony-3.jpg', source: commons('Eriskay_ponies_by_Loch_Cracabhaig_(Geograph_2129787_by_Rob_Burke).jpg') },
+    { src: commonsPhoto('Eriskay Performance Winner.jpg'), source: commons('Eriskay_Performance_Winner.jpg') },
   ],
   bardigiano: [
     { src: '/horses/bardigiano-2.jpg', source: commons('Cavallo-bardigiano.jpg') },
@@ -114,5 +118,37 @@ export const extraPhotos: Record<string, BreedPhoto[]> = {
   poitevin: [
     { src: '/horses/poitevin-2.jpg', source: commons('Poitevins02_SDA2011.JPG') },
     { src: '/horses/poitevin-3.jpg', source: 'https://www.sfet.fr/les-races/2-chevaux-de-trait/12-le-trait-poitevin-mulassier' },
+  ],
+  'mangalarga-marchador': [
+    { src: commonsPhoto('Olímpia de Clarion.jpg'), source: commons('Olímpia_de_Clarion.jpg') },
+    { src: commonsPhoto('Bentinho e Topázio.jpg'), source: commons('Bentinho_e_Topázio.jpg') },
+  ],
+  boulonnais: [
+    { src: commonsPhoto('Jument boulonnaise et son poulain.jpg'), source: commons('Jument_boulonnaise_et_son_poulain.jpg') },
+    { src: commonsPhoto('Chevaux boulonnais (27956098795).jpg'), source: commons('Chevaux_boulonnais_(27956098795).jpg') },
+  ],
+  comtois: [
+    { src: commonsPhoto('Cheval Comtois 002.JPG'), source: commons('Cheval_Comtois_002.JPG') },
+    { src: commonsPhoto('Comtois-horse-Saint-Faust.jpg'), source: commons('Comtois-horse-Saint-Faust.jpg') },
+  ],
+  campolina: [
+    { src: commonsPhoto('Campolina newer morphology.jpg'), source: commons('Campolina_newer_morphology.jpg') },
+    { src: commonsPhoto('Young Campolina Stallion.jpg'), source: commons('Young_Campolina_Stallion.jpg') },
+  ],
+  zemaitukas: [
+    { src: commonsPhoto('Zemaitukai.jpg'), source: commons('Zemaitukai.jpg') },
+    { src: commonsPhoto('Zemaitukai080822.jpg'), source: commons('Zemaitukai080822.jpg') },
+  ],
+  karabakh: [
+    { src: commonsPhoto('Qarabaq ati.jpg'), source: commons('Qarabaq_ati.jpg') },
+    { src: commonsPhoto('Karabakh stallion.jpg'), source: commons('Karabakh_stallion.jpg') },
+  ],
+  breton: [
+    { src: commonsPhoto('Cheval Breton Morbihan 01.jpg'), source: commons('Cheval_Breton_Morbihan_01.jpg') },
+    { src: commonsPhoto('Cheval breton noir ou alezan brûlé.jpg'), source: commons('Cheval_breton_noir_ou_alezan_brûlé.jpg') },
+  ],
+  ardennais: [
+    { src: commonsPhoto('Ardennais 2.JPG'), source: commons('Ardennais_2.JPG') },
+    { src: commonsPhoto('Ardennais 3.JPG'), source: commons('Ardennais_3.JPG') },
   ],
 }

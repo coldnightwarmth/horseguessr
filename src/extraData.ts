@@ -1,6 +1,8 @@
-import type { Breed } from './data'
+import type { BreedSeed } from './data'
 
-export const extraBreeds: Breed[] = [
+const commonsPhoto = (file: string) => `https://commons.wikimedia.org/wiki/Special:Redirect/file/${encodeURIComponent(file)}?width=1200`
+
+export const extraBreeds: BreedSeed[] = [
   {
     id: 'ljutomer-trotter', name: 'Ljutomer Trotter', image: '/horses/ljutomer-trotter-1.jpg',
     imageSource: 'https://commons.wikimedia.org/wiki/File:Ljutomer_(3).jpg',
@@ -224,5 +226,69 @@ export const extraBreeds: Breed[] = [
     hint: 'A large, shaggy French draft horse historically prized for producing powerful mules.',
     fact: 'The Poitevin developed in the marshes of western France and was crossed with Baudet du Poitou donkeys to produce the once-famous Poitevin mule.',
     tags: ['Draft', 'French', 'Endangered'], source: 'https://en.wikipedia.org/wiki/Poitevin_horse',
+  },
+  {
+    id: 'mangalarga-marchador', name: 'Mangalarga Marchador', image: commonsPhoto('Mangalarga Marchador.jpg'),
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Mangalarga_Marchador.jpg',
+    location: 'Minas Gerais', country: 'Brazil', lat: -20.14, lng: -44.20,
+    hint: 'Look for a refined but substantial saddle horse with a smooth, ground-covering four-beat gait.',
+    fact: 'The Mangalarga Marchador descends from Iberian horses brought to Brazil and was developed on farms in Minas Gerais. It is known for the marcha batida and marcha picada, comfortable intermediate gaits that can be maintained over long distances.',
+    tags: ['Gaited', 'Brazilian', 'Saddle horse'], source: 'https://en.wikipedia.org/wiki/Mangalarga_Marchador',
+  },
+  {
+    id: 'boulonnais', name: 'Boulonnais', image: commonsPhoto('Jument boulonnaise.jpg'),
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Jument_boulonnaise.jpg',
+    location: 'Boulonnais, Pas-de-Calais', country: 'France', lat: 50.73, lng: 1.62,
+    hint: 'A massive draft horse with unusually silky skin, a refined head, and a coat most often seen in gray.',
+    fact: 'Sometimes called the White Marble Horse, the Boulonnais combines draft power with a notably elegant head and energetic action. Its lighter mareyeur type once hauled fresh fish rapidly from the Channel coast toward Paris.',
+    tags: ['Draft', 'Gray', 'Rare'], source: 'https://en.wikipedia.org/wiki/Boulonnais_horse',
+  },
+  {
+    id: 'comtois', name: 'Comtois', image: commonsPhoto('Cheval Comtois 001.JPG'),
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Cheval_Comtois_001.JPG',
+    location: 'Franche-Comté', country: 'France', lat: 47.24, lng: 6.02,
+    hint: 'A compact, muscular draft horse commonly showing a rich copper coat with a pale flaxen mane and tail.',
+    fact: 'The Comtois is an old mountain draft horse selected for forestry, farming, and hauling on difficult ground. Modern examples are especially associated with silver-dapple or flaxen chestnut coloring and a willing working temperament.',
+    tags: ['Draft', 'Flaxen', 'Mountain'], source: 'https://en.wikipedia.org/wiki/Comtois_horse',
+  },
+  {
+    id: 'campolina', name: 'Campolina', image: commonsPhoto('Black Campolina male 2 years.JPG'),
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Black_Campolina_male_2_years.JPG',
+    location: 'Entre Rios de Minas, Minas Gerais', country: 'Brazil', lat: -20.67, lng: -44.07,
+    hint: 'A tall gaited saddle horse with a strong arched neck and a characteristically convex facial profile.',
+    fact: 'Cassiano Campolina began the breed in the 1870s from a mare named Medeia and carefully selected descendants for size, presence, and comfortable travel. Campolinas may perform several forms of the marcha and occur in many colors.',
+    tags: ['Gaited', 'Brazilian', 'Convex profile'], source: 'https://en.wikipedia.org/wiki/Campolina',
+  },
+  {
+    id: 'zemaitukas', name: 'Žemaitukas', image: commonsPhoto('Didysis zemaitukas 1.jpg'),
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Didysis_zemaitukas_1.jpg',
+    location: 'Samogitia', country: 'Lithuania', lat: 55.85, lng: 22.25,
+    hint: 'A small, tough horse with a broad forehead, clean legs, hard feet, and great strength for its height.',
+    fact: 'The Žemaitukas is an ancient light-horse type documented since medieval times. It served as a farm, riding, and military horse, survived several severe population crashes, and remains a treasured but endangered breed.',
+    tags: ['Primitive', 'Lithuanian', 'Endangered'], source: 'https://en.wikipedia.org/wiki/%C5%BDemaitukas',
+  },
+  {
+    id: 'karabakh', name: 'Karabakh', image: commonsPhoto('Qarabağ atları Şəki Atçılıq Mərkəzində.jpg'),
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Qaraba%C4%9F_atlar%C4%B1_%C5%9E%C9%99ki_At%C3%A7%C4%B1l%C4%B1q_M%C9%99rk%C9%99zind%C9%99.jpg',
+    location: 'Karabakh', country: 'Azerbaijan', lat: 39.81, lng: 46.75,
+    hint: 'A compact mountain saddle horse valued for sure-footed speed, a deep chest, and a fine, alert head.',
+    fact: 'The Karabakh was refined in the khanates of the southern Caucasus as a fast riding and racing horse. Golden chestnut coloring is especially admired, and the breed has contributed to several neighboring horse populations.',
+    tags: ['Mountain', 'Riding', 'Rare'], source: 'https://en.wikipedia.org/wiki/Karabakh_horse',
+  },
+  {
+    id: 'breton', name: 'Breton', image: commonsPhoto('St-Guyomard - Jument bretonne broutant.jpg'),
+    imageSource: 'https://commons.wikimedia.org/wiki/File:St-Guyomard_-_Jument_bretonne_broutant.jpg',
+    location: 'Brittany', country: 'France', lat: 48.20, lng: -2.93,
+    hint: 'A broad, energetic draft horse, often chestnut with a flaxen mane, whose brisk trot belies its heavy build.',
+    fact: 'The Breton includes both heavier draft and lighter Postier types. It became renowned for farm and artillery work, and the quick-moving Postier was shaped in part by Norfolk Trotter and Hackney influence.',
+    tags: ['Draft', 'Chestnut', 'Postier'], source: 'https://en.wikipedia.org/wiki/Breton_horse',
+  },
+  {
+    id: 'ardennais', name: 'Ardennais', image: commonsPhoto('Ardennais 1.JPG'),
+    imageSource: 'https://commons.wikimedia.org/wiki/File:Ardennais_1.JPG',
+    location: 'Ardennes', country: 'Belgium and France', lat: 49.85, lng: 4.65,
+    hint: 'A low-set, immensely muscular draft horse with short strong legs, a thick neck, and a calm expression.',
+    fact: 'The Ardennais is among Europe’s oldest heavy horse types and was used for agriculture, forestry, artillery, and difficult transport. Despite its compact height, it is exceptionally powerful and adapted to rough going.',
+    tags: ['Draft', 'Cold-blood', 'Ancient type'], source: 'https://en.wikipedia.org/wiki/Ardennais',
   },
 ]

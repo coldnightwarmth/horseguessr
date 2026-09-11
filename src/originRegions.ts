@@ -105,6 +105,14 @@ export const originZones: Record<string, OriginZone> = {
   'exmoor-pony': polygon('Exmoor National Park', namedRegion, 'Exmoor National Park, United Kingdom'),
   camargue: polygon('Camargue Regional Natural Park', namedRegion, 'Parc naturel régional de Camargue, France'),
   poitevin: polygon('Historic Poitou', 'Deux-Sèvres, Vienne, and Charente-Maritime form a generous modern approximation of historic Poitou.', 'Deux-Sèvres, France', 'Vienne, France', 'Charente-Maritime, France'),
+  'mangalarga-marchador': circle('Minas Gerais', 'A broad full-score zone covers the breed’s large historic home state rather than one farm.', -18.60, -44.30, 520),
+  boulonnais: circle('Boulonnais and Pas-de-Calais', 'The coastal Boulonnais heartland and surrounding department receive full credit.', 50.73, 1.62, 140),
+  comtois: circle('Franche-Comté', 'A broad regional zone covers the historic Comtois homeland along the Jura.', 47.24, 6.02, 190),
+  campolina: circle('Central Minas Gerais', 'The full-score zone generously covers the breed’s founding district and neighboring farms.', -20.67, -44.07, 330),
+  zemaitukas: manualPolygon('Lithuania', broadHomeland, [[20.8, 56.5], [26.8, 56.5], [26.8, 53.8], [22.7, 53.8], [21.0, 55.2]]),
+  karabakh: circle('Karabakh highlands', 'A generous highland region is accepted rather than a single modern administrative point.', 39.81, 46.75, 190),
+  breton: circle('Brittany', namedRegion, 48.20, -2.93, 260),
+  ardennais: circle('The Ardennes', 'The accepted zone spans the cross-border forested Ardennes region.', 49.85, 4.65, 230),
 }
 
 function haversine(a: MapPoint, b: MapPoint) {
