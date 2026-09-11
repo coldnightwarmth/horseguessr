@@ -1479,6 +1479,155 @@ body,
   .split-divider > span { transition: none; }
 }
 
+/* Passport, collection tools, daily sharing, streaks, and photo feedback */
+.streak-ribbon {
+  position: relative;
+  padding-inline: 13px;
+  border-inline: 2px dashed rgba(255, 245, 109, .8);
+}
+.streak-ribbon::before { content: '★'; position: absolute; left: -8px; top: -8px; color: var(--lemon); text-shadow: 1px 1px var(--hot-pink); }
+.streak-ribbon strong { color: var(--lemon); }
+
+.guide-tools {
+  width: min(1290px, 90%);
+  margin: 0 auto 27px;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: minmax(260px, 1.5fr) repeat(3, minmax(150px, .7fr)) auto;
+  align-items: end;
+  gap: 10px;
+  border: 6px ridge #fff;
+  outline: 3px solid var(--hot-pink);
+  color: var(--ink);
+  background: linear-gradient(135deg, #fff, #ffd7eb 55%, #c9f3ff);
+  box-shadow: 6px 6px 0 rgba(64, 32, 92, .42);
+}
+.guide-tools label { min-width: 0; display: grid; gap: 4px; }
+.guide-tools label > span { color: #713381; font-family: 'Silkscreen', monospace; font-size: .6rem; text-transform: uppercase; }
+.guide-tools input,
+.guide-tools select {
+  width: 100%;
+  height: 42px;
+  min-width: 0;
+  padding: 0 10px;
+  border: 3px inset #fff;
+  border-radius: 3px;
+  color: #542568;
+  background: #fffafd;
+  font: 800 .78rem 'Nunito', sans-serif;
+}
+.guide-search { position: relative; }
+.guide-search svg { position: absolute; z-index: 2; left: 10px; bottom: 12px; color: var(--hot-pink); pointer-events: none; }
+.guide-search input { padding-left: 36px; }
+.guide-filter-result { min-height: 42px; display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 5px; }
+.guide-filter-result strong { color: var(--hot-pink); font-family: 'Bubblegum Sans', cursive; font-size: 1.55rem; line-height: .8; }
+.guide-filter-result span { color: #745780; font-size: .65rem; font-weight: 900; white-space: nowrap; }
+.guide-filter-result button { grid-column: 1 / -1; padding: 0; border: 0; color: #9d2d73; background: transparent; font-size: .65rem; font-weight: 900; text-align: left; text-decoration: underline; cursor: pointer; }
+.guide-card { position: relative; }
+.guide-card--passport-earned { outline-color: var(--lemon); box-shadow: 7px 7px 0 rgba(76,28,105,.5), 0 0 24px rgba(255, 245, 109, .8); }
+.passport-earned-star {
+  width: 39px;
+  height: 39px;
+  position: absolute;
+  z-index: 9;
+  top: 10px;
+  left: 10px;
+  display: grid;
+  place-items: center;
+  border: 3px outset #fff;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(#fff46c, #ffb327);
+  filter: drop-shadow(3px 3px 0 #8a3c8d);
+}
+.guide-empty { grid-column: 1 / -1; margin: 10px 0 50px; padding: 25px; border: 5px ridge #fff; color: #642f7a; background: #fff4a7; font-weight: 900; text-align: center; }
+
+.passport-heading { margin-bottom: 25px; }
+.passport-progress {
+  max-width: 610px;
+  margin-top: 20px;
+  padding: 13px;
+  border: 5px ridge #fff;
+  outline: 2px solid var(--hot-pink);
+  color: #5d2b73;
+  background: linear-gradient(#fff, #ffd4e9);
+  box-shadow: 5px 5px 0 rgba(71, 31, 96, .4);
+}
+.passport-progress > div { display: flex; align-items: baseline; gap: 8px; }
+.passport-progress strong { color: var(--hot-pink); font-family: 'Bubblegum Sans', cursive; font-size: 2rem; }
+.passport-progress span { font-weight: 900; }
+.passport-progress b { margin-left: auto; color: #704094; }
+.passport-progress > i { height: 14px; display: block; overflow: hidden; border: 3px inset #fff; background: #d8c9df; }
+.passport-progress > i span { height: 100%; display: block; background: linear-gradient(90deg, var(--hot-pink), #ff87c5, var(--lemon)); transition: width .35s; }
+.passport-grid {
+  width: min(1290px, 90%);
+  margin: auto;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+.passport-sticker {
+  min-width: 0;
+  position: relative;
+  padding: 10px 10px 16px;
+  border: 7px ridge #fff;
+  outline: 3px solid var(--hot-pink);
+  color: #57286c;
+  background: repeating-linear-gradient(45deg, #fff 0 12px, #ffdbea 12px 24px);
+  box-shadow: 6px 6px 0 rgba(70, 31, 97, .46);
+  transform: rotate(-.35deg);
+}
+.passport-sticker:nth-child(even) { transform: rotate(.35deg); }
+.passport-sticker__photo { width: 100%; aspect-ratio: 4 / 3; overflow: hidden; border: 5px ridge #fff; outline: 2px solid #8142a1; background: #d9c2df; }
+.passport-sticker__photo > .magnifiable-image { width: 100%; height: 100%; }
+.passport-sticker__mystery { width: 100%; height: 100%; display: grid; place-items: center; position: relative; background: linear-gradient(135deg, #9a82b7, #d6bfdc); }
+.passport-sticker__mystery img { width: 65%; height: 65%; object-fit: contain; filter: grayscale(1) opacity(.28); }
+.passport-sticker__mystery span { position: absolute; color: rgba(255,255,255,.82); font-family: 'Silkscreen', monospace; font-size: 2rem; text-shadow: 2px 2px #704386; }
+.passport-sticker__star { width: 40px; height: 40px; display: grid; place-items: center; position: absolute; right: 5px; top: 5px; border: 3px outset #fff; color: #fff; background: linear-gradient(#fff46b, #ffb51f); filter: drop-shadow(3px 3px 0 #7b377f); }
+.passport-sticker--locked { filter: saturate(.42); opacity: .78; }
+.passport-sticker--locked .passport-sticker__star { color: #856f91; background: #d4c7db; }
+.passport-sticker > div:last-child { display: grid; gap: 3px; padding: 12px 5px 0; }
+.passport-sticker small { color: #a22570; font-family: 'Silkscreen', monospace; font-size: .56rem; line-height: 1.45; }
+.passport-sticker strong { font-family: 'Bubblegum Sans', cursive; font-size: 1.3rem; }
+
+.share-status { grid-column: 1 / -1; margin: 12px 48px 0; padding: 9px; border: 2px dashed #24af78; color: #126f4c; background: #caffea; font-weight: 900; text-align: center; }
+.share-result-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+
+.photo-gallery-bar { max-width: calc(100% - 120px); flex-wrap: wrap; justify-content: center; }
+.photo-report-wrap { position: relative; display: inline-flex; align-items: center; gap: 7px; }
+.photo-report-button {
+  min-height: 26px;
+  padding: 3px 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 2px outset #fff;
+  color: #622778;
+  background: linear-gradient(#fff, #ffd9ea);
+  font-size: .62rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+.photo-report-menu {
+  width: 250px;
+  padding: 8px;
+  display: grid;
+  gap: 4px;
+  position: absolute;
+  z-index: 20;
+  right: 0;
+  bottom: calc(100% + 8px);
+  border: 5px ridge #fff;
+  outline: 2px solid var(--hot-pink);
+  color: #58266e;
+  background: #fff5fb;
+  box-shadow: 5px 5px 0 rgba(62, 27, 83, .5);
+  text-align: left;
+}
+.photo-report-menu b { padding: 3px 4px; font-family: 'Bubblegum Sans', cursive; font-size: 1rem; }
+.photo-report-menu button { min-height: 32px; padding: 5px 7px; border: 2px outset #fff; color: #682c7b; background: linear-gradient(#fff, #ffddec); font-size: .68rem; font-weight: 800; text-align: left; cursor: pointer; }
+.magnified-preview .photo-report-status { width: auto; position: static; left: auto; bottom: auto; transform: none; color: #fff; font-size: .58rem; letter-spacing: 0; text-transform: none; white-space: nowrap; }
+
 /* Mobile stable — automatically selected for phone-sized and coarse-pointer screens */
 @media (max-width: 760px), (pointer: coarse) and (max-width: 950px) {
   html {
@@ -1594,13 +1743,14 @@ body,
   .quiz-launch__meta { grid-column: auto; font-size: .55rem; }
   .daily-meta {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 5px;
     padding-top: 15px;
   }
   .daily-meta div { min-width: 0; }
   .daily-meta strong { font-size: 1.15rem; }
   .daily-meta span { font-size: .52rem; line-height: 1.3; }
+  .streak-ribbon { padding-inline: 4px; border-left: 2px dashed rgba(255, 245, 109, .8); border-right: 0; }
   .daily-reset { font-size: .56rem; }
   .hero-photo {
     grid-row: 2;
@@ -1856,6 +2006,7 @@ body,
   .result-row small { font-size: .6rem; line-height: 1.25; }
   .summary-card > .leaderboard-panel { width: auto; margin: 20px 10px 8px; }
   .personal-best-ribbon { margin: 12px 10px 0; }
+  .share-status { margin: 12px 10px 0; }
   .summary-actions { padding: 20px 12px 24px; display: grid; grid-template-columns: 1fr; }
   .summary-actions .primary-button,
   .summary-actions .secondary-button { width: 100%; min-height: 50px; }
@@ -1863,6 +2014,18 @@ body,
   .guide-heading { width: calc(100% - 24px); margin: 30px 12px 22px; }
   .guide-heading h1 { margin: 7px 0; font-size: clamp(2.5rem, 13vw, 3.6rem); line-height: 1; }
   .guide-heading > p:last-child { font-size: .9rem; line-height: 1.5; }
+  .guide-tools {
+    width: calc(100% - 18px);
+    margin-bottom: 20px;
+    padding: 11px;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    border-width: 5px;
+  }
+  .guide-tools input,
+  .guide-tools select { height: 46px; }
+  .guide-filter-result { grid-template-columns: auto 1fr auto; }
+  .guide-filter-result button { grid-column: 3; grid-row: 1; min-height: 40px; padding: 0 8px; }
   .guide-grid { width: calc(100% - 18px); grid-template-columns: minmax(0, 1fr); gap: 17px; }
   .guide-card {
     min-height: 0;
@@ -1876,6 +2039,15 @@ body,
   .guide-card h2 { font-size: 1.55rem; }
   .guide-card p { font-size: .78rem; }
   .guide-photo-count { min-height: 32px; }
+  .passport-earned-star { width: 37px; height: 37px; top: 8px; left: 8px; }
+
+  .passport-progress { margin-top: 16px; padding: 10px; }
+  .passport-grid { width: calc(100% - 18px); grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
+  .passport-sticker { padding: 7px 7px 11px; border-width: 5px; box-shadow: 4px 4px 0 rgba(70, 31, 97, .46); }
+  .passport-sticker__photo { border-width: 4px; }
+  .passport-sticker__star { width: 34px; height: 34px; }
+  .passport-sticker small { font-size: .46rem; }
+  .passport-sticker strong { font-size: 1rem; }
 
   .modal-backdrop { padding: 8px; }
   .modal { width: 100%; max-height: calc(100dvh - 16px); overflow-y: auto; padding: 33px 18px 20px; border-width: 5px; border-radius: 7px; }
@@ -1912,6 +2084,10 @@ body,
   .photo-gallery-bar { bottom: 41px; max-width: 88%; gap: 5px 8px; padding: 4px 7px; }
   .photo-gallery-bar strong { width: 100%; font-size: .86rem; text-align: center; }
   .magnified-preview small { bottom: 11px; width: 88%; font-size: .48rem; white-space: normal; text-align: center; }
+  .photo-report-wrap { flex-wrap: wrap; justify-content: center; }
+  .photo-report-button { min-height: 30px; }
+  .photo-report-menu { width: min(250px, 78vw); right: 50%; transform: translateX(50%); }
+  .magnified-preview .photo-report-status { width: 100%; }
 
   .cookie-notice {
     right: 8px;
@@ -1932,6 +2108,9 @@ body,
   .photo-choice__name { font-size: .78rem; }
   .result-row { grid-template-columns: 20px 42px minmax(0, 1fr) auto; }
   .result-row img { width: 42px; height: 38px; }
+  .daily-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 10px; }
+  .streak-ribbon { border-left: 0; }
+  .passport-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (hover: none) and (pointer: coarse) {

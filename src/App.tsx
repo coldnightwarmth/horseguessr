@@ -3,15 +3,15 @@ import { createPortal } from 'react-dom'
 import { Circle, CircleMarker, GeoJSON, MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 import L, { LatLngBoundsExpression } from 'leaflet'
 import type { GeoJsonObject } from 'geojson'
-import { ArrowRight, BookHeart, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, Compass, Heart, Images, Lightbulb, ListChecks, LocateFixed, MapPin, Maximize2, RotateCcw, Sparkles, Trophy, X, XCircle } from 'lucide-react'
+import { ArrowRight, Award, BookHeart, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, Compass, Flag, Heart, Images, Lightbulb, ListChecks, LocateFixed, MapPin, Maximize2, RotateCcw, Search, Share2, Sparkles, Star, Trophy, X, XCircle } from 'lucide-react'
 import { Breed, breeds } from './data'
-import { fetchLeaderboard, LeaderboardResult, recordBreedFavorite, submitLeaderboardScore } from './firebase'
+import { fetchLeaderboard, LeaderboardResult, PhotoReportReason, recordBreedFavorite, recordPhotoQualityReport, submitLeaderboardScore } from './firebase'
 import { BreedPhoto, photosForBreed } from './media'
 import { distanceToOriginZone, OriginZone, originZoneBounds, originZones } from './originRegions'
-import { cookieNames, readCookie, readFavoriteIds, readPersonalBest, sanitizeInitials, updatePersonalBest, writeCookie, writeFavoriteIds } from './preferences'
+import { cookieNames, readCookie, readDailyStreak, readFavoriteIds, readPassportIds, readPersonalBest, sanitizeInitials, updateDailyStreak, updatePersonalBest, writeCookie, writeFavoriteIds, writePassportIds } from './preferences'
 
 type Point = { lat: number; lng: number }
-type Screen = 'home' | 'game' | 'summary' | 'guide' | 'favorites' | 'breed-quiz' | 'quiz-summary' | 'photo-quiz' | 'photo-summary'
+type Screen = 'home' | 'game' | 'summary' | 'guide' | 'favorites' | 'passport' | 'breed-quiz' | 'quiz-summary' | 'photo-quiz' | 'photo-summary'
 type RoundResult = { breed: Breed; distance: number; points: number; guess: Point; usedHint: boolean; photo: BreedPhoto; insideRegion: boolean; nearest: Point }
 type QuizResult = { breed: Breed; choice: Breed; correct: boolean; photo: BreedPhoto }
 type ReviewResult = RoundResult | QuizResult
@@ -56,8 +56,27 @@ function formatNumber(value: number) {
   return new Intl.NumberFormat('en-US').format(value)
 }
 
+function dailyShareText(results: RoundResult[], total: number, dayKey: string) {
+  const trail = results.map(result => result.insideRegion ? '🌟' : result.points >= 4000 ? '💖' : result.points >= 2500 ? '💗' : result.points >= 1000 ? '💙' : '🤍').join('')
+  return `HorseGuessr · Today’s Ride · ${dayKey}\n${trail}\n${formatNumber(total)} / 40,000 points\nNo breeds spoiled ✦`
+}
+
 function hashText(value: string) {
   return [...value].reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) >>> 0, 2166136261)
+}
+
+function usePrefetchImages(urls: string[]) {
+  const signature = urls.join('\n')
+  useEffect(() => {
+    if (!signature) return
+    const preloaded = signature.split('\n').map(src => {
+      const image = new window.Image()
+      image.decoding = 'async'
+      image.src = src
+      return image
+    })
+    return () => { preloaded.forEach(image => { image.src = '' }) }
+  }, [signature])
 }
 
 const nudgeOverrides: Record<string, string> = {
@@ -235,6 +254,9 @@ const MagnificationContext = createContext<MagnificationContextValue>({ enabled:
 type FavoritesContextValue = { favoriteIds: string[]; toggleFavorite: (breedId: string) => void }
 const FavoritesContext = createContext<FavoritesContextValue>({ favoriteIds: [], toggleFavorite: () => {} })
 
+type PassportContextValue = { passportIds: string[]; awardPassportStar: (breedId: string) => void }
+const PassportContext = createContext<PassportContextValue>({ passportIds: [], awardPassportStar: () => {} })
+
 function FavoriteButton({ breed }: { breed: Breed }) {
   const { favoriteIds, toggleFavorite } = useContext(FavoritesContext)
   const favorite = favoriteIds.includes(breed.id)
@@ -256,6 +278,12 @@ function BreedName({ breed }: { breed: Breed }) {
   return <span className="breed-name-with-heart"><span>{breed.name}</span><FavoriteButton breed={breed} /></span>
 }
 
+function PassportStar({ breed }: { breed: Breed }) {
+  const { passportIds } = useContext(PassportContext)
+  if (!passportIds.includes(breed.id)) return null
+  return <span className="passport-earned-star" title="Correctly identified · Passport star earned" aria-label="Passport star earned"><Star size={21} fill="currentColor" /></span>
+}
+
 function MagnificationToggle() {
   const { enabled, setEnabled } = useContext(MagnificationContext)
   const toggle = () => {
@@ -270,15 +298,28 @@ function MagnificationToggle() {
   )
 }
 
-function PhotoViewer({ photos, startSrc, alt, onClose }: { photos: BreedPhoto[]; startSrc: string; alt: string; onClose: () => void }) {
+const photoReportOptions: Array<{ value: PhotoReportReason; label: string }> = [
+  { value: 'not-loading', label: 'Photo will not load' },
+  { value: 'horse-too-small', label: 'Horse is too small or distant' },
+  { value: 'person-visible', label: 'A person is prominent' },
+  { value: 'not-color-photo', label: 'Drawing, sepia, or black-and-white' },
+  { value: 'wrong-breed', label: 'Wrong breed or misleading photo' },
+  { value: 'other', label: 'Other quality problem' },
+]
+
+function PhotoViewer({ photos, startSrc, alt, breedId, onClose }: { photos: BreedPhoto[]; startSrc: string; alt: string; breedId?: string; onClose: () => void }) {
   const uniquePhotos = useMemo(() => photos.filter((photo, index) => photos.findIndex(item => item.src === photo.src) === index), [photos])
   const [photoIndex, setPhotoIndex] = useState(() => Math.max(0, uniquePhotos.findIndex(photo => photo.src === startSrc)))
   const [loaded, setLoaded] = useState(false)
   const [failed, setFailed] = useState<number[]>([])
+  const [reportOpen, setReportOpen] = useState(false)
+  const [reportStatus, setReportStatus] = useState('')
   const current = uniquePhotos[photoIndex] ?? uniquePhotos[0]
   const move = (direction: number) => {
     if (uniquePhotos.length < 2) return
     setLoaded(false)
+    setReportOpen(false)
+    setReportStatus('')
     setPhotoIndex(index => (index + direction + uniquePhotos.length) % uniquePhotos.length)
   }
   useEffect(() => {
@@ -296,6 +337,13 @@ function PhotoViewer({ photos, startSrc, alt, onClose }: { photos: BreedPhoto[];
     setFailed(items => items.includes(photoIndex) ? items : [...items, photoIndex])
     const next = uniquePhotos.findIndex((_, index) => index !== photoIndex && !failed.includes(index))
     if (next >= 0) { setLoaded(false); setPhotoIndex(next) }
+  }
+  const submitReport = async (reason: PhotoReportReason) => {
+    if (!breedId) return
+    setReportOpen(false)
+    setReportStatus('Saving…')
+    const result = await recordPhotoQualityReport(breedId, current.src, reason)
+    setReportStatus(result === 'sent' ? 'Thanks—report sent!' : 'Saved—will send when online.')
   }
   return createPortal(
     <div className="magnified-preview magnified-preview--open" role="dialog" aria-modal="true" aria-label={`Photo gallery for ${alt}`} onMouseDown={onClose}>
@@ -315,6 +363,18 @@ function PhotoViewer({ photos, startSrc, alt, onClose }: { photos: BreedPhoto[];
           <strong>{alt}</strong>
           <span>{photoIndex + 1} / {uniquePhotos.length}</span>
           {current.source && <a href={current.source} target="_blank" rel="noreferrer">Photo source ↗</a>}
+          {breedId && (
+            <div className="photo-report-wrap">
+              <button type="button" className="photo-report-button" onClick={() => { setReportOpen(value => !value); setReportStatus('') }} aria-expanded={reportOpen}><Flag size={12} /> Report photo</button>
+              {reportOpen && (
+                <div className="photo-report-menu" role="menu" aria-label="Report a photo quality problem">
+                  <b>What should we check?</b>
+                  {photoReportOptions.map(option => <button type="button" role="menuitem" key={option.value} onClick={() => void submitReport(option.value)}>{option.label}</button>)}
+                </div>
+              )}
+              {reportStatus && <small className="photo-report-status" role="status">{reportStatus}</small>}
+            </div>
+          )}
         </div>
         <small>Use the arrows or keyboard · one photo at a time · Esc closes</small>
       </div>
@@ -323,7 +383,7 @@ function PhotoViewer({ photos, startSrc, alt, onClose }: { photos: BreedPhoto[];
   )
 }
 
-function MagnifiableImage({ src, alt, loading = 'eager', fallbacks = [], photos = [] }: { src: string; alt: string; loading?: 'eager' | 'lazy'; fallbacks?: string[]; photos?: BreedPhoto[] }) {
+function MagnifiableImage({ src, alt, breedId, loading = 'eager', fallbacks = [], photos = [] }: { src: string; alt: string; breedId?: string; loading?: 'eager' | 'lazy'; fallbacks?: string[]; photos?: BreedPhoto[] }) {
   const [expanded, setExpanded] = useState(false)
   const [candidateIndex, setCandidateIndex] = useState(0)
   const [loaded, setLoaded] = useState(false)
@@ -343,7 +403,7 @@ function MagnifiableImage({ src, alt, loading = 'eager', fallbacks = [], photos 
       {!loaded && <span className="photo-loading" aria-hidden="true"><i>♥</i><small>loading horse...</small></span>}
       <img src={activeSrc} alt={alt} loading={loading} onLoad={() => setLoaded(true)} onError={tryNextPhoto} />
       {enabled && <button type="button" className="magnify-hint" onClick={event => { event.preventDefault(); event.stopPropagation(); setExpanded(true) }}><Maximize2 size={13} /> Full view</button>}
-      {expanded && enabled && <PhotoViewer photos={gallery} startSrc={activeSrc} alt={alt} onClose={() => setExpanded(false)} />}
+      {expanded && enabled && <PhotoViewer photos={gallery} startSrc={activeSrc} alt={alt} breedId={breedId} onClose={() => setExpanded(false)} />}
     </span>
   )
 }
@@ -457,7 +517,7 @@ function ResultReviewMap({ results, kind }: { results: ReviewResult[]; kind: 'ri
         {selected && (
           <article className="review-map-card" aria-live="polite">
             <button className="review-map-card__close" onClick={() => setSelectedIndex(null)} aria-label="Close breed review"><X size={18} /></button>
-            <div className="review-map-card__photo"><MagnifiableImage key={selected.photo.src} src={selected.photo.src} photos={photosForBreed(selected.breed)} fallbacks={photosForBreed(selected.breed).map(photo => photo.src)} alt={selected.breed.name} /></div>
+            <div className="review-map-card__photo"><MagnifiableImage key={selected.photo.src} src={selected.photo.src} photos={photosForBreed(selected.breed)} fallbacks={photosForBreed(selected.breed).map(photo => photo.src)} alt={selected.breed.name} breedId={selected.breed.id} /></div>
             <div className="review-map-card__body">
               <span className="review-map-card__index">HORSE {String(selectedIndex! + 1).padStart(2, '0')} · {selected.breed.country}</span>
               <h3><BreedName breed={selected.breed} /></h3>
@@ -488,7 +548,7 @@ function HorseDetailsModal({ breed, photo, onClose }: { breed: Breed; photo: Bre
     <div className="modal-backdrop horse-day-backdrop" role="dialog" aria-modal="true" aria-label={`${breed.name} horse of the day`} onMouseDown={onClose}>
       <article className="horse-day-card" onMouseDown={event => event.stopPropagation()}>
         <button className="horse-day-card__close" onClick={onClose} aria-label="Close horse of the day"><X size={20} /></button>
-        <div className="horse-day-card__photo"><MagnifiableImage src={photo.src} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(item => item.src)} alt={breed.name} /></div>
+        <div className="horse-day-card__photo"><MagnifiableImage src={photo.src} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(item => item.src)} alt={breed.name} breedId={breed.id} /></div>
         <div className="horse-day-card__body">
           <span>♥ HORSE OF THE DAY ♥</span>
           <h2><BreedName breed={breed} /></h2>
@@ -557,13 +617,13 @@ function CookieNotice() {
   const dismiss = () => { writeCookie(cookieNames.cookieNotice, 'ok'); setVisible(false) }
   return (
     <aside className="cookie-notice">
-      <span>🍪</span><p><b>Stable cookies!</b> HorseGuessr saves your initials, personal record, daily try, and favorite breeds on this device.</p>
+      <span>🍪</span><p><b>Stable cookies!</b> HorseGuessr saves your initials, records, daily streak, passport stars, and favorite breeds on this device.</p>
       <button onClick={dismiss}>Okay!</button>
     </aside>
   )
 }
 
-function Home({ dailyKey, dailyLocked, resetIn, onStart, onPractice, onBreedQuiz, onPhotoQuiz, onGuide, onFavorites }: { dailyKey: string; dailyLocked: boolean; resetIn: string; onStart: () => void; onPractice: () => void; onBreedQuiz: () => void; onPhotoQuiz: () => void; onGuide: () => void; onFavorites: () => void }) {
+function Home({ dailyKey, dailyLocked, resetIn, streak, onStart, onPractice, onBreedQuiz, onPhotoQuiz, onGuide, onFavorites, onPassport }: { dailyKey: string; dailyLocked: boolean; resetIn: string; streak: number; onStart: () => void; onPractice: () => void; onBreedQuiz: () => void; onPhotoQuiz: () => void; onGuide: () => void; onFavorites: () => void; onPassport: () => void }) {
   const best = readPersonalBest()
   const [horseOpen, setHorseOpen] = useState(false)
   const dailyHorse = useMemo(() => seededShuffle(breeds, `horse-of-day-${dailyKey}`)[0], [dailyKey])
@@ -578,6 +638,7 @@ function Home({ dailyKey, dailyLocked, resetIn, onStart, onPractice, onBreedQuiz
         <Brand inverse />
         <div className="home-nav-actions">
           <MagnificationToggle />
+          <button className="text-button" onClick={onPassport}><Award size={17} /> Passport</button>
           <button className="text-button" onClick={onFavorites}><BookHeart size={17} /> Favorites</button>
           <button className="text-button" onClick={onGuide}><BookOpen size={17} /> Field guide</button>
         </div>
@@ -619,6 +680,7 @@ function Home({ dailyKey, dailyLocked, resetIn, onStart, onPractice, onBreedQuiz
             <div><strong>{MAX_ROUNDS}</strong><span>breeds today</span></div>
             <div><strong>40K</strong><span>max points</span></div>
             <div><strong>{best ? formatNumber(best) : '—'}</strong><span>your best</span></div>
+            <div className="streak-ribbon"><strong>{streak}</strong><span>daily streak</span></div>
           </div>
           <p className="daily-reset">{dailyLocked ? `Next daily ride in ${resetIn}` : `One daily try · resets at 12:00 AM Central · ${dailyKey}`}</p>
         </div>
@@ -689,7 +751,12 @@ function Game({ mode, onFinish, onExit }: { mode: 'daily' | 'practice'; onFinish
   const photoIndex = hashText(`${gameSeed}-${breed.id}-${round}`) % photoPool.length
   const currentPhoto = photoPool[photoIndex]
   const total = results.reduce((sum, item) => sum + item.points, 0)
+  const nextPhotoUrls = useMemo(() => {
+    const nextBreed = roundBreeds[round + 1]
+    return nextBreed ? photosForBreed(nextBreed).map(photo => photo.src) : []
+  }, [roundBreeds, round])
 
+  usePrefetchImages(nextPhotoUrls)
   useEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'auto' }) }, [round])
 
   const submitGuess = () => {
@@ -730,7 +797,7 @@ function Game({ mode, onFinish, onExit }: { mode: 'daily' | 'practice'; onFinish
           </div>
 
           <figure className={`horse-photo ${result ? 'horse-photo--revealed' : ''}`}>
-            <MagnifiableImage key={currentPhoto.src} src={currentPhoto.src} photos={photoPool} fallbacks={photoPool.map(photo => photo.src)} alt={result ? breed.name : 'Mystery horse breed'} />
+            <MagnifiableImage key={currentPhoto.src} src={currentPhoto.src} photos={photoPool} fallbacks={photoPool.map(photo => photo.src)} alt={result ? breed.name : 'Mystery horse breed'} breedId={breed.id} />
             <div className="photo-corners" aria-hidden="true"><i /><i /><i /><i /></div>
             {!result && <figcaption>Observe closely <span>•</span> no reverse image search</figcaption>}
             {result && <a href={currentPhoto.source} target="_blank" rel="noreferrer">Image source ↗ · photo {photoIndex + 1} of {photoPool.length}</a>}
@@ -785,6 +852,7 @@ function Game({ mode, onFinish, onExit }: { mode: 'daily' | 'practice'; onFinish
 }
 
 function BreedQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => void; onExit: () => void }) {
+  const { awardPassportStar } = useContext(PassportContext)
   const [gameSeed] = useState(() => `breed-quiz-${Date.now()}-${Math.random()}`)
   const roundBreeds = useMemo(() => seededShuffle(breeds, gameSeed).slice(0, MAX_ROUNDS), [gameSeed])
   const [round, setRound] = useState(0)
@@ -801,12 +869,18 @@ function BreedQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
   }, [breed, gameSeed, round])
   const correctCount = results.filter(item => item.correct).length
   const answeredCorrectly = choice?.id === breed.id
+  const nextPhotoUrls = useMemo(() => {
+    const nextBreed = roundBreeds[round + 1]
+    return nextBreed ? photosForBreed(nextBreed).map(photo => photo.src) : []
+  }, [roundBreeds, round])
 
+  usePrefetchImages(nextPhotoUrls)
   useEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'auto' }) }, [round])
 
   const selectBreed = (selected: Breed) => {
     if (choice) return
     const nextResult = { breed, choice: selected, correct: selected.id === breed.id, photo: currentPhoto }
+    if (nextResult.correct) awardPassportStar(breed.id)
     setChoice(selected)
     setResults(current => [...current, nextResult])
   }
@@ -836,7 +910,7 @@ function BreedQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
           </div>
 
           <figure className={`horse-photo quiz-photo ${choice ? 'horse-photo--revealed' : ''}`}>
-            <MagnifiableImage key={currentPhoto.src} src={currentPhoto.src} photos={photoPool} fallbacks={photoPool.map(photo => photo.src)} alt={choice ? breed.name : 'Mystery horse breed'} />
+            <MagnifiableImage key={currentPhoto.src} src={currentPhoto.src} photos={photoPool} fallbacks={photoPool.map(photo => photo.src)} alt={choice ? breed.name : 'Mystery horse breed'} breedId={breed.id} />
             <div className="photo-corners" aria-hidden="true"><i /><i /><i /><i /></div>
             {!choice && <figcaption>Study build, coat, head, mane, and proportions</figcaption>}
             {choice && <a href={currentPhoto.source} target="_blank" rel="noreferrer">Image source ↗ · photo {photoIndex + 1} of {photoPool.length}</a>}
@@ -907,6 +981,7 @@ function BreedQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
 }
 
 function PhotoQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => void; onExit: () => void }) {
+  const { awardPassportStar } = useContext(PassportContext)
   const [gameSeed] = useState(() => `photo-quiz-${Date.now()}-${Math.random()}`)
   const roundBreeds = useMemo(() => seededShuffle(breeds, gameSeed).slice(0, MAX_ROUNDS), [gameSeed])
   const [round, setRound] = useState(0)
@@ -927,12 +1002,26 @@ function PhotoQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
   const correctIndex = photoOptions.findIndex(option => option.breed.id === breed.id)
   const correctCount = results.filter(item => item.correct).length
   const answeredCorrectly = choice?.id === breed.id
+  const nextPhotoUrls = useMemo(() => {
+    const nextRound = round + 1
+    const nextBreed = roundBreeds[nextRound]
+    if (!nextBreed) return []
+    const distractors = seededShuffle(breeds.filter(candidate => candidate.id !== nextBreed.id), `${gameSeed}-photo-options-${nextRound}`).slice(0, 3)
+    const optionBreeds = seededShuffle([nextBreed, ...distractors], `${gameSeed}-photo-positions-${nextRound}`)
+    return optionBreeds.flatMap((optionBreed, index) => {
+      const pool = photosForBreed(optionBreed)
+      const selectedIndex = hashText(`${gameSeed}-${optionBreed.id}-${nextRound}-${index}`) % pool.length
+      return [pool[selectedIndex].src, ...pool.filter((_, photoIndex) => photoIndex !== selectedIndex).slice(0, 1).map(photo => photo.src)]
+    })
+  }, [gameSeed, round, roundBreeds])
 
+  usePrefetchImages(nextPhotoUrls)
   useEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'auto' }) }, [round])
 
   const selectPhoto = (selected: Breed) => {
     if (choice) return
     const nextResult = { breed, choice: selected, correct: selected.id === breed.id, photo: correctOption.photo }
+    if (nextResult.correct) awardPassportStar(breed.id)
     setChoice(selected)
     setResults(current => [...current, nextResult])
   }
@@ -983,7 +1072,7 @@ function PhotoQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
                   aria-disabled={Boolean(choice)}
                   aria-label={`Photo ${letter}${choice ? `: ${option.breed.name}` : ''}`}
                 >
-                  <MagnifiableImage src={option.photo.src} photos={photosForBreed(option.breed)} fallbacks={photosForBreed(option.breed).map(photo => photo.src)} alt={`Horse option ${letter}`} />
+                  <MagnifiableImage src={option.photo.src} photos={photosForBreed(option.breed)} fallbacks={photosForBreed(option.breed).map(photo => photo.src)} alt={`Horse option ${letter}`} breedId={option.breed.id} />
                   <span className="photo-choice__letter">{letter}</span>
                   {choice && <span className="photo-choice__name">{option.breed.name}</span>}
                   {isCorrect && <span className="photo-choice__status"><CheckCircle2 size={18} /> Correct</span>}
@@ -1040,9 +1129,31 @@ function PhotoQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
 function Summary({ results, mode, dayKey, onReplay, onHome }: { results: RoundResult[]; mode: 'daily' | 'practice'; dayKey: string; onReplay: () => void; onHome: () => void }) {
   const total = results.reduce((sum, result) => sum + result.points, 0)
   const [best] = useState(() => Math.max(total, readPersonalBest()))
+  const [shareStatus, setShareStatus] = useState('')
   useEffect(() => { updatePersonalBest(total) }, [total])
   const percentage = Math.round(total / 400)
   const rank = percentage >= 85 ? 'Master Equine Geographer' : percentage >= 65 ? 'Seasoned Trailblazer' : percentage >= 40 ? 'Curious Stablehand' : 'Fresh in the Saddle'
+  const shareDaily = async () => {
+    const text = dailyShareText(results, total, dayKey)
+    const url = new URL(import.meta.env.BASE_URL, window.location.origin).href
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'My HorseGuessr daily ride', text, url })
+        setShareStatus('Shared without revealing any breeds!')
+      } else {
+        await navigator.clipboard.writeText(`${text}\n${url}`)
+        setShareStatus('Spoiler-free result copied!')
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return
+      try {
+        await navigator.clipboard.writeText(`${text}\n${url}`)
+        setShareStatus('Spoiler-free result copied!')
+      } catch {
+        setShareStatus('Sharing is unavailable in this browser.')
+      }
+    }
+  }
   return (
     <main className="summary-screen">
       <nav className="summary-nav"><Brand inverse /><div className="summary-nav-actions"><MagnificationToggle /><button className="text-button" onClick={onHome}>Back home</button></div></nav>
@@ -1061,7 +1172,8 @@ function Summary({ results, mode, dayKey, onReplay, onHome }: { results: RoundRe
         </div>
         <LeaderboardPanel score={total} dayKey={dayKey} allowEntry={mode === 'daily'} />
         <p className="personal-best-ribbon">Your personal record: <b>{formatNumber(best)}</b> points</p>
-        <div className="summary-actions"><button className="secondary-button" onClick={onHome}>Return home</button><button className="primary-button" onClick={onReplay}><RotateCcw size={18} /> Ride again</button></div>
+        {shareStatus && <p className="share-status" role="status">{shareStatus}</p>}
+        <div className="summary-actions">{mode === 'daily' && <button className="secondary-button share-result-button" onClick={() => void shareDaily()}><Share2 size={18} /> Share result</button>}<button className="secondary-button" onClick={onHome}>Return home</button><button className="primary-button" onClick={onReplay}><RotateCcw size={18} /> Ride again</button></div>
       </section>
     </main>
   )
@@ -1097,21 +1209,51 @@ function QuizSummary({ results, kind, onReplay, onHome }: { results: QuizResult[
 }
 
 function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, onBack }: { shownBreeds: Breed[]; title: string; eyebrow: string; emptyCopy?: string; onBack: () => void }) {
+  const { passportIds } = useContext(PassportContext)
   const photoCount = shownBreeds.reduce((total, breed) => total + photosForBreed(breed).length, 0)
   const [galleryBreed, setGalleryBreed] = useState<Breed | null>(null)
+  const [query, setQuery] = useState('')
+  const [country, setCountry] = useState('')
+  const [tag, setTag] = useState('')
+  const [passportFilter, setPassportFilter] = useState('all')
+  const countries = useMemo(() => [...new Set(shownBreeds.map(breed => breed.country))].sort((a, b) => a.localeCompare(b)), [shownBreeds])
+  const tags = useMemo(() => [...new Set(shownBreeds.flatMap(breed => breed.tags))].sort((a, b) => a.localeCompare(b)), [shownBreeds])
+  const filteredBreeds = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    return shownBreeds.filter(breed => {
+      const matchesSearch = !needle || [breed.name, breed.country, breed.location, breed.fact, breed.hint, breed.coatColors, ...breed.tags].join(' ').toLowerCase().includes(needle)
+      const matchesCountry = !country || breed.country === country
+      const matchesTag = !tag || breed.tags.includes(tag)
+      const earned = passportIds.includes(breed.id)
+      const matchesPassport = passportFilter === 'all' || (passportFilter === 'earned' ? earned : !earned)
+      return matchesSearch && matchesCountry && matchesTag && matchesPassport
+    })
+  }, [country, passportFilter, passportIds, query, shownBreeds, tag])
+  const resetFilters = () => { setQuery(''); setCountry(''); setTag(''); setPassportFilter('all') }
   return (
     <main className="guide-screen">
       <nav className="summary-nav"><Brand inverse /><div className="summary-nav-actions"><MagnificationToggle /><button className="text-button" onClick={onBack}><ArrowRight className="arrow-back" size={17} /> Back</button></div></nav>
       <section className="guide-heading"><p className="eyebrow"><span /> {eyebrow}</p><h1>{title}</h1><p>{shownBreeds.length ? `Meet ${shownBreeds.length} breeds across ${photoCount} photographs—and follow their stories home.` : emptyCopy}</p></section>
+      {shownBreeds.length > 0 && (
+        <section className="guide-tools" aria-label="Search and filter breeds">
+          <label className="guide-search"><Search size={18} /><span>Search breeds</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Name, region, coat, or trait…" /></label>
+          <label><span>Country</span><select value={country} onChange={event => setCountry(event.target.value)}><option value="">All countries</option>{countries.map(item => <option key={item}>{item}</option>)}</select></label>
+          <label><span>Type</span><select value={tag} onChange={event => setTag(event.target.value)}><option value="">All breed types</option>{tags.map(item => <option key={item}>{item}</option>)}</select></label>
+          <label><span>Passport</span><select value={passportFilter} onChange={event => setPassportFilter(event.target.value)}><option value="all">All breeds</option><option value="earned">Star earned</option><option value="unearned">Not identified yet</option></select></label>
+          <div className="guide-filter-result"><strong>{filteredBreeds.length}</strong><span>breeds shown</span><button type="button" onClick={resetFilters}>Reset</button></div>
+        </section>
+      )}
       <section className="guide-grid">
-        {shownBreeds.map(breed => (
-          <article className="guide-card" key={breed.id}>
-            <MagnifiableImage src={breed.image} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} loading="lazy" />
+        {filteredBreeds.map(breed => (
+          <article className={`guide-card ${passportIds.includes(breed.id) ? 'guide-card--passport-earned' : ''}`} key={breed.id}>
+            <PassportStar breed={breed} />
+            <MagnifiableImage src={breed.image} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} breedId={breed.id} loading="lazy" />
             <div><span>{breed.country} · <button type="button" className="guide-photo-count" onClick={() => setGalleryBreed(breed)}>{photosForBreed(breed).length} photos <Images size={13} /></button></span><h2><BreedName breed={breed} /></h2><BreedBio breed={breed} /><a href={breed.source} target="_blank" rel="noreferrer">Open breed profile <ArrowRight size={15} /></a></div>
           </article>
         ))}
+        {shownBreeds.length > 0 && filteredBreeds.length === 0 && <p className="guide-empty">No breeds match this stable search. Try clearing one of the filters.</p>}
       </section>
-      {galleryBreed && <PhotoViewer photos={photosForBreed(galleryBreed)} startSrc={galleryBreed.image} alt={galleryBreed.name} onClose={() => setGalleryBreed(null)} />}
+      {galleryBreed && <PhotoViewer photos={photosForBreed(galleryBreed)} startSrc={galleryBreed.image} alt={galleryBreed.name} breedId={galleryBreed.id} onClose={() => setGalleryBreed(null)} />}
     </main>
   )
 }
@@ -1126,6 +1268,39 @@ function FavoriteBreeds({ onBack }: { onBack: () => void }) {
   return <BreedCollection shownBreeds={favorites} eyebrow="Your cookie-saved stable" title="Favorite breeds" emptyCopy="Your stable is empty. Tap the heart after any breed name to add it here." onBack={onBack} />
 }
 
+function BreedPassport({ onBack }: { onBack: () => void }) {
+  const { passportIds } = useContext(PassportContext)
+  const earned = breeds.filter(breed => passportIds.includes(breed.id)).length
+  const percentage = Math.round(earned / breeds.length * 100)
+  return (
+    <main className="guide-screen passport-screen">
+      <nav className="summary-nav"><Brand inverse /><div className="summary-nav-actions"><MagnificationToggle /><button className="text-button" onClick={onBack}><ArrowRight className="arrow-back" size={17} /> Back</button></div></nav>
+      <section className="guide-heading passport-heading">
+        <p className="eyebrow"><span /> Your breed passport</p>
+        <h1>Stable sticker book</h1>
+        <p>Correctly identify a breed in either identification quiz to earn its glossy passport star.</p>
+        <div className="passport-progress"><div><strong>{earned}</strong><span>of {breeds.length} breeds earned</span><b>{percentage}%</b></div><i><span style={{ width: `${percentage}%` }} /></i></div>
+      </section>
+      <section className="passport-grid">
+        {breeds.map(breed => {
+          const isEarned = passportIds.includes(breed.id)
+          return (
+            <article className={`passport-sticker ${isEarned ? 'passport-sticker--earned' : 'passport-sticker--locked'}`} key={breed.id}>
+              <div className="passport-sticker__photo">
+                {isEarned
+                  ? <MagnifiableImage src={breed.image} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} breedId={breed.id} loading="lazy" />
+                  : <div className="passport-sticker__mystery"><img src={`${import.meta.env.BASE_URL}horse-head-logo.png`} alt="" /><span>?</span></div>}
+              </div>
+              <span className="passport-sticker__star"><Star size={24} fill={isEarned ? 'currentColor' : 'none'} /></span>
+              <div><small>{isEarned ? `${breed.flag} ${breed.country}` : 'Keep guessing to unlock'}</small><strong>{isEarned ? breed.name : 'Mystery breed'}</strong></div>
+            </article>
+          )
+        })}
+      </section>
+    </main>
+  )
+}
+
 export default function App() {
   const [screen, setScreen] = useState<Screen>('home')
   const [mode, setMode] = useState<'daily' | 'practice'>('daily')
@@ -1133,16 +1308,27 @@ export default function App() {
   const [quizResults, setQuizResults] = useState<QuizResult[]>([])
   const [magnificationEnabled, setMagnificationEnabled] = useState(() => localStorage.getItem('horseguessr-photo-viewer') !== 'off')
   const [favoriteIds, setFavoriteIds] = useState(readFavoriteIds)
+  const [passportIds, setPassportIds] = useState(readPassportIds)
+  const [dailyStreak, setDailyStreak] = useState(readDailyStreak)
   const [dailyAttemptKey, setDailyAttemptKey] = useState(() => readCookie(cookieNames.dailyAttempt))
   const centralClock = useCentralClock()
   const dailyLocked = dailyAttemptKey === centralClock.key
   useEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'auto' }) }, [screen])
+  useEffect(() => {
+    if (dailyAttemptKey === centralClock.key) setDailyStreak(updateDailyStreak(centralClock.key))
+  }, [centralClock.key, dailyAttemptKey])
   const toggleFavorite = (breedId: string) => {
     const isAdding = !favoriteIds.includes(breedId)
     const next = isAdding ? [...favoriteIds, breedId] : favoriteIds.filter(id => id !== breedId)
     setFavoriteIds(next)
     writeFavoriteIds(next)
     if (isAdding) void recordBreedFavorite(breedId)
+  }
+  const awardPassportStar = (breedId: string) => {
+    if (passportIds.includes(breedId)) return
+    const next = [...passportIds, breedId]
+    setPassportIds(next)
+    writePassportIds(next)
   }
   const start = (nextMode: 'daily' | 'practice') => {
     if (nextMode === 'daily') {
@@ -1163,12 +1349,15 @@ export default function App() {
   else if (screen === 'photo-summary') page = <QuizSummary kind="photo" results={quizResults} onReplay={() => { setQuizResults([]); setScreen('photo-quiz') }} onHome={() => setScreen('home')} />
   else if (screen === 'guide') page = <FieldGuide onBack={() => setScreen('home')} />
   else if (screen === 'favorites') page = <FavoriteBreeds onBack={() => setScreen('home')} />
-  else page = <Home dailyKey={centralClock.key} dailyLocked={dailyLocked} resetIn={centralClock.resetIn} onStart={() => start('daily')} onPractice={() => start('practice')} onBreedQuiz={() => { setQuizResults([]); setScreen('breed-quiz') }} onPhotoQuiz={() => { setQuizResults([]); setScreen('photo-quiz') }} onGuide={() => setScreen('guide')} onFavorites={() => setScreen('favorites')} />
+  else if (screen === 'passport') page = <BreedPassport onBack={() => setScreen('home')} />
+  else page = <Home dailyKey={centralClock.key} dailyLocked={dailyLocked} resetIn={centralClock.resetIn} streak={dailyStreak} onStart={() => start('daily')} onPractice={() => start('practice')} onBreedQuiz={() => { setQuizResults([]); setScreen('breed-quiz') }} onPhotoQuiz={() => { setQuizResults([]); setScreen('photo-quiz') }} onGuide={() => setScreen('guide')} onFavorites={() => setScreen('favorites')} onPassport={() => setScreen('passport')} />
   return (
     <MagnificationContext.Provider value={{ enabled: magnificationEnabled, setEnabled: setMagnificationEnabled }}>
       <FavoritesContext.Provider value={{ favoriteIds, toggleFavorite }}>
-        {page}
-        <CookieNotice />
+        <PassportContext.Provider value={{ passportIds, awardPassportStar }}>
+          {page}
+          <CookieNotice />
+        </PassportContext.Provider>
       </FavoritesContext.Provider>
     </MagnificationContext.Provider>
   )
