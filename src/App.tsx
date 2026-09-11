@@ -690,6 +690,8 @@ function Game({ mode, onFinish, onExit }: { mode: 'daily' | 'practice'; onFinish
   const currentPhoto = photoPool[photoIndex]
   const total = results.reduce((sum, item) => sum + item.points, 0)
 
+  useEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'auto' }) }, [round])
+
   const submitGuess = () => {
     if (!guess) return
     const zoneResult = distanceToOriginZone(guess, originZone)
@@ -799,6 +801,8 @@ function BreedQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
   }, [breed, gameSeed, round])
   const correctCount = results.filter(item => item.correct).length
   const answeredCorrectly = choice?.id === breed.id
+
+  useEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'auto' }) }, [round])
 
   const selectBreed = (selected: Breed) => {
     if (choice) return
@@ -923,6 +927,8 @@ function PhotoQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
   const correctIndex = photoOptions.findIndex(option => option.breed.id === breed.id)
   const correctCount = results.filter(item => item.correct).length
   const answeredCorrectly = choice?.id === breed.id
+
+  useEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'auto' }) }, [round])
 
   const selectPhoto = (selected: Breed) => {
     if (choice) return
@@ -1130,6 +1136,7 @@ export default function App() {
   const [dailyAttemptKey, setDailyAttemptKey] = useState(() => readCookie(cookieNames.dailyAttempt))
   const centralClock = useCentralClock()
   const dailyLocked = dailyAttemptKey === centralClock.key
+  useEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'auto' }) }, [screen])
   const toggleFavorite = (breedId: string) => {
     const isAdding = !favoriteIds.includes(breedId)
     const next = isAdding ? [...favoriteIds, breedId] : favoriteIds.filter(id => id !== breedId)
