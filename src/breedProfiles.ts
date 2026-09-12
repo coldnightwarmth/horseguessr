@@ -400,4 +400,109 @@ export const breedProfiles: Record<string, BreedProfile> = {
     coatColors: 'Every solid equine color appears, including bay, chestnut, black, gray, palomino, buckskin, and roan, plus tobiano and other pinto patterns.',
     relatedBreedIds: ['tennessee-walker', 'standardbred', 'morgan'],
   },
+  'american-saddlebred': {
+    flag: '🇺🇸',
+    coatColors: 'All colors are accepted. Bay, chestnut, brown, black, and gray are common, while palomino, pinto, and other patterns also occur.',
+    relatedBreedIds: ['tennessee-walker', 'morgan', 'standardbred'],
+  },
+  'american-curly': {
+    flag: '🇺🇸',
+    coatColors: 'Nearly every color and pattern occurs, including bay, chestnut, black, gray, dun, buckskin, roan, pinto, and spotted coats; curl intensity varies seasonally.',
+    relatedBreedIds: ['mustang', 'bashkir-horse', 'morgan'],
+  },
+  'canadian-horse': {
+    flag: '🇨🇦',
+    coatColors: 'Black is strongly associated with the breed and remains most common, followed by bay, brown, and chestnut; other colors are accepted.',
+    relatedBreedIds: ['morgan', 'friesian', 'american-saddlebred'],
+  },
+  criollo: {
+    flag: '🇦🇷',
+    coatColors: 'A very wide palette occurs. Dun and grullo with primitive markings are especially characteristic, alongside bay, chestnut, black, gray, roan, and overo patterns.',
+    relatedBreedIds: ['peruvian-paso', 'brumby', 'mustang'],
+  },
+  'paso-fino': {
+    flag: '🇵🇷',
+    coatColors: 'Every equine color is accepted, including bay, chestnut, black, brown, gray, palomino, buckskin, roan, and pinto patterns.',
+    relatedBreedIds: ['peruvian-paso', 'tennessee-walker', 'florida-cracker'],
+  },
+  brumby: {
+    flag: '🇦🇺',
+    coatColors: 'Because populations descend from varied domestic stock, virtually every solid color, dilution, roan, and pinto pattern can appear.',
+    relatedBreedIds: ['mustang', 'australian-stock', 'waler'],
+  },
+  barb: {
+    flag: '🇲🇦',
+    coatColors: 'Gray, bay, chestnut, brown, and black occur, with gray especially familiar in many modern North African populations.',
+    relatedBreedIds: ['arabian', 'andalusian', 'criollo'],
+  },
+  'don-horse': {
+    flag: '🇷🇺',
+    coatColors: 'Chestnut is dominant and often has a distinctive metallic golden sheen; bay, brown, and black are also found.',
+    relatedBreedIds: ['orlov-trotter', 'karabakh', 'thoroughbred'],
+  },
+  jutland: {
+    flag: '🇩🇰',
+    coatColors: 'Chestnut—often with a flaxen mane and tail—is the signature color. Bay, brown, black, and roan are much less frequent.',
+    relatedBreedIds: ['suffolk-punch', 'belgian-draft', 'breton'],
+  },
+  'welsh-cob': {
+    flag: '🇬🇧',
+    coatColors: 'Black, bay, brown, chestnut, gray, roan, palomino, and other solid colors occur; piebald and skewbald coats are not accepted in the studbook.',
+    relatedBreedIds: ['fell-pony', 'dales-pony', 'irish-cob'],
+  },
+  'new-forest-pony': {
+    flag: '🇬🇧',
+    coatColors: 'Bay, brown, chestnut, gray, black, roan, and palomino occur. Piebald, skewbald, spotted, and blue-eyed cream are excluded by the breed standard.',
+    relatedBreedIds: ['dartmoor-pony', 'exmoor-pony', 'connemara'],
+  },
+  'dartmoor-pony': {
+    flag: '🇬🇧',
+    coatColors: 'Bay, brown, black, gray, chestnut, and roan are recognized; piebald, skewbald, and spotted coats are not permitted.',
+    relatedBreedIds: ['exmoor-pony', 'new-forest-pony', 'shetland'],
+  },
+  'jeju-horse': {
+    flag: '🇰🇷',
+    coatColors: 'Chestnut and reddish brown are common, with bay, dark brown, gray, and black also present; traditional Korean descriptions recognize several shade variations.',
+    relatedBreedIds: ['mongolian', 'noma-horse', 'yakutian'],
+  },
+  mustang: {
+    flag: '🇺🇸',
+    coatColors: 'Every major color and pattern appears across the different herds, including bay, sorrel, black, gray, dun, grullo, roan, palomino, appaloosa, and pinto.',
+    relatedBreedIds: ['brumby', 'american-curly', 'florida-cracker'],
+  },
+  'rocky-mountain-horse': {
+    flag: '🇺🇸',
+    coatColors: 'Solid colors only are registered. Chocolate with a flaxen mane and tail is iconic, while black, bay, chestnut, palomino, buckskin, and gray also occur.',
+    relatedBreedIds: ['tennessee-walker', 'missouri-fox-trotter', 'american-saddlebred'],
+  },
+  'florida-cracker': {
+    flag: '🇺🇸',
+    coatColors: 'Bay, black, brown, chestnut, and gray are common, with dun, grullo, roan, and pinto patterns also found in the population.',
+    relatedBreedIds: ['paso-fino', 'mustang', 'criollo'],
+  },
+  waler: {
+    flag: '🇦🇺',
+    coatColors: 'Bay, brown, chestnut, black, and gray are most typical, reflecting the varied riding, Thoroughbred, Arab, and draft ancestry behind the type.',
+    relatedBreedIds: ['australian-stock', 'brumby', 'thoroughbred'],
+  },
+  'namib-desert-horse': {
+    flag: '🇳🇦',
+    coatColors: 'Bay is most common, followed by chestnut and brown, with a smaller number of dark or black horses; conspicuous white markings are limited.',
+    relatedBreedIds: ['brumby', 'mustang', 'waler'],
+  },
+  'bashkir-horse': {
+    flag: '🇷🇺',
+    coatColors: 'Bay, chestnut, brown, and dun are common, with gray and darker coats also occurring; some horses show dorsal stripes or other primitive markings.',
+    relatedBreedIds: ['yakutian', 'mongolian', 'american-curly'],
+  },
+  'noma-horse': {
+    flag: '🇯🇵',
+    coatColors: 'Bay and brown predominate, with chestnut, black, and gray also seen; most individuals have simple solid coats with modest white markings.',
+    relatedBreedIds: ['jeju-horse', 'mongolian', 'shetland'],
+  },
+  'irish-cob': {
+    flag: '🇮🇪',
+    coatColors: 'Any color is accepted. Piebald, skewbald, and other colored patterns are especially familiar, alongside black, bay, brown, chestnut, palomino, gray, and roan.',
+    relatedBreedIds: ['shire', 'welsh-cob', 'friesian'],
+  },
 }

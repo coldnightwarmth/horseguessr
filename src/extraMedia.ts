@@ -203,4 +203,88 @@ export const extraPhotos: Record<string, BreedPhoto[]> = {
     { src: commonsPhoto('Missouri Fox Trotter 1.jpg'), source: commons('Missouri_Fox_Trotter_1.jpg') },
     { src: commonsPhoto('Missouri Fox Trotter 3.jpg'), source: commons('Missouri_Fox_Trotter_3.jpg') },
   ],
+  'american-saddlebred': [
+    { src: commonsPhoto('Courageous Lord.jpg'), source: commons('Courageous_Lord.jpg') },
+    { src: commonsPhoto('Saddlebred Long Yearlings at Willowbank Farm in Simpsonville, Ky (8081515138).jpg'), source: commons('Saddlebred_Long_Yearlings_at_Willowbank_Farm_in_Simpsonville,_Ky_(8081515138).jpg') },
+  ],
+  'american-curly': [
+    { src: commonsPhoto('Bashkir Curly horse 2.jpg'), source: commons('Bashkir_Curly_horse_2.jpg') },
+    { src: commonsPhoto('Bashkir Curly horse.jpg'), source: commons('Bashkir_Curly_horse.jpg') },
+  ],
+  'canadian-horse': [
+    { src: commonsPhoto('Cheval canadien au trot 3351.jpg'), source: commons('Cheval_canadien_au_trot_3351.jpg') },
+    { src: commonsPhoto('Cheval canadien au trot 3372.jpg'), source: commons('Cheval_canadien_au_trot_3372.jpg') },
+  ],
+  criollo: [
+    { src: commonsPhoto('Criollo horse 2.jpg'), source: commons('Criollo_horse_2.jpg') },
+    { src: commonsPhoto('Criollo horse.jpg'), source: commons('Criollo_horse.jpg') },
+  ],
+  'paso-fino': [
+    { src: commonsPhoto('Chestnut Paso Fino.jpg'), source: commons('Chestnut_Paso_Fino.jpg') },
+    { src: commonsPhoto('Blood-bay-paso-fino-horse.jpg'), source: commons('Blood-bay-paso-fino-horse.jpg') },
+  ],
+  brumby: [
+    { src: commonsPhoto('Brumby-Malee.jpg'), source: commons('Brumby-Malee.jpg') },
+    { src: commonsPhoto('Tumba brumby 4.jpg'), source: commons('Tumba_brumby_4.jpg') },
+  ],
+  barb: [
+    { src: commonsPhoto('Young barb horse, Tozeur.jpg'), source: commons('Young_barb_horse,_Tozeur.jpg') },
+    { src: commonsPhoto('Jument Barbe Tunis.jpg'), source: commons('Jument_Barbe_Tunis.jpg') },
+  ],
+  'don-horse': [
+    { src: commonsPhoto('Донской жеребец Зачин.jpg'), source: commons('%D0%94%D0%BE%D0%BD%D1%81%D0%BA%D0%BE%D0%B9_%D0%B6%D0%B5%D1%80%D0%B5%D0%B1%D0%B5%D1%86_%D0%97%D0%B0%D1%87%D0%B8%D0%BD.jpg') },
+    { src: commonsPhoto('Donchak 1.jpg'), source: commons('Donchak_1.jpg') },
+  ],
+  jutland: [
+    { src: commonsPhoto('Jysk hest med foel.jpg'), source: commons('Jysk_hest_med_foel.jpg') },
+    { src: commonsPhoto('Jutlandic horse in a stable.jpg'), source: commons('Jutlandic_horse_in_a_stable.jpg') },
+  ],
+  'welsh-cob': [
+    { src: commonsPhoto('North Forks Cardi Trot 5-Apr-09 3-48 PM.jpg'), source: commons('North_Forks_Cardi_Trot_5-Apr-09_3-48_PM.jpg') },
+    { src: commonsPhoto('Welsh Cob Horse Aberaeron - geograph.org.uk - 2518878.jpg'), source: commons('Welsh_Cob_Horse_Aberaeron_-_geograph.org.uk_-_2518878.jpg') },
+  ],
+  'new-forest-pony': [
+    { src: commonsPhoto('New Forest Pony Agriflanders.jpg'), source: commons('New_Forest_Pony_Agriflanders.jpg') },
+    { src: commonsPhoto('BrownNFStallion.jpg'), source: commons('BrownNFStallion.jpg') },
+  ],
+  'dartmoor-pony': [
+    { src: commonsPhoto('Poneys-dartmoor SDA2014.JPG'), source: commons('Poneys-dartmoor_SDA2014.JPG') },
+    { src: commonsPhoto('Dartmoor ponies sheltering from the wind. - geograph.org.uk - 924314.jpg'), source: commons('Dartmoor_ponies_sheltering_from_the_wind._-_geograph.org.uk_-_924314.jpg') },
+  ],
+  'jeju-horse': [
+    { src: commonsPhoto('Jeju horse (feed on grass).jpg'), source: commons('Jeju_horse_(feed_on_grass).jpg') },
+    { src: commonsPhoto('Jeju horse (mother and daughter).jpg'), source: commons('Jeju_horse_(mother_and_daughter).jpg') },
+  ],
+  mustang: [
+    { src: commonsPhoto('Arizona 2004 Mustangs.jpg'), source: commons('Arizona_2004_Mustangs.jpg') },
+    { src: commonsPhoto('Mustang Utah 2005 2.jpg'), source: commons('Mustang_Utah_2005_2.jpg') },
+  ],
+  'rocky-mountain-horse': [
+    { src: commonsPhoto('Rocky Mountain Horse (7998159775).jpg'), source: commons('Rocky_Mountain_Horse_(7998159775).jpg') },
+    { src: commonsPhoto('Rock-mountain-horse-head.jpg'), source: commons('Rock-mountain-horse-head.jpg') },
+  ],
+  'florida-cracker': [
+    { src: commonsPhoto('Cracker horse.jpg'), source: commons('Cracker_horse.jpg') },
+    { src: commonsPhoto('Flickr - ggallice - Cracker horses.jpg'), source: commons('Flickr_-_ggallice_-_Cracker_horses.jpg') },
+  ],
+  waler: [
+    { src: commonsPhoto('Waler (2).JPG'), source: commons('Waler_(2).JPG') },
+    { src: commonsPhoto('Krystina Waler 2018.jpg'), source: commons('Krystina_Waler_2018.jpg') },
+  ],
+  'namib-desert-horse': [
+    { src: commonsPhoto('NamWCp-246.jpg'), source: commons('NamWCp-246.jpg') },
+    { src: commonsPhoto('Wild Horses of Garub.jpg'), source: commons('Wild_Horses_of_Garub.jpg') },
+  ],
+  'bashkir-horse': [
+    { src: commonsPhoto('Лорд 0151-1.jpg'), source: commons('%D0%9B%D0%BE%D1%80%D0%B4_0151-1.jpg') },
+    { src: commonsPhoto('Лошади на Банном.jpg'), source: commons('%D0%9B%D0%BE%D1%88%D0%B0%D0%B4%D0%B8_%D0%BD%D0%B0_%D0%91%D0%B0%D0%BD%D0%BD%D0%BE%D0%BC.jpg') },
+  ],
+  'noma-horse': [
+    { src: commonsPhoto('Noma-Uma in Tennōji Zoo 1.jpg'), source: commons('Noma-Uma_in_Tenn%C5%8Dji_Zoo_1.jpg') },
+    { src: commonsPhoto('Noma-Uma in Tennōji Zoo 2.jpg'), source: commons('Noma-Uma_in_Tenn%C5%8Dji_Zoo_2.jpg') },
+  ],
+  'irish-cob': [
+    { src: commonsPhoto('Solid chestnut coloured Gypsy Cob Horse 1.jpg'), source: commons('Solid_chestnut_coloured_Gypsy_Cob_Horse_1.jpg') },
+    { src: commonsPhoto("He's a big foal - geograph.org.uk - 1494305.jpg"), source: commons("He's_a_big_foal_-_geograph.org.uk_-_1494305.jpg") },
+  ],
 }
