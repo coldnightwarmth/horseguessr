@@ -505,4 +505,9 @@ export const breedProfiles: Record<string, BreedProfile> = {
     coatColors: 'Any color is accepted. Piebald, skewbald, and other colored patterns are especially familiar, alongside black, bay, brown, chestnut, palomino, gray, and roan.',
     relatedBreedIds: ['shire', 'welsh-cob', 'friesian'],
   },
+  'azteca-horse': {
+    flag: '🇲🇽',
+    coatColors: 'Solid colors are accepted in the Mexican registry; bay and gray are especially familiar, with chestnut, black, and other solid shades also seen.',
+    relatedBreedIds: ['andalusian', 'quarter-horse', 'lusitano'],
+  },
 }

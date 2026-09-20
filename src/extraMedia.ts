@@ -287,4 +287,7 @@ export const extraPhotos: Record<string, BreedPhoto[]> = {
     { src: commonsPhoto('Solid chestnut coloured Gypsy Cob Horse 1.jpg'), source: commons('Solid_chestnut_coloured_Gypsy_Cob_Horse_1.jpg') },
     { src: commonsPhoto("He's a big foal - geograph.org.uk - 1494305.jpg"), source: commons("He's_a_big_foal_-_geograph.org.uk_-_1494305.jpg") },
   ],
+  'azteca-horse': [
+    { src: commonsPhoto('Azteca caballo.JPG'), source: commons('Azteca_caballo.JPG') },
+  ],
 }

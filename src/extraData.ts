@@ -564,4 +564,12 @@ export const extraBreeds: BreedSeed[] = [
     fact: 'The Irish Cob was developed by travelling communities as a dependable family driving and all-purpose horse. Its combination of strength, tractable temperament, lavish feather, and colorful markings has since made it popular internationally for riding and driving.',
     tags: ['Cob', 'Feathered', 'Driving'], source: 'https://www.horsesportireland.ie/studbooks/irish-cobs-studbook/',
   },
+  {
+    id: 'azteca-horse', name: 'Azteca Horse', image: commonsPhoto('Caballo Azteca Mexico.jpg'),
+    imageSource: commonsFile('Caballo Azteca Mexico.jpg'),
+    location: 'Texcoco, Valley of Mexico', country: 'Mexico', lat: 19.51, lng: -98.88,
+    hint: 'A muscular riding horse blending the presence and flowing mane of an Iberian breed with the strong hindquarters of a ranch horse.',
+    fact: 'Mexican breeders developed the Azteca near Texcoco in the late 1960s and early 1970s for charrería and versatile riding. Spanish-horse elegance was combined with Quarter Horse strength and agility; the breed later became recognized as Mexico’s national horse.',
+    tags: ['Mexican', 'Stock horse', 'Iberian influence'], source: 'https://www.fei.org/node/45210',
+  },
 ]

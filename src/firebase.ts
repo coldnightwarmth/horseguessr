@@ -10,6 +10,7 @@ export type LeaderboardResult = {
   entries: LeaderboardEntry[]
   backend: 'firebase' | 'local'
   note?: string
+  submittedId?: string
 }
 
 const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID?.trim()
@@ -313,11 +314,12 @@ export async function fetchPhotoQualityReports(): Promise<PhotoQualityReport[]> 
 export async function submitLeaderboardScore(initials: string, score: number, dayKey: string): Promise<LeaderboardResult> {
   const playedAt = new Date().toISOString()
   if (!firebaseConfigured) {
-    const entries = [...readLocalEntries(), { id: crypto.randomUUID(), initials, score, dayKey, playedAt }]
+    const submittedId = crypto.randomUUID()
+    const entries = [...readLocalEntries(), { id: submittedId, initials, score, dayKey, playedAt }]
       .sort((a, b) => b.score - a.score || a.playedAt.localeCompare(b.playedAt))
       .slice(0, 10)
     localStorage.setItem(localKey, JSON.stringify(entries))
-    return { entries, backend: 'local', note: 'Saved on this device. Connect Firebase to make the board public.' }
+    return { entries, backend: 'local', submittedId, note: 'Saved on this device. Connect Firebase to make the board public.' }
   }
 
   try {
@@ -335,13 +337,15 @@ export async function submitLeaderboardScore(initials: string, score: number, da
       } }),
     })
     if (!response.ok) throw new Error(`Score save returned ${response.status}`)
-    return fetchLeaderboard()
+    const updated = await fetchLeaderboard()
+    return { ...updated, submittedId: updated.backend === 'firebase' ? documentId : undefined }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Firebase is unavailable'
-    const fallback = [...readLocalEntries(), { id: crypto.randomUUID(), initials, score, dayKey, playedAt }]
+    const submittedId = crypto.randomUUID()
+    const fallback = [...readLocalEntries(), { id: submittedId, initials, score, dayKey, playedAt }]
       .sort((a, b) => b.score - a.score || a.playedAt.localeCompare(b.playedAt))
       .slice(0, 10)
     localStorage.setItem(localKey, JSON.stringify(fallback))
-    return { entries: fallback, backend: 'local', note: `${message}. The score was saved on this device instead.` }
+    return { entries: fallback, backend: 'local', submittedId, note: `${message}. The score was saved on this device instead.` }
   }
 }

@@ -10,10 +10,11 @@ import { fetchLeaderboard, fetchPhotoQualityReports, LeaderboardResult, PhotoQua
 import { normalizeGuideText, suggestBreedName } from './guideSearch'
 import { BreedPhoto, photosForBreed } from './media'
 import { distanceToOriginZone, OriginZone, originZoneBounds, originZones } from './originRegions'
+import { breedsForPracticeRegion, pointsForOriginGuess, practiceRegions, PracticeRegionId } from './practiceRegions'
 import { cookieNames, readCookie, readDailyStreak, readFavoriteIds, readPassportIds, readPersonalBest, sanitizeInitials, updateDailyStreak, updatePersonalBest, writeCookie, writeFavoriteIds, writePassportIds } from './preferences'
 
 type Point = { lat: number; lng: number }
-type Screen = 'home' | 'game' | 'summary' | 'guide' | 'favorites' | 'passport' | 'breed-quiz' | 'quiz-summary' | 'photo-quiz' | 'photo-summary'
+type Screen = 'home' | 'practice-picker' | 'game' | 'summary' | 'guide' | 'favorites' | 'passport' | 'breed-quiz' | 'quiz-summary' | 'photo-quiz' | 'photo-summary'
 type RoundResult = { breed: Breed; distance: number; points: number; guess: Point; usedHint: boolean; photo: BreedPhoto; insideRegion: boolean; nearest: Point }
 type QuizResult = { breed: Breed; choice: Breed; correct: boolean; photo: BreedPhoto }
 type ReviewResult = RoundResult | QuizResult
@@ -58,10 +59,13 @@ function formatNumber(value: number) {
   return new Intl.NumberFormat('en-US').format(value)
 }
 
-function dailyShareText(results: RoundResult[], total: number, dayKey: string) {
+function rideShareText(results: RoundResult[], total: number, dayKey: string, label: string, placement: LeaderboardPlacement | null) {
   const trail = results.map(result => result.insideRegion ? '🌟' : result.points >= 4000 ? '💖' : result.points >= 2500 ? '💗' : result.points >= 1000 ? '💙' : '🤍').join('')
-  return `HorseGuessr · Today’s Ride · ${dayKey}\n${trail}\n${formatNumber(total)} / 40,000 points\nNo breeds spoiled ✦`
+  const ribbon = placement ? `\nNew ${placement.backend === 'firebase' ? 'worldwide' : 'device'} ranking: #${placement.rank} (${placement.initials})` : ''
+  return `HorseGuessr · ${label} · ${dayKey}\n${trail}\n${formatNumber(total)} / 40,000 points${ribbon}\nNo breeds spoiled ✦`
 }
+
+type LeaderboardPlacement = { rank: number; initials: string; backend: 'firebase' | 'local' }
 
 function hashText(value: string) {
   return [...value].reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) >>> 0, 2166136261)
@@ -565,11 +569,12 @@ function HorseDetailsModal({ breed, photo, onClose }: { breed: Breed; photo: Bre
   )
 }
 
-function LeaderboardPanel({ score, dayKey, allowEntry = false }: { score?: number; dayKey?: string; allowEntry?: boolean }) {
+function LeaderboardPanel({ score, dayKey, allowEntry = false, onPlacement }: { score?: number; dayKey?: string; allowEntry?: boolean; onPlacement?: (placement: LeaderboardPlacement) => void }) {
   const [board, setBoard] = useState<LeaderboardResult>({ entries: [], backend: 'local' })
   const [loading, setLoading] = useState(true)
   const [initials, setInitials] = useState(() => sanitizeInitials(readCookie(cookieNames.initials)))
   const [submitted, setSubmitted] = useState(false)
+  const [postedRank, setPostedRank] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -589,6 +594,11 @@ function LeaderboardPanel({ score, dayKey, allowEntry = false }: { score?: numbe
     writeCookie(cookieNames.initials, initials)
     const updated = await submitLeaderboardScore(initials, score, dayKey)
     setBoard(updated)
+    const rank = updated.entries.findIndex(entry => entry.id === updated.submittedId) + 1
+    if (rank > 0) {
+      setPostedRank(rank)
+      onPlacement?.({ rank, initials, backend: updated.backend })
+    }
     setSubmitted(true)
     setSaving(false)
   }
@@ -603,7 +613,7 @@ function LeaderboardPanel({ score, dayKey, allowEntry = false }: { score?: numbe
           <button className="primary-button" disabled={initials.length < 2 || saving}>{saving ? 'Saving…' : 'Post score'}</button>
         </form>
       )}
-      {submitted && <p className="leaderboard-success">✦ Score posted! Your initials are saved for next time. ✦</p>}
+      {submitted && <p className="leaderboard-success">✦ {board.backend === 'firebase' ? 'Score posted!' : 'Score saved on this device!'} Your initials are saved for next time. ✦{postedRank && <button type="button" onClick={() => document.querySelector('.shareable-result-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>See your new #{postedRank} ribbon ↑</button>}</p>}
       <ol className="leaderboard-list">
         {loading && <li className="leaderboard-empty">Loading the ribbon board…</li>}
         {!loading && !board.entries.length && <li className="leaderboard-empty">No ribbons yet—be the first rider on the board!</li>}
@@ -708,6 +718,30 @@ function Home({ dailyKey, dailyLocked, resetIn, streak, onStart, onPractice, onB
   )
 }
 
+function PracticePicker({ onChoose, onBack }: { onChoose: (region: PracticeRegionId) => void; onBack: () => void }) {
+  const regions = Object.entries(practiceRegions) as [PracticeRegionId, typeof practiceRegions[PracticeRegionId]][]
+  return (
+    <main className="practice-picker-screen">
+      <nav className="summary-nav"><Brand inverse /><button className="text-button" onClick={onBack}><ChevronLeft size={17} /> Back home</button></nav>
+      <section className="practice-picker-board">
+        <span className="practice-picker-kicker">✦ CHOOSE YOUR TRAIL ✦</span>
+        <h1>Where shall we ride?</h1>
+        <p>Eight mystery horses per ride. Each trail draws only from its listed homeland pool, and distance points are tuned to that trail’s size. Any pin inside the breed’s accepted origin region still earns full points.</p>
+        <div className="practice-region-grid">
+          {regions.map(([id, region]) => (
+            <button key={id} className={`practice-region-card practice-region-card--${id}`} onClick={() => onChoose(id)}>
+              <span className="practice-region-card__badge" aria-hidden="true">{region.badge}</span>
+              <span className="practice-region-card__copy"><small>{region.kicker}</small><strong>{region.label}</strong><span>{region.description}</span><em>{breedsForPracticeRegion(id, breeds).length} breeds in this stable</em></span>
+              <ArrowRight size={22} aria-hidden="true" />
+            </button>
+          ))}
+        </div>
+        <small className="practice-picker-note">Turan follows a broad horse-culture corridor, so some breeds may appear on both the Europe and Turan trails. Practice rides do not use your one daily try.</small>
+      </section>
+    </main>
+  )
+}
+
 function QuizHeader({ round, correct }: { round: number; correct: number }) {
   return (
     <header className="game-header quiz-header">
@@ -724,12 +758,12 @@ function QuizHeader({ round, correct }: { round: number; correct: number }) {
   )
 }
 
-function GameHeader({ round, total }: { round: number; total: number }) {
+function GameHeader({ round, total, trail }: { round: number; total: number; trail: string }) {
   return (
     <header className="game-header">
       <Brand />
       <div className="round-progress">
-        <span>Round {round + 1} of {MAX_ROUNDS}</span>
+        <span>{trail} · Round {round + 1} of {MAX_ROUNDS}</span>
         <div className="progress-track">
           {Array.from({ length: MAX_ROUNDS }).map((_, i) => <i key={i} className={i <= round ? 'active' : ''} />)}
         </div>
@@ -740,9 +774,19 @@ function GameHeader({ round, total }: { round: number; total: number }) {
   )
 }
 
-function Game({ mode, onFinish, onExit }: { mode: 'daily' | 'practice'; onFinish: (results: RoundResult[]) => void; onExit: () => void }) {
+function PracticeMapFocus({ region }: { region: PracticeRegionId }) {
+  const map = useMap()
+  useEffect(() => {
+    const bounds = practiceRegions[region].mapBounds
+    if (bounds) map.fitBounds(bounds, { padding: [25, 25], animate: false })
+  }, [map, region])
+  return null
+}
+
+function Game({ mode, practiceRegion, onFinish, onExit }: { mode: 'daily' | 'practice'; practiceRegion: PracticeRegionId; onFinish: (results: RoundResult[]) => void; onExit: () => void }) {
+  const activeRegion = mode === 'daily' ? 'world' : practiceRegion
   const [gameSeed] = useState(() => mode === 'daily' ? dateKey() : `${Date.now()}-${Math.random()}`)
-  const roundBreeds = useMemo(() => seededShuffle(breeds, gameSeed).slice(0, MAX_ROUNDS), [gameSeed])
+  const roundBreeds = useMemo(() => seededShuffle(breedsForPracticeRegion(activeRegion, breeds), gameSeed).slice(0, MAX_ROUNDS), [activeRegion, gameSeed])
   const [round, setRound] = useState(0)
   const [guess, setGuess] = useState<Point | null>(null)
   const [result, setResult] = useState<RoundResult | null>(null)
@@ -766,8 +810,7 @@ function Game({ mode, onFinish, onExit }: { mode: 'daily' | 'practice'; onFinish
     if (!guess) return
     const zoneResult = distanceToOriginZone(guess, originZone)
     const distance = Math.round(zoneResult.distance)
-    const base = distance === 0 ? 5000 : Math.round(5000 * Math.exp(-distance / 2100))
-    const points = Math.max(0, Math.round(base * (hintOpen ? 0.75 : 1)))
+    const points = pointsForOriginGuess(distance, activeRegion, hintOpen)
     const nextResult = { breed, distance, points, guess, usedHint: hintOpen, photo: currentPhoto, insideRegion: zoneResult.inside, nearest: zoneResult.nearest }
     setResult(nextResult)
     setResults(current => [...current, nextResult])
@@ -786,11 +829,11 @@ function Game({ mode, onFinish, onExit }: { mode: 'daily' | 'practice'; onFinish
 
   return (
     <main className="game-screen">
-      <GameHeader round={round} total={total} />
+      <GameHeader round={round} total={total} trail={mode === 'daily' ? 'Today’s ride' : practiceRegions[practiceRegion].label} />
       <ResizableStage storageKey="origin" defaultPercent={40}>
         <section className="breed-panel">
           <div className="breed-panel__topline">
-            <span className="mode-pill"><Sparkles size={13} /> {mode === 'daily' ? 'Daily ride' : 'Practice'}</span>
+            <span className="mode-pill"><Sparkles size={13} /> {mode === 'daily' ? 'Daily ride' : `${practiceRegions[practiceRegion].label} practice`}</span>
             <button onClick={onExit} className="quiet-button">Exit</button>
           </div>
           <div className="question-copy">
@@ -835,6 +878,7 @@ function Game({ mode, onFinish, onExit }: { mode: 'daily' | 'practice'; onFinish
           <MapContainer center={[24, 6]} zoom={2} minZoom={2} maxZoom={7} maxBounds={[[-80, -190], [85, 190]]} zoomControl={true} attributionControl={true} worldCopyJump className="map">
             <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
             <MapResizeSync />
+            {!result && <PracticeMapFocus region={activeRegion} />}
             <ClickHandler disabled={Boolean(result)} onPick={setGuess} />
             {guess && <Marker position={[guess.lat, guess.lng]} icon={guessIcon}><Tooltip direction="top" offset={[0, -36]}>{result ? 'Your guess' : 'Your pin'}</Tooltip></Marker>}
             {result && (
@@ -1129,40 +1173,59 @@ function PhotoQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
   )
 }
 
-function Summary({ results, mode, dayKey, onReplay, onHome }: { results: RoundResult[]; mode: 'daily' | 'practice'; dayKey: string; onReplay: () => void; onHome: () => void }) {
-  const total = results.reduce((sum, result) => sum + result.points, 0)
-  const [best] = useState(() => Math.max(total, readPersonalBest()))
+function ShareableResultCard({ date, label, rank, score, maximum, rounds, placement, newBest, shareText }: { date: string; label: string; rank: string; score: string; maximum: string; rounds: { value: string; fraction: number }[]; placement?: LeaderboardPlacement | null; newBest?: boolean; shareText: string }) {
   const [shareStatus, setShareStatus] = useState('')
-  useEffect(() => { updatePersonalBest(total) }, [total])
-  const percentage = Math.round(total / 400)
-  const rank = percentage >= 85 ? 'Master Equine Geographer' : percentage >= 65 ? 'Seasoned Trailblazer' : percentage >= 40 ? 'Curious Stablehand' : 'Fresh in the Saddle'
-  const shareDaily = async () => {
-    const text = dailyShareText(results, total, dayKey)
+  const prettyDate = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`))
+  const shareResult = async () => {
     const url = new URL(import.meta.env.BASE_URL, window.location.origin).href
     try {
       if (navigator.share) {
-        await navigator.share({ title: 'My HorseGuessr daily ride', text, url })
-        setShareStatus('Shared without revealing any breeds!')
+        await navigator.share({ title: 'My HorseGuessr results', text: shareText, url })
+        setShareStatus('Shared without spoilers!')
       } else {
-        await navigator.clipboard.writeText(`${text}\n${url}`)
+        await navigator.clipboard.writeText(`${shareText}\n${url}`)
         setShareStatus('Spoiler-free result copied!')
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
-      try {
-        await navigator.clipboard.writeText(`${text}\n${url}`)
-        setShareStatus('Spoiler-free result copied!')
-      } catch {
-        setShareStatus('Sharing is unavailable in this browser.')
-      }
+      setShareStatus('Sharing is unavailable in this browser; you can still screenshot the card.')
     }
   }
+  return (
+    <section className="shareable-result-section" aria-label="Spoiler-free shareable results">
+      <div className="shareable-result-intro"><div><span>✦ YOUR SHAREABLE RIBBON ✦</span><h2>A little brag, no spoilers.</h2></div><p>Screenshot just the card below. No breeds or map locations are shown.</p></div>
+      <div className="shareable-result-card">
+        <div className="shareable-result-card__mast"><span className="shareable-result-card__brand">♞ HORSEGUESSR</span><span>★ HORSE CLUB RESULTS ★</span></div>
+        <div className="shareable-result-card__headline"><span>{label} · {prettyDate}</span><h3>{rank}</h3><p>Eight horses. One excellent ride. ✦</p></div>
+        <div className="shareable-result-card__score"><span>FINAL SCORE</span><strong>{score}</strong><small>/ {maximum}</small></div>
+        <div className="shareable-result-card__rounds" aria-label="Scores by round">
+          {rounds.map((round, index) => <div key={index} className="shareable-result-card__round"><span>{String(index + 1).padStart(2, '0')}</span><i style={{ '--round-fill': `${Math.round(round.fraction * 100)}%` } as React.CSSProperties} /><b>{round.value}</b></div>)}
+        </div>
+        {(placement || newBest) && <div className="shareable-result-card__ribbons">{newBest && <span>✧ NEW PERSONAL BEST ✧</span>}{placement && <span>🏆 NEW #{placement.rank} {placement.backend === 'firebase' ? 'WORLDWIDE' : 'DEVICE'} RANK · {placement.initials}</span>}</div>}
+        <div className="shareable-result-card__footer"><span>NO BREEDS SPOILED · NO MAP REVEALED</span><span>horseguessr ★</span></div>
+      </div>
+      <div className="shareable-result-controls"><span>Tip: screenshot this card to share your ribbon as an image.</span><button className="secondary-button share-result-button" onClick={() => void shareResult()}><Share2 size={18} /> Copy / share text</button></div>
+      {shareStatus && <p className="share-status" role="status">{shareStatus}</p>}
+    </section>
+  )
+}
+
+function Summary({ results, mode, practiceRegion, dayKey, onReplay, onHome }: { results: RoundResult[]; mode: 'daily' | 'practice'; practiceRegion: PracticeRegionId; dayKey: string; onReplay: () => void; onHome: () => void }) {
+  const total = results.reduce((sum, result) => sum + result.points, 0)
+  const [previousBest] = useState(readPersonalBest)
+  const [placement, setPlacement] = useState<LeaderboardPlacement | null>(null)
+  const best = Math.max(total, previousBest)
+  useEffect(() => { updatePersonalBest(total) }, [total])
+  const percentage = Math.round(total / 400)
+  const rank = percentage >= 85 ? 'Master Equine Geographer' : percentage >= 65 ? 'Seasoned Trailblazer' : percentage >= 40 ? 'Curious Stablehand' : 'Fresh in the Saddle'
+  const label = mode === 'daily' ? 'Today’s Ride' : `${practiceRegions[practiceRegion].label} Practice`
   return (
     <main className="summary-screen">
       <nav className="summary-nav"><Brand inverse /><div className="summary-nav-actions"><MagnificationToggle /><button className="text-button" onClick={onHome}>Back home</button></div></nav>
       <section className="summary-card">
         <div className="summary-title"><span className="medallion"><Trophy size={30} /></span><p className="eyebrow"><span /> Ride complete</p><h1>{rank}</h1><p>You followed eight bloodlines through their accepted homelands.</p></div>
         <div className="summary-score"><span>Final score</span><strong>{formatNumber(total)}</strong><small>out of 40,000</small><div className="score-ring" style={{ '--score': `${percentage}%` } as React.CSSProperties}><span>{percentage}%</span></div></div>
+        <ShareableResultCard date={dayKey} label={label} rank={rank} score={formatNumber(total)} maximum="40,000" rounds={results.map(result => ({ value: formatNumber(result.points), fraction: result.points / 5000 }))} placement={placement} newBest={total > previousBest} shareText={rideShareText(results, total, dayKey, label, placement)} />
         <ResultReviewMap results={results} kind="ride" />
         <div className="result-list">
           {results.map((result, index) => (
@@ -1173,10 +1236,9 @@ function Summary({ results, mode, dayKey, onReplay, onHome }: { results: RoundRe
             </div>
           ))}
         </div>
-        <LeaderboardPanel score={total} dayKey={dayKey} allowEntry={mode === 'daily'} />
+        <LeaderboardPanel score={total} dayKey={dayKey} allowEntry={mode === 'daily'} onPlacement={setPlacement} />
         <p className="personal-best-ribbon">Your personal record: <b>{formatNumber(best)}</b> points</p>
-        {shareStatus && <p className="share-status" role="status">{shareStatus}</p>}
-        <div className="summary-actions">{mode === 'daily' && <button className="secondary-button share-result-button" onClick={() => void shareDaily()}><Share2 size={18} /> Share result</button>}<button className="secondary-button" onClick={onHome}>Return home</button><button className="primary-button" onClick={onReplay}><RotateCcw size={18} /> Ride again</button></div>
+        <div className="summary-actions"><button className="secondary-button" onClick={onHome}>Return home</button><button className="primary-button" onClick={onReplay}><RotateCcw size={18} /> Ride again</button></div>
       </section>
     </main>
   )
@@ -1185,8 +1247,9 @@ function Summary({ results, mode, dayKey, onReplay, onHome }: { results: RoundRe
 function QuizSummary({ results, kind, onReplay, onHome }: { results: QuizResult[]; kind: 'name' | 'photo'; onReplay: () => void; onHome: () => void }) {
   const correct = results.filter(result => result.correct).length
   const storageKey = kind === 'photo' ? 'horseguessr-photo-quiz-best' : 'horseguessr-quiz-best'
-  const best = Math.max(correct, Number(localStorage.getItem(storageKey) || 0))
-  localStorage.setItem(storageKey, String(best))
+  const [previousBest] = useState(() => Number(localStorage.getItem(storageKey) || 0))
+  const best = Math.max(correct, previousBest)
+  useEffect(() => { localStorage.setItem(storageKey, String(best)) }, [storageKey, best])
   const percentage = Math.round((correct / MAX_ROUNDS) * 100)
   const rank = correct === MAX_ROUNDS ? 'Perfect pedigree' : correct >= 6 ? 'Breed connoisseur' : correct >= 4 ? 'Keen horse spotter' : 'Promising stablehand'
   return (
@@ -1195,6 +1258,7 @@ function QuizSummary({ results, kind, onReplay, onHome }: { results: QuizResult[
       <section className="summary-card quiz-summary-card">
         <div className="summary-title"><span className="medallion">{kind === 'photo' ? <Images size={29} /> : <ListChecks size={29} />}</span><p className="eyebrow"><span /> {kind === 'photo' ? 'Photo match complete' : 'Breed quiz complete'}</p><h1>{rank}</h1><p>{kind === 'photo' ? 'You matched breed names to photographs' : 'You identified horses'} from a collection of {breeds.length} breeds.</p></div>
         <div className="summary-score"><span>Correct answers</span><strong>{correct} / {MAX_ROUNDS}</strong><small>Personal best: {best}</small><div className="score-ring" style={{ '--score': `${percentage}%` } as React.CSSProperties}><span>{percentage}%</span></div></div>
+        <ShareableResultCard date={dateKey()} label={kind === 'photo' ? 'Pick the Photo' : 'Name the Breed'} rank={rank} score={String(correct)} maximum={String(MAX_ROUNDS)} rounds={results.map(result => ({ value: result.correct ? '✓' : '×', fraction: result.correct ? 1 : 0 }))} newBest={correct > previousBest} shareText={`HorseGuessr · ${kind === 'photo' ? 'Pick the Photo' : 'Name the Breed'} · ${dateKey()}\n${results.map(result => result.correct ? '💖' : '🤍').join('')}\n${correct} / ${MAX_ROUNDS} correct\nNo breeds spoiled ✦`} />
         <ResultReviewMap results={results} kind={kind} />
         <div className="result-list">
           {results.map((result, index) => (
@@ -1549,6 +1613,7 @@ function PhotoReportDashboard() {
 export default function App() {
   const [screen, setScreen] = useState<Screen>('home')
   const [mode, setMode] = useState<'daily' | 'practice'>('daily')
+  const [practiceRegion, setPracticeRegion] = useState<PracticeRegionId>('world')
   const [results, setResults] = useState<RoundResult[]>([])
   const [quizResults, setQuizResults] = useState<QuizResult[]>([])
   const [magnificationEnabled, setMagnificationEnabled] = useState(() => localStorage.getItem('horseguessr-photo-viewer') !== 'off')
@@ -1576,20 +1641,22 @@ export default function App() {
     setPassportIds(next)
     writePassportIds(next)
   }
-  const start = (nextMode: 'daily' | 'practice') => {
+  const start = (nextMode: 'daily' | 'practice', region: PracticeRegionId = 'world') => {
     if (nextMode === 'daily') {
       if (dailyLocked) return
       writeCookie(cookieNames.dailyAttempt, centralClock.key)
       setDailyAttemptKey(centralClock.key)
     }
     setMode(nextMode)
+    setPracticeRegion(region)
     setResults([])
     setScreen('game')
   }
   let page
   if (reportDashboard) page = <PhotoReportDashboard />
-  else if (screen === 'game') page = <Game mode={mode} onExit={() => setScreen('home')} onFinish={finalResults => { setResults(finalResults); setScreen('summary') }} />
-  else if (screen === 'summary') page = <Summary results={results} mode={mode} dayKey={mode === 'daily' ? dailyAttemptKey : centralClock.key} onReplay={() => start('practice')} onHome={() => setScreen('home')} />
+  else if (screen === 'practice-picker') page = <PracticePicker onChoose={region => start('practice', region)} onBack={() => setScreen('home')} />
+  else if (screen === 'game') page = <Game mode={mode} practiceRegion={practiceRegion} onExit={() => setScreen('home')} onFinish={finalResults => { setResults(finalResults); setScreen('summary') }} />
+  else if (screen === 'summary') page = <Summary results={results} mode={mode} practiceRegion={practiceRegion} dayKey={mode === 'daily' ? dailyAttemptKey : centralClock.key} onReplay={() => mode === 'daily' ? setScreen('practice-picker') : start('practice', practiceRegion)} onHome={() => setScreen('home')} />
   else if (screen === 'breed-quiz') page = <BreedQuiz onExit={() => setScreen('home')} onFinish={finalResults => { setQuizResults(finalResults); setScreen('quiz-summary') }} />
   else if (screen === 'quiz-summary') page = <QuizSummary kind="name" results={quizResults} onReplay={() => { setQuizResults([]); setScreen('breed-quiz') }} onHome={() => setScreen('home')} />
   else if (screen === 'photo-quiz') page = <PhotoQuiz onExit={() => setScreen('home')} onFinish={finalResults => { setQuizResults(finalResults); setScreen('photo-summary') }} />
@@ -1597,7 +1664,7 @@ export default function App() {
   else if (screen === 'guide') page = <FieldGuide onBack={() => setScreen('home')} />
   else if (screen === 'favorites') page = <FavoriteBreeds onBack={() => setScreen('home')} />
   else if (screen === 'passport') page = <BreedPassport onBack={() => setScreen('home')} />
-  else page = <Home dailyKey={centralClock.key} dailyLocked={dailyLocked} resetIn={centralClock.resetIn} streak={dailyStreak} onStart={() => start('daily')} onPractice={() => start('practice')} onBreedQuiz={() => { setQuizResults([]); setScreen('breed-quiz') }} onPhotoQuiz={() => { setQuizResults([]); setScreen('photo-quiz') }} onGuide={() => setScreen('guide')} onFavorites={() => setScreen('favorites')} onPassport={() => setScreen('passport')} />
+  else page = <Home dailyKey={centralClock.key} dailyLocked={dailyLocked} resetIn={centralClock.resetIn} streak={dailyStreak} onStart={() => start('daily')} onPractice={() => setScreen('practice-picker')} onBreedQuiz={() => { setQuizResults([]); setScreen('breed-quiz') }} onPhotoQuiz={() => { setQuizResults([]); setScreen('photo-quiz') }} onGuide={() => setScreen('guide')} onFavorites={() => setScreen('favorites')} onPassport={() => setScreen('passport')} />
   return (
     <MagnificationContext.Provider value={{ enabled: magnificationEnabled, setEnabled: setMagnificationEnabled }}>
       <FavoritesContext.Provider value={{ favoriteIds, toggleFavorite }}>
