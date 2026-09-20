@@ -5,7 +5,9 @@ import L, { LatLngBoundsExpression } from 'leaflet'
 import type { GeoJsonObject } from 'geojson'
 import { ArrowRight, Award, BookHeart, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, Compass, Flag, Heart, Images, Lightbulb, ListChecks, LocateFixed, MapPin, Maximize2, RotateCcw, Search, Share2, Sparkles, Trophy, X, XCircle } from 'lucide-react'
 import { Breed, breeds } from './data'
+import { AtlasPlace, lookupAtlasPlace, nearestBreedOrigins, NearbyBreed } from './atlas'
 import { fetchLeaderboard, fetchPhotoQualityReports, LeaderboardResult, PhotoQualityReport, PhotoReportReason, recordBreedFavorite, recordPhotoQualityReport, submitLeaderboardScore } from './firebase'
+import { normalizeGuideText, suggestBreedName } from './guideSearch'
 import { BreedPhoto, photosForBreed } from './media'
 import { distanceToOriginZone, OriginZone, originZoneBounds, originZones } from './originRegions'
 import { cookieNames, readCookie, readDailyStreak, readFavoriteIds, readPassportIds, readPersonalBest, sanitizeInitials, updateDailyStreak, updatePersonalBest, writeCookie, writeFavoriteIds, writePassportIds } from './preferences'
@@ -1209,7 +1211,154 @@ function QuizSummary({ results, kind, onReplay, onHome }: { results: QuizResult[
   )
 }
 
-function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, onBack }: { shownBreeds: Breed[]; title: string; eyebrow: string; emptyCopy?: string; onBack: () => void }) {
+function AtlasPickPlace({ onPick }: { onPick: (place: AtlasPlace) => void }) {
+  useMapEvents({
+    click(event) {
+      onPick({ lat: event.latlng.lat, lng: event.latlng.lng, label: 'Your map pin' })
+    },
+  })
+  return null
+}
+
+function AtlasMapFocus({ place, nearby, selectedBreed }: { place: AtlasPlace | null; nearby: NearbyBreed[]; selectedBreed: Breed | null }) {
+  const map = useMap()
+  useEffect(() => {
+    if (!place) return
+    const points: LatLngBoundsExpression = [place, ...nearby.slice(0, 4).map(item => item.breed)].map(point => [point.lat, point.lng])
+    map.fitBounds(points, { padding: [55, 55], maxZoom: 5, animate: true })
+  }, [map, nearby, place])
+  useEffect(() => {
+    if (selectedBreed) map.flyTo([selectedBreed.lat, selectedBreed.lng], Math.max(map.getZoom(), 4), { animate: true })
+  }, [map, selectedBreed])
+  return null
+}
+
+function atlasMarkerPoint(breed: Breed, prior: Breed[]): Point {
+  const duplicateIndex = prior.filter(item => item.lat === breed.lat && item.lng === breed.lng).length
+  if (!duplicateIndex) return breed
+  const angle = duplicateIndex * 2.4
+  const radius = 0.18 + Math.floor(duplicateIndex / 7) * 0.08
+  return {
+    lat: breed.lat + Math.sin(angle) * radius,
+    lng: breed.lng + Math.cos(angle) * radius / Math.max(0.35, Math.cos(breed.lat * Math.PI / 180)),
+  }
+}
+
+function BreedAtlas({ items }: { items: Breed[] }) {
+  const [search, setSearch] = useState('')
+  const [place, setPlace] = useState<AtlasPlace | null>(null)
+  const [selectedBreed, setSelectedBreed] = useState<Breed | null>(null)
+  const [searching, setSearching] = useState(false)
+  const [error, setError] = useState('')
+  const lookupRef = useRef<AbortController | null>(null)
+  const panelRef = useRef<HTMLElement>(null)
+  const nearby = useMemo(() => place ? nearestBreedOrigins(place, items) : [], [items, place])
+  const nearbyIds = useMemo(() => new Set(nearby.map(item => item.breed.id)), [nearby])
+  const markerPoints = useMemo(() => items.map((breed, index) => atlasMarkerPoint(breed, items.slice(0, index))), [items])
+
+  useEffect(() => () => lookupRef.current?.abort(), [])
+  useEffect(() => { if (selectedBreed) panelRef.current?.scrollTo({ top: 0, behavior: 'smooth' }) }, [selectedBreed])
+
+  const choosePlace = (next: AtlasPlace) => {
+    setPlace(next)
+    setSelectedBreed(null)
+    setError('')
+  }
+
+  const findPlace = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!search.trim()) return
+    lookupRef.current?.abort()
+    const controller = new AbortController()
+    lookupRef.current = controller
+    setSearching(true)
+    setError('')
+    try {
+      const found = await lookupAtlasPlace(search, controller.signal)
+      if (found) choosePlace(found)
+      else setError('No place found. Try a city with its country, or click the map to drop a pin.')
+    } catch (reason) {
+      if (!(reason instanceof DOMException && reason.name === 'AbortError')) {
+        setError('Place search is unavailable right now. You can still click the map to find nearby breeds.')
+      }
+    } finally {
+      if (lookupRef.current === controller) setSearching(false)
+    }
+  }
+
+  return (
+    <section className="atlas-section" aria-label="Atlas of horse breed origins">
+      <div className="atlas-heading">
+        <div><span className="atlas-kicker">✦ THE WORLD STABLE ✦</span><h2><Compass size={28} /> Horse breed atlas</h2><p>Explore all {items.length} breed homelands. Pan or zoom the map, choose a horse pin, or search for breeds near a place.</p></div>
+        <span className="atlas-pin-count">{items.length} horse pins</span>
+      </div>
+      <form className="atlas-search" onSubmit={findPlace}>
+        <label htmlFor="atlas-place-search">Find breeds near a place</label>
+        <div><Search size={19} /><input id="atlas-place-search" type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Try Chicago, Jeju Island, or Wales…" autoComplete="off" /><button type="submit" disabled={searching || !search.trim()}>{searching ? 'Searching…' : 'Find nearby'}</button></div>
+        <small>Search cities, regions, or countries—not private addresses. Or click any spot on the map. Place data © OpenStreetMap contributors via Nominatim.</small>
+        {error && <p className="atlas-search-error" role="alert">{error}</p>}
+      </form>
+      <div className="atlas-layout">
+        <div className="atlas-map-frame">
+          <MapContainer center={[22, 7]} zoom={2} minZoom={2} maxZoom={10} maxBounds={[[-85, -190], [85, 190]]} zoomControl attributionControl worldCopyJump scrollWheelZoom className="map atlas-map">
+            <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            <MapResizeSync />
+            <AtlasPickPlace onPick={choosePlace} />
+            <AtlasMapFocus place={place} nearby={nearby} selectedBreed={selectedBreed} />
+            {items.map((breed, index) => (
+              <CircleMarker
+                key={breed.id}
+                center={[markerPoints[index].lat, markerPoints[index].lng]}
+                radius={selectedBreed?.id === breed.id ? 10 : nearbyIds.has(breed.id) ? 8 : 5}
+                pathOptions={{ color: '#fff', weight: 2, fillColor: selectedBreed?.id === breed.id ? '#ffde43' : nearbyIds.has(breed.id) ? '#fe0889' : '#9553b1', fillOpacity: 0.95 }}
+                bubblingMouseEvents={false}
+                eventHandlers={{ click: () => setSelectedBreed(breed) }}
+              >
+                <Tooltip direction="top">{breed.flag} {breed.name} · {breed.location}</Tooltip>
+              </CircleMarker>
+            ))}
+            {place && <Marker position={[place.lat, place.lng]} icon={guessIcon}><Tooltip direction="top" permanent={false}>{place.label}</Tooltip></Marker>}
+          </MapContainer>
+          <div className="atlas-map-note"><MapPin size={14} /> Tap a pin for a breed card · tap empty map to search from that spot</div>
+        </div>
+        <aside className="atlas-panel" ref={panelRef} aria-live="polite">
+          {selectedBreed && (
+            <article className="atlas-breed-card">
+              <div className="atlas-breed-photo"><MagnifiableImage src={selectedBreed.image} photos={photosForBreed(selectedBreed)} fallbacks={photosForBreed(selectedBreed).map(photo => photo.src)} alt={selectedBreed.name} breedId={selectedBreed.id} /></div>
+              <div className="atlas-breed-copy">
+                <span className="atlas-card-label">BREED NO. {String(items.indexOf(selectedBreed) + 1).padStart(3, '0')} · {selectedBreed.flag} {selectedBreed.country}</span>
+                <h3><BreedName breed={selectedBreed} /><PassportMedal breed={selectedBreed} /></h3>
+                <p className="atlas-homeland"><MapPin size={15} /><b>{originZones[selectedBreed.id].label}</b></p>
+                <BreedBio breed={selectedBreed} />
+                <a href={selectedBreed.source} target="_blank" rel="noreferrer">Breed source <ArrowRight size={14} /></a>
+              </div>
+            </article>
+          )}
+          {place ? (
+            <div className="atlas-nearby">
+              <p className="atlas-list-kicker">NEAREST BREED HOMELANDS</p>
+              <h3>Closest to {place.label}</h3>
+              <p className="atlas-distance-note">Distances are measured to each breed’s accepted origin region, not just its map pin.</p>
+              <ol>{nearby.map((item, index) => (
+                <li key={item.breed.id}>
+                  <button type="button" className={selectedBreed?.id === item.breed.id ? 'is-selected' : ''} onClick={() => setSelectedBreed(item.breed)}>
+                    <span className="atlas-nearby-number">{index + 1}</span>
+                    <span className="atlas-nearby-copy"><strong>{item.breed.flag} {item.breed.name}</strong><small>{item.breed.location}, {item.breed.country}</small><span>{item.breed.fact}</span></span>
+                    <em>{item.regionKm < 1 ? 'In homeland' : `${formatNumber(Math.round(item.regionKm))} km away`}</em>
+                  </button>
+                </li>
+              ))}</ol>
+            </div>
+          ) : !selectedBreed && (
+            <div className="atlas-welcome"><span>✦ ♡ ✦</span><h3>Where shall we ride?</h3><p>Every dot is a horse breed’s historic homeland. Search a place to find its nearest breeds, or pick a dot to read its story.</p></div>
+          )}
+        </aside>
+      </div>
+    </section>
+  )
+}
+
+function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, showAtlas = false, onBack }: { shownBreeds: Breed[]; title: string; eyebrow: string; emptyCopy?: string; showAtlas?: boolean; onBack: () => void }) {
   const { passportIds } = useContext(PassportContext)
   const photoCount = shownBreeds.reduce((total, breed) => total + photosForBreed(breed).length, 0)
   const [galleryBreed, setGalleryBreed] = useState<Breed | null>(null)
@@ -1217,12 +1366,12 @@ function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, onBack }: { s
   const [country, setCountry] = useState('')
   const [tag, setTag] = useState('')
   const [passportFilter, setPassportFilter] = useState('all')
-  const countries = useMemo(() => [...new Set(shownBreeds.map(breed => breed.country))].sort((a, b) => a.localeCompare(b)), [shownBreeds])
+  const countries = useMemo(() => [...new Set(shownBreeds.map(breed => breed.country))].sort((a, b) => a.localeCompare(b)).map(name => ({ name, flag: shownBreeds.find(breed => breed.country === name)?.flag || '🌐' })), [shownBreeds])
   const tags = useMemo(() => [...new Set(shownBreeds.flatMap(breed => breed.tags))].sort((a, b) => a.localeCompare(b)), [shownBreeds])
   const filteredBreeds = useMemo(() => {
-    const needle = query.trim().toLowerCase()
+    const needle = normalizeGuideText(query)
     return shownBreeds.filter(breed => {
-      const matchesSearch = !needle || [breed.name, breed.country, breed.location, breed.fact, breed.hint, breed.coatColors, ...breed.tags].join(' ').toLowerCase().includes(needle)
+      const matchesSearch = !needle || normalizeGuideText([breed.name, breed.country, breed.location, breed.fact, breed.hint, breed.coatColors, ...breed.tags].join(' ')).includes(needle)
       const matchesCountry = !country || breed.country === country
       const matchesTag = !tag || breed.tags.includes(tag)
       const earned = passportIds.includes(breed.id)
@@ -1230,19 +1379,35 @@ function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, onBack }: { s
       return matchesSearch && matchesCountry && matchesTag && matchesPassport
     })
   }, [country, passportFilter, passportIds, query, shownBreeds, tag])
+  const suggestedBreed = useMemo(() => filteredBreeds.length ? null : suggestBreedName(query, shownBreeds), [filteredBreeds.length, query, shownBreeds])
   const resetFilters = () => { setQuery(''); setCountry(''); setTag(''); setPassportFilter('all') }
+  const useSuggestion = () => {
+    if (!suggestedBreed) return
+    setQuery(suggestedBreed.name)
+    setCountry('')
+    setTag('')
+    setPassportFilter('all')
+  }
   return (
     <main className="guide-screen">
       <nav className="summary-nav"><Brand inverse /><div className="summary-nav-actions"><MagnificationToggle /><button className="text-button" onClick={onBack}><ArrowRight className="arrow-back" size={17} /> Back</button></div></nav>
       <section className="guide-heading"><p className="eyebrow"><span /> {eyebrow}</p><h1>{title}</h1><p>{shownBreeds.length ? `Meet ${shownBreeds.length} breeds across ${photoCount} photographs—and follow their stories home.` : emptyCopy}</p></section>
+      {showAtlas && <BreedAtlas items={shownBreeds} />}
       {shownBreeds.length > 0 && (
         <section className="guide-tools" aria-label="Search and filter breeds">
           <label className="guide-search"><Search size={18} /><span>Search breeds</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Name, region, coat, or trait…" /></label>
-          <label><span>Country</span><select value={country} onChange={event => setCountry(event.target.value)}><option value="">All countries</option>{countries.map(item => <option key={item}>{item}</option>)}</select></label>
+          <label><span>Country</span><select value={country} onChange={event => setCountry(event.target.value)}><option value="">All countries</option>{countries.map(item => <option key={item.name} value={item.name}>{item.flag} {item.name}</option>)}</select></label>
           <label><span>Type</span><select value={tag} onChange={event => setTag(event.target.value)}><option value="">All breed types</option>{tags.map(item => <option key={item}>{item}</option>)}</select></label>
           <label><span>Passport</span><select value={passportFilter} onChange={event => setPassportFilter(event.target.value)}><option value="all">All breeds</option><option value="earned">Medal earned</option><option value="unearned">Not identified yet</option></select></label>
           <div className="guide-filter-result"><strong>{filteredBreeds.length}</strong><span>breeds shown</span><button type="button" onClick={resetFilters}>Reset</button></div>
         </section>
+      )}
+      {suggestedBreed && (
+        <div className="guide-suggestion" role="status">
+          <Sparkles size={18} />
+          {normalizeGuideText(query) === normalizeGuideText(suggestedBreed.name) ? 'That breed is hidden by the current filters.' : 'Did you mean'}
+          <button type="button" onClick={useSuggestion}>{suggestedBreed.flag} {suggestedBreed.name}?</button>
+        </div>
       )}
       <section className="guide-grid">
         {filteredBreeds.map(breed => (
@@ -1259,7 +1424,7 @@ function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, onBack }: { s
 }
 
 function FieldGuide({ onBack }: { onBack: () => void }) {
-  return <BreedCollection shownBreeds={breeds} eyebrow="The field guide" title="Breeds of the world" onBack={onBack} />
+  return <BreedCollection shownBreeds={breeds} eyebrow="The field guide" title="Breeds of the world" showAtlas onBack={onBack} />
 }
 
 function FavoriteBreeds({ onBack }: { onBack: () => void }) {

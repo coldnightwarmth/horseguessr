@@ -8,7 +8,7 @@ A browser-based horse-breed geography and identification game with a nostalgic 2
 - **Name the breed:** identify one horse photograph from four breed names.
 - **Pick the photo:** match one breed name to the correct photograph among four horses.
 
-The field guide, favorites stable, and end-of-quiz maps cover 66 breeds and 198 photographic examples. The daily ride changes at midnight in the `America/Chicago` time zone, allows one browser attempt per day, and stores initials, the personal record, and favorites in first-party cookies.
+The field guide, favorites stable, and end-of-quiz maps cover 100 breeds and 285 photographic examples. The field guide also has an interactive atlas of every breed origin, a place-to-nearest-breeds search, and spelling suggestions. The daily ride changes at midnight in the `America/Chicago` time zone, allows one browser attempt per day, and stores initials, the personal record, and favorites in first-party cookies.
 
 ## Run locally
 
@@ -43,3 +43,5 @@ Firebase Web API keys identify the project but do not grant database access by t
 ## Data and imagery
 
 Breed profile and photo source links are shown in the game. Geographic acceptance zones use OpenStreetMap/Nominatim boundary geometry where a suitable modern region exists, plus documented gameplay approximations for historic regions and local stud districts.
+
+Atlas place search uses the public Nominatim service only after a player submits a place name, never for autocomplete. Results are cached for the browser session and requests are throttled per browser. The map remains usable by clicking a location if place lookup is unavailable. This public endpoint is suitable only while traffic stays within the [Nominatim usage policy](https://operations.osmfoundation.org/policies/nominatim/); for a larger audience, set `VITE_ATLAS_GEOCODER_URL` to a compatible hosted or self-run search endpoint and enforce an application-wide rate limit through a server or proxy.
