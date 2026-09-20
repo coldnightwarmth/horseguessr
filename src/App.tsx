@@ -673,16 +673,18 @@ function Home({ dailyKey, dailyLocked, resetIn, streak, onStart, onPractice, onB
           <div className="club-ticker"><span>★ WELCOME 2 HORSEGUESSR ★ {breeds.length} BREEDS + {photoCount} PHOTOS ONLINE ★ BEST VIEWED WITH HORSE POWER ★</span></div>
           <div className="y2k-badge"><span>★</span> Horse Club Online <span>★</span></div>
           <p className="eyebrow"><span /> The daily equine geography game</p>
-          <h1>From hoofprints<br />to <em>homelands.</em></h1>
+          <h1>hoofprints<br />to <em>homelands</em></h1>
           <p className="hero-description">Study the horse. Read the clues in its coat, build, and history. Then pin the breed’s birthplace on the map.</p>
+          <p className="ride-launch-label">✦ THE MAIN RIDES ✦</p>
           <div className="hero-actions">
             <button className="primary-button primary-button--large" onClick={onStart} disabled={dailyLocked}>
-              {dailyLocked ? 'Today’s ride completed' : 'Play today’s ride'} {!dailyLocked && <ArrowRight size={20} />}
+              {dailyLocked ? 'Today’s ride completed' : 'Play today’s ride'} {dailyLocked ? <CheckCircle2 size={20} /> : <ArrowRight size={20} />}
             </button>
             <button className="secondary-button secondary-button--large" onClick={onPractice}>
-              Practice mode
+              Practice mode <ArrowRight size={20} />
             </button>
           </div>
+          <p className="quiz-launch-label">MORE WAYS TO PLAY</p>
           <div className="quiz-launch-grid">
             <button className="quiz-launch" onClick={onBreedQuiz}>
               <span className="quiz-launch__icon"><ListChecks size={22} /></span>
@@ -719,6 +721,15 @@ function Home({ dailyKey, dailyLocked, resetIn, streak, onStart, onPractice, onB
         ))}
       </section>
       <LeaderboardPanel />
+      <footer className="home-footer">
+        <div className="home-footer__intro"><span>✦ HORSE CLUB DIRECTORY ✦</span><h2>Keep exploring the stable</h2><p>All your favorite corners of HorseGuessr, easy to find wherever you ride.</p></div>
+        <nav className="home-footer__links" aria-label="Explore HorseGuessr">
+          <button onClick={onPassport}><Award size={27} /><span><strong>Passport</strong><small>See the breeds you’ve identified and your medals.</small></span><ArrowRight size={20} /></button>
+          <button onClick={onFavorites}><BookHeart size={27} /><span><strong>Favorites</strong><small>Revisit the horses you’ve saved with a heart.</small></span><ArrowRight size={20} /></button>
+          <button onClick={onGuide}><BookOpen size={27} /><span><strong>Field guide</strong><small>Browse every breed, photo, bio, and homeland.</small></span><ArrowRight size={20} /></button>
+        </nav>
+        <p className="home-footer__signoff">♥ HORSEGUESSR HORSE CLUB ♥</p>
+      </footer>
       {horseOpen && <HorseDetailsModal breed={dailyHorse} photo={dailyPhoto} onClose={() => setHorseOpen(false)} />}
     </main>
   )
