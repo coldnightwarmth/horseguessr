@@ -21,6 +21,12 @@ type ReviewResult = RoundResult | QuizResult
 
 const MAX_ROUNDS = 8
 
+// Keep the already-published September 19 daily puzzle (and featured horse)
+// unchanged for players on either side of the new Mexican breed deployment.
+function dailyBreedPool(day: string) {
+  return day < '2026-09-20' ? breeds.filter(breed => breed.id !== 'azteca-horse') : breeds
+}
+
 function dateKey(date = new Date()) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(date)
 }
@@ -639,7 +645,7 @@ function CookieNotice() {
 function Home({ dailyKey, dailyLocked, resetIn, streak, onStart, onPractice, onBreedQuiz, onPhotoQuiz, onGuide, onFavorites, onPassport }: { dailyKey: string; dailyLocked: boolean; resetIn: string; streak: number; onStart: () => void; onPractice: () => void; onBreedQuiz: () => void; onPhotoQuiz: () => void; onGuide: () => void; onFavorites: () => void; onPassport: () => void }) {
   const best = readPersonalBest()
   const [horseOpen, setHorseOpen] = useState(false)
-  const dailyHorse = useMemo(() => seededShuffle(breeds, `horse-of-day-${dailyKey}`)[0], [dailyKey])
+  const dailyHorse = useMemo(() => seededShuffle(dailyBreedPool(dailyKey), `horse-of-day-${dailyKey}`)[0], [dailyKey])
   const dailyPhoto = useMemo(() => {
     const pool = photosForBreed(dailyHorse)
     return pool[hashText(`horse-of-day-photo-${dailyKey}`) % pool.length]
@@ -786,7 +792,7 @@ function PracticeMapFocus({ region }: { region: PracticeRegionId }) {
 function Game({ mode, practiceRegion, onFinish, onExit }: { mode: 'daily' | 'practice'; practiceRegion: PracticeRegionId; onFinish: (results: RoundResult[]) => void; onExit: () => void }) {
   const activeRegion = mode === 'daily' ? 'world' : practiceRegion
   const [gameSeed] = useState(() => mode === 'daily' ? dateKey() : `${Date.now()}-${Math.random()}`)
-  const roundBreeds = useMemo(() => seededShuffle(breedsForPracticeRegion(activeRegion, breeds), gameSeed).slice(0, MAX_ROUNDS), [activeRegion, gameSeed])
+  const roundBreeds = useMemo(() => seededShuffle(mode === 'daily' ? dailyBreedPool(gameSeed) : breedsForPracticeRegion(activeRegion, breeds), gameSeed).slice(0, MAX_ROUNDS), [activeRegion, gameSeed, mode])
   const [round, setRound] = useState(0)
   const [guess, setGuess] = useState<Point | null>(null)
   const [result, setResult] = useState<RoundResult | null>(null)
