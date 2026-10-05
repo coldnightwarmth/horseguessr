@@ -1,5 +1,6 @@
 import type { Breed } from './data'
 import { extraPhotos } from './extraMedia'
+import { expansionAlternatePhotos } from './breedExpansionMedia'
 
 export type BreedPhoto = { src: string; source: string }
 
@@ -154,6 +155,7 @@ const alternatePhotos: Record<string, BreedPhoto[]> = {
     { src: '/horses/black-forest-3.jpg', source: commons('Schwarzwälder_Mix.JPG') },
   ],
   ...extraPhotos,
+  ...expansionAlternatePhotos,
 }
 
 export function resolvePhotoPath(path: string) {

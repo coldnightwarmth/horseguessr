@@ -1,4 +1,5 @@
 import geometryData from './originGeometries.json'
+import { expansionZoneSeeds } from './breedExpansion'
 
 export type MapPoint = { lat: number; lng: number }
 type Coordinate = [number, number]
@@ -148,6 +149,14 @@ export const originZones: Record<string, OriginZone> = {
   'noma-horse': circle('Noma district, Imabari', specificStud, 34.07, 132.99, 85),
   'irish-cob': manualPolygon('Ireland', broadHomeland, [[-10.8, 51.3], [-5.3, 51.3], [-5.3, 55.5], [-8.2, 55.5], [-10.8, 54.2]]),
   'azteca-horse': circle('Texcoco and the Valley of Mexico', 'A generous local area recognizes the documented Texcoco breeding center where the Azteca was developed.', 19.51, -98.88, 105),
+  ...Object.fromEntries(Object.entries(expansionZoneSeeds).map(([id, zone]) => [id, {
+    kind: 'circle' as const,
+    label: zone.label,
+    note: zone.note,
+    center: zone.center,
+    radiusKm: zone.radiusKm,
+    sources: [zone.source],
+  }])),
 }
 
 function haversine(a: MapPoint, b: MapPoint) {

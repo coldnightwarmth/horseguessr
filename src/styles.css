@@ -857,6 +857,54 @@ button:focus-visible, a:focus-visible, [role='button']:focus-visible { outline-c
   .summary-nav-actions .text-button { font-size: 10px; }
 }
 
+/* Daily quote scrapbook card */
+.daily-quote {
+  width: min(960px, calc(100% - 34px));
+  position: relative;
+  z-index: 2;
+  margin: 8px auto 34px;
+  padding: 30px clamp(22px, 5vw, 58px) 25px;
+  border: 7px ridge #fff;
+  border-radius: 12px;
+  color: #63346f;
+  background:
+    radial-gradient(circle at 12px 12px, rgba(254,8,137,.12) 0 2px, transparent 2.5px) 0 0 / 24px 24px,
+    linear-gradient(145deg, #fffef5, #ffe4f3 58%, #daf5ff);
+  box-shadow: 7px 8px 0 rgba(74,31,102,.45), inset 0 0 0 3px #ff91c8;
+  text-align: center;
+  transform: rotate(-.25deg);
+}
+.daily-quote::before,
+.daily-quote::after {
+  content: '';
+  width: 88px;
+  height: 24px;
+  position: absolute;
+  top: -13px;
+  background: rgba(255,242,122,.84);
+  border: 1px dashed rgba(136,72,110,.35);
+  box-shadow: 0 2px 4px rgba(88,42,105,.16);
+}
+.daily-quote::before { left: 8%; transform: rotate(-5deg); }
+.daily-quote::after { right: 8%; transform: rotate(6deg); }
+.daily-quote__sparkles { position: absolute; inset: 8px 12px auto auto; color: #fe0889; font-size: 18px; letter-spacing: 4px; }
+.daily-quote__label { display: flex; align-items: center; justify-content: center; gap: 9px; color: #fe0889; font: 700 .67rem 'Silkscreen', monospace; letter-spacing: .08em; text-transform: uppercase; }
+.daily-quote__label span { color: #b064c4; }
+.daily-quote blockquote { max-width: 790px; margin: 17px auto 12px; color: #6c347b; font: clamp(1.65rem, 3.7vw, 2.65rem)/1.08 'Bubblegum Sans', 'Comic Sans MS', cursive; text-shadow: 2px 2px 0 #fff; }
+.daily-quote p { margin: 0; color: #75537e; font-size: .84rem; font-weight: 900; }
+.daily-quote cite { color: #b12b7d; font-style: normal; }
+.daily-quote a { display: inline-block; margin-top: 13px; padding: 5px 10px; border: 2px outset #fff; border-radius: 4px; color: #733d83; background: #fff59a; font: 700 .58rem 'Silkscreen', monospace; text-decoration: none; box-shadow: 2px 3px 0 rgba(94,48,111,.3); }
+.daily-quote a:hover,
+.daily-quote a:focus-visible { color: #fff; background: #fe0889; outline: 3px solid #fff37f; outline-offset: 2px; }
+
+@media (max-width: 680px) {
+  .daily-quote { width: calc(100% - 24px); margin-top: 0; margin-bottom: 24px; padding: 27px 17px 21px; border-width: 5px; }
+  .daily-quote::before, .daily-quote::after { width: 58px; }
+  .daily-quote__sparkles { font-size: 13px; letter-spacing: 1px; }
+  .daily-quote__label { font-size: .54rem; }
+  .daily-quote blockquote { margin-top: 14px; font-size: clamp(1.45rem, 8vw, 2rem); }
+}
+
 /* HorseGuessr Web 1.0 — glossy pet-site / virtual-stable theme */
 :root {
   --hot-pink: #fe0889;

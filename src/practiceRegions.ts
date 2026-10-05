@@ -35,10 +35,11 @@ export const practiceRegions: Record<PracticeRegionId, PracticeRegion> = {
 }
 
 const europeanCountries = new Set([
-  'Austria', 'Belgium', 'Belgium and France', 'Czechia', 'Denmark', 'England',
-  'Finland', 'France', 'Germany', 'Hungary', 'Iceland', 'Ireland', 'Italy',
-  'Lithuania', 'Netherlands', 'Norway', 'Poland', 'Portugal', 'Scotland',
-  'Slovenia', 'Spain', 'Spain and France', 'Sweden', 'Ukraine', 'United Kingdom',
+  'Austria', 'Belarus', 'Belgium', 'Belgium and France', 'Bosnia and Herzegovina',
+  'Croatia', 'Czechia', 'Denmark', 'England', 'Estonia', 'Faroe Islands', 'Finland',
+  'France', 'Germany', 'Greece', 'Hungary', 'Iceland', 'Ireland', 'Italy', 'Latvia',
+  'Lithuania', 'Netherlands', 'Norway', 'Poland', 'Portugal', 'Scotland', 'Slovenia',
+  'Spain', 'Spain and France', 'Sweden', 'Switzerland', 'Ukraine', 'United Kingdom',
 ])
 
 const northAmericanCountries = new Set(['Canada', 'United States', 'Mexico'])
@@ -51,6 +52,10 @@ const turanBreedIds = new Set([
   'akhal-teke', 'mongolian', 'orlov-trotter', 'finnhorse', 'nonius', 'gidran',
   'furioso-north-star', 'kisber-felver', 'shagya-arabian', 'hucul', 'yakutian',
   'caspian', 'karabakh', 'don-horse', 'bashkir-horse', 'jeju-horse', 'noma-horse',
+  'altai-horse', 'anglo-kabarda', 'belarus-harness', 'budyonny', 'estonian-native', 'tori-horse',
+  'iomud', 'kabarda', 'karabair', 'karachay', 'kiso-horse', 'kyrgyz-horse', 'latvian-horse',
+  'manipuri-pony', 'pleven', 'russian-heavy-draft', 'spiti-horse', 'tersk',
+  'tibetan-pony', 'ukrainian-riding', 'soviet-heavy-draft', 'vyatka', 'misaki-horse', 'yonaguni-horse', 'zaniskari',
 ])
 
 export function breedsForPracticeRegion(region: PracticeRegionId, allBreeds: Breed[]): Breed[] {

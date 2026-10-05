@@ -1,5 +1,6 @@
 import { extraBreeds } from './extraData'
 import { breedProfiles } from './breedProfiles'
+import { expansionBreeds, expansionProfiles } from './breedExpansion'
 
 export type Breed = {
   id: string
@@ -263,10 +264,12 @@ const breedData: BreedSeed[] = [
     tags: ['Draft', 'Flaxen', 'German'], source: 'https://en.wikipedia.org/wiki/Black_Forest_Horse',
   },
   ...extraBreeds,
+  ...expansionBreeds,
 ]
 
 export const breeds: Breed[] = breedData.map(breed => ({
   ...breed,
   ...breedProfiles[breed.id],
+  ...expansionProfiles[breed.id],
   image: breed.image.startsWith('/') ? `${import.meta.env.BASE_URL}${breed.image.slice(1)}` : breed.image,
 }))

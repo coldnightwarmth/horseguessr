@@ -6,8 +6,10 @@ import type { GeoJsonObject } from 'geojson'
 import { ArrowRight, Award, BookHeart, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, Compass, Flag, Heart, Images, Lightbulb, ListChecks, LocateFixed, MapPin, Maximize2, RotateCcw, Search, Share2, Sparkles, Trophy, X, XCircle } from 'lucide-react'
 import { Breed, breeds } from './data'
 import { AtlasPlace, lookupAtlasPlace, nearestBreedOrigins, NearbyBreed } from './atlas'
+import { expansionBreedIds } from './breedExpansion'
 import { fetchLeaderboard, fetchPhotoQualityReports, LeaderboardResult, PhotoQualityReport, PhotoReportReason, recordBreedFavorite, recordPhotoQualityReport, submitLeaderboardScore } from './firebase'
 import { normalizeGuideText, suggestBreedName } from './guideSearch'
+import { horseQuotes } from './horseQuotes'
 import { BreedPhoto, photosForBreed } from './media'
 import { distanceToOriginZone, OriginZone, originZoneBounds, originZones } from './originRegions'
 import { breedsForPracticeRegion, pointsForOriginGuess, practiceRegions, PracticeRegionId } from './practiceRegions'
@@ -24,7 +26,9 @@ const MAX_ROUNDS = 8
 // Keep the already-published September 19 daily puzzle (and featured horse)
 // unchanged for players on either side of the new Mexican breed deployment.
 function dailyBreedPool(day: string) {
-  return day < '2026-09-20' ? breeds.filter(breed => breed.id !== 'azteca-horse') : breeds
+  if (day < '2026-09-20') return breeds.filter(breed => breed.id !== 'azteca-horse' && !expansionBreedIds.includes(breed.id))
+  if (day < '2026-09-25') return breeds.filter(breed => !expansionBreedIds.includes(breed.id))
+  return breeds
 }
 
 function dateKey(date = new Date()) {
@@ -650,6 +654,7 @@ function Home({ dailyKey, dailyLocked, resetIn, streak, onStart, onPractice, onB
     const pool = photosForBreed(dailyHorse)
     return pool[hashText(`horse-of-day-photo-${dailyKey}`) % pool.length]
   }, [dailyHorse, dailyKey])
+  const dailyQuote = useMemo(() => horseQuotes[hashText(`horse-quote-${dailyKey}`) % horseQuotes.length], [dailyKey])
   const photoCount = breeds.reduce((total, breed) => total + photosForBreed(breed).length, 0)
   return (
     <main className="home-screen">
@@ -705,6 +710,14 @@ function Home({ dailyKey, dailyLocked, resetIn, streak, onStart, onPractice, onB
           </div>
           <p className="daily-reset">{dailyLocked ? `Next daily ride in ${resetIn}` : `One daily try · resets at 12:00 AM Central · ${dailyKey}`}</p>
         </div>
+      </section>
+
+      <section className="daily-quote" aria-labelledby="daily-quote-title">
+        <div className="daily-quote__sparkles" aria-hidden="true">✦ ⋆｡°✩ ✦</div>
+        <div className="daily-quote__label"><span>♥</span><strong id="daily-quote-title">Today’s horse quote</strong><span>♥</span></div>
+        <blockquote>“{dailyQuote.text}”</blockquote>
+        <p>— {dailyQuote.author}, <cite>{dailyQuote.work}</cite></p>
+        <a href={dailyQuote.source} target="_blank" rel="noreferrer">Read the source ↗</a>
       </section>
 
       <section className="how-strip">

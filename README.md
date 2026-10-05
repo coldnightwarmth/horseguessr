@@ -9,7 +9,7 @@ A browser-based horse-breed geography and identification game with a nostalgic 2
 - **Name the breed:** identify one horse photograph from four breed names.
 - **Pick the photo:** match one breed name to the correct photograph among four horses.
 
-The field guide, favorites stable, and end-of-quiz maps cover 101 breeds and 287 photographic examples. The field guide also has an interactive atlas of every breed origin, a place-to-nearest-breeds search, and spelling suggestions. The daily ride changes at midnight in the `America/Chicago` time zone, allows one browser attempt per day, and stores initials, the personal record, and favorites in first-party cookies.
+The field guide, favorites stable, and end-of-quiz maps cover 201 breeds and 466 photographic examples. The field guide also has an interactive atlas of every breed origin, a place-to-nearest-breeds search, and spelling suggestions. The daily ride and homepage horse quote change at midnight in the `America/Chicago` time zone; the daily challenge allows one browser attempt per day and stores initials, the personal record, and favorites in first-party cookies.
 
 Every completed ride and identification quiz includes a screenshot-friendly ribbon card with the date, score, and round-by-round results, but no breed names or map. A confirmed new leaderboard placement appears on the daily card after the player posts their initials. The adjacent share control copies or shares equivalent spoiler-free text.
 
