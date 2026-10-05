@@ -15,6 +15,17 @@ await mkdir(targetDir, { recursive: true })
 
 const headers = { 'User-Agent': 'HorseGuessr/1.0 (educational breed game; photo curation)' }
 const badWords = /\b(dystocia|statistique|state archives|national archives|national archive|atlas|head|portrait|tête|kopf|rider|riders|riding|rideing|ridden|jockey|trainer|horseman|girl|boy|joven|jongen|familie|sign|signs|carriage|cart|wagon|hitch|hitched|plough|pulling|attelage|vaulting|race|racing|show|championship|statelib|archive|archives|brewery|river|bridge|cruiser|ship|troops|street|stra(?:ß|ss)e|road|building|church|festival|perchtenlauf|statue|sculpture|scultura|terracotta|jug|urn|allegorie|alphabet|princes|drawing|painted|painting|illustration|engraving|poster|logo|map|diagram|pictogram|skeleton|skull|museum|stamp|stamps|coin|coat of arms|palazzo|bodleian|bhl|collectie|tropenmuseum|artwork|culture|karyotype|flag|division|rifle|train|catalog|catalogue|eb1911|ratusz|costume|locator|unconscious|hippocampus|sea-horse|fmib|book plate)\b/i
+const rejectedFileTitles = new Set([
+  'bosnian mountain horse (bosnian pony).jpg',
+  'christian david gebauer - frederiksborg horse.jpg',
+  'fotoreproductie van een schilderij van een hackney paard hackney stallion, “rufus” (titel op object), rp-f-2001-7-403-5.jpg',
+  'gelderlander.jpg',
+  'groningen.jpg',
+  'hetrussischewerkpaard.jpg',
+  'tersk horse.jpg',
+  'the hanoverian horse and british lion met dp884324.jpg',
+  'the hanoverian horse and british lion met dp884325.jpg',
+])
 const goodWords = /\b(horse|horses|pony|ponies|mare|stallion|gelding|foal|cheval|chevaux|caballo|caballos|cavallo|cavalli|paard|paarden|pferd|pferde|konj|konji)\b/i
 const queryOverrides = {
   Abtenauer: 'Noriker horse',
@@ -50,6 +61,11 @@ const preferredFileTitles = {
   'Retuerta Horse': ['Caballos en Doñana - panoramio.jpg'],
 }
 const directPhotoOverrides = {
+  'Groningen Horse': {
+    title: 'File:Groninger stallion Orbaldo II.jpg',
+    url: 'https://boktimg.nl/w/images/thumb/5/5e/OrbaldoII.jpg/600px-OrbaldoII.jpg',
+    sourceUrl: 'https://www.bokt.nl/wiki/Bestand:OrbaldoII.jpg',
+  },
   'Auvergne Horse': {
     title: 'File:Cheval de race Auvergne - SFET.jpg',
     url: 'https://www.sfet.fr/uploads/races/64b7a46e56950.jpg',
@@ -95,13 +111,61 @@ const directPhotoOverrides = {
     url: 'https://nordensark.se/media/179322/nordsvensk-banner.jpg?height=675&mode=crop&rnd=132810179100000000&widthratio=1.7777777777777777777777777778',
     sourceUrl: 'https://nordensark.se/djuren/lantraser/nordsvensk-hast/',
   },
+  'Russian Heavy Draft': {
+    title: 'File:Russian Heavy Draft stallion.jpg',
+    url: 'https://www.ruhorses.ru/files/docs/457.jpg',
+    sourceUrl: 'https://www.ruhorses.ru/breed/russian_heavy/en',
+  },
   'San Fratellano': {
     title: 'File:Sanfratellano stallion.jpg',
     url: 'https://www.agraria.org/equini/sanfratellano1.jpg',
     sourceUrl: 'https://www.agraria.org/equini/sanfratellano.htm',
   },
 }
-const forceDownloadIds = new Set(['auvergne-horse', 'basotho-pony', 'batak-pony', 'catria', 'corsican-horse', 'iomud', 'manipuri-pony', 'north-swedish', 'san-fratellano'])
+const supplementalPhotoOverrides = {
+  'Bosnian Mountain Horse': [{
+    title: 'File:Bosnian Mountain Horse herd in pasture.jpg',
+    url: 'https://zooclub.ru/attach/37000/37219.jpg',
+    localUrl: '/horses/expansion/bosnian-mountain-2.jpg',
+    sourceUrl: 'https://zooclub.ru/loshadi/porody-loshadey/bosniyskaya-gornaya-loshad-bosniyskiy-poni.shtml',
+  }],
+  Frederiksborg: [{
+    title: 'File:Frederiksborg horse trotting in pasture.jpg',
+    url: 'https://dyreportal.dk/media/content/frederiksborg-hest-pony-til-salg.jpeg.jpeg',
+    localUrl: '/horses/expansion/frederiksborg-2.jpg',
+    sourceUrl: 'https://dyreportal.dk/koeb-heste/frederiksborg',
+  }],
+  'Hackney Horse': [{
+    title: 'File:Mum And Daughter (2899216285).jpg',
+    url: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Mum%20And%20Daughter%20%282899216285%29.jpg?width=960',
+    localUrl: '/horses/expansion/hackney-horse-3.jpg',
+    sourceUrl: 'https://commons.wikimedia.org/wiki/File:Mum_And_Daughter_(2899216285).jpg',
+  }],
+  Gelderlander: [{
+    title: 'File:Gelderland Horse mare in paddock.jpg',
+    url: 'https://www.horsebreedspictures.com/wp-content/uploads/2017/07/Gelderland-Horse-Mare.jpg',
+    localUrl: '/horses/expansion/gelderlander-2.jpg',
+    sourceUrl: 'https://www.horsebreedspictures.com/gelderland-horse.asp',
+  }],
+  Hanoverian: [{
+    title: 'File:Hanoverian mare standing at stable.jpg',
+    url: 'https://cdn.ehorses.media/image/blur/xxldetails/hanoverian-mare-6years-162-hh-brown-dressagehorses-langelsheim_8ddf8119-19a4-43a8-ad98-0c3f8e64ee1a.jpg',
+    localUrl: '/horses/expansion/hanoverian-2.jpg',
+    sourceUrl: 'https://www.ehorses.com/hanoverian-mare-6years-162-hh-brown-dressagehorses-langelsheim/4244395.html',
+  }, {
+    title: 'File:Chestnut Hanoverian horse standing in pasture.jpg',
+    url: 'https://3.bp.blogspot.com/-99G8c7Jpph0/UUYz7AZE3bI/AAAAAAAAAew/eP9ujjLBoT0/s1600/hanoverian-picture-1.jpg',
+    localUrl: '/horses/expansion/hanoverian-3.jpg',
+    sourceUrl: 'https://portret-konia.blogspot.com/2013/03/kon-hanowerski.html',
+  }],
+  'Tersk Horse': [{
+    title: 'File:Pantera Tersk mare.jpg',
+    url: 'https://rahba.org/foto/horses/path/74/20/02/d8b27c8ac9387ff36d11aa6f7e7c2444.jpg',
+    localUrl: '/horses/expansion/tersk-2.jpg',
+    sourceUrl: 'https://rahba.org/ru/horse/9405',
+  }],
+}
+const forceDownloadIds = new Set(['auvergne-horse', 'basotho-pony', 'batak-pony', 'catria', 'corsican-horse', 'groningen', 'iomud', 'manipuri-pony', 'north-swedish', 'russian-heavy-draft', 'san-fratellano'])
 const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds))
 
 async function fetchWithRetry(url, attempts = 5) {
@@ -163,7 +227,7 @@ function scoreCandidate(page, name, order) {
   const info = page.thumbnail
   if (!info || info.mimetype !== 'image/jpeg') return -Infinity
   const title = page.title.replace(/^File:/, '').replaceAll('_', ' ')
-  if (badWords.test(title) || /\.(?:gif|svg|png)$/i.test(title)) return -Infinity
+  if (rejectedFileTitles.has(title.toLowerCase()) || badWords.test(title) || /\.(?:gif|svg|png)$/i.test(title)) return -Infinity
   const searchableText = `${title} ${page.excerpt?.replace(/<[^>]+>/g, ' ') ?? ''}`
   const ratio = info.width / info.height
   if (ratio < 0.62 || ratio > 2.35) return -Infinity
@@ -193,6 +257,18 @@ async function candidatesFor(breed) {
     },
     score: 5_000,
   } : null
+  const supplementalPhotos = (supplementalPhotoOverrides[breed.name] ?? []).map(photo => ({
+    page: {
+      title: photo.title,
+      key: photo.title,
+      excerpt: '',
+      thumbnail: { mimetype: 'image/jpeg', width: 960, height: 720, url: photo.url },
+      localUrl: photo.localUrl,
+      sourceUrl: photo.sourceUrl,
+      exactBreedImage: true,
+    },
+    score: 900,
+  }))
   const preferredQuery = queryOverrides[breed.name] ?? `\"${breed.name}\" horse`
   const searches = [preferredQuery, breed.name]
   const pages = []
@@ -206,8 +282,9 @@ async function candidatesFor(breed) {
   const searched = unique
     .map((page, index) => ({ page, score: scoreCandidate(page, breed.name, index) }))
     .filter(item => Number.isFinite(item.score))
-  const usableLead = leadPhoto && !badWords.test(leadPhoto.page.title.replaceAll('_', ' ')) && !/\.(?:gif|svg|png)$/i.test(leadPhoto.page.title)
-  return [...(directPhoto ? [directPhoto] : []), ...(usableLead ? [leadPhoto] : []), ...searched]
+  const leadTitle = leadPhoto?.page.title.replace(/^File:/, '').replaceAll('_', ' ')
+  const usableLead = leadPhoto && !rejectedFileTitles.has(leadTitle.toLowerCase()) && !badWords.test(leadTitle) && !/\.(?:gif|svg|png)$/i.test(leadTitle)
+  return [...(directPhoto ? [directPhoto] : []), ...supplementalPhotos, ...(usableLead ? [leadPhoto] : []), ...searched]
     .filter((item, index, items) => {
       const key = item.page.title.replace(/^File:/, '').replaceAll('_', ' ').toLowerCase()
       return items.findIndex(other => other.page.title.replace(/^File:/, '').replaceAll('_', ' ').toLowerCase() === key) === index
@@ -254,7 +331,7 @@ for (const [breedIndex, breed] of breeds.entries()) {
       }
       photoUrls[breed.id].push(`/horses/expansion/${breed.id}-1.jpg`)
     } else {
-      photoUrls[breed.id].push(chosen[index].page.thumbnail.url.split('?')[0])
+      photoUrls[breed.id].push(chosen[index].page.localUrl ?? chosen[index].page.thumbnail.url.split('?')[0])
     }
     photoSources[breed.id].push(chosen[index].page.sourceUrl ?? `https://commons.wikimedia.org/wiki/${encodeURIComponent(chosen[index].page.title.replaceAll(' ', '_'))}`)
   }

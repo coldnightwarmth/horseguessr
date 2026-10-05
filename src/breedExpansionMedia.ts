@@ -67,7 +67,7 @@ export const expansionPhotoSources: Record<string, string[]> = {
   ],
   "bosnian-mountain": [
     "https://commons.wikimedia.org/wiki/File%3ABosanski_brdski_konj_pastuh_(cropped)_2.jpg",
-    "https://commons.wikimedia.org/wiki/File%3ABosnian_Mountain_Horse_(Bosnian_Pony).jpg"
+    "https://zooclub.ru/loshadi/porody-loshadey/bosniyskaya-gornaya-loshad-bosniyskiy-poni.shtml"
   ],
   "budyonny": [
     "https://commons.wikimedia.org/wiki/File%3A%D0%91%D1%80%D1%83%D1%87.jpg",
@@ -144,7 +144,7 @@ export const expansionPhotoSources: Record<string, string[]> = {
   ],
   "frederiksborg": [
     "https://commons.wikimedia.org/wiki/File%3AFrederiksborghest.jpg",
-    "https://commons.wikimedia.org/wiki/File%3AChristian_David_Gebauer_-_Frederiksborg_horse.jpg"
+    "https://dyreportal.dk/koeb-heste/frederiksborg"
   ],
   "marismeno": [
     "https://commons.wikimedia.org/wiki/File%3ASaca_de_las_Yeguas_(14587429275).jpg"
@@ -154,15 +154,15 @@ export const expansionPhotoSources: Record<string, string[]> = {
   ],
   "gelderlander": [
     "https://commons.wikimedia.org/wiki/File%3AGelderlander_Viersp%C3%A4nner.jpg",
-    "https://commons.wikimedia.org/wiki/File%3AGelderlander.jpg"
+    "https://www.horsebreedspictures.com/gelderland-horse.asp"
   ],
   "groningen": [
-    "https://commons.wikimedia.org/wiki/File%3AGroningen.jpg"
+    "https://www.bokt.nl/wiki/Bestand:OrbaldoII.jpg"
   ],
   "hackney-horse": [
     "https://commons.wikimedia.org/wiki/File%3AHackney_Horse_Stallion_CANADANCE.jpg",
     "https://commons.wikimedia.org/wiki/File%3AHackney_horse.jpg",
-    "https://commons.wikimedia.org/wiki/File%3AFotoreproductie_van_een_schilderij_van_een_Hackney_paard_Hackney_Stallion%2C_%E2%80%9CRufus%E2%80%9D_(titel_op_object)%2C_RP-F-2001-7-403-5.jpg"
+    "https://commons.wikimedia.org/wiki/File%3AMum_And_Daughter_(2899216285).jpg"
   ],
   "henson-horse": [
     "https://commons.wikimedia.org/wiki/File%3ACheval_henson.JPG",
@@ -178,8 +178,8 @@ export const expansionPhotoSources: Record<string, string[]> = {
   ],
   "hanoverian": [
     "https://commons.wikimedia.org/wiki/File%3ALantinus_and_Lynch.jpg",
-    "https://commons.wikimedia.org/wiki/File%3AThe_Hanoverian_Horse_and_British_Lion_Met_DP884325.jpg",
-    "https://commons.wikimedia.org/wiki/File%3AThe_Hanoverian_Horse_and_British_Lion_Met_DP884324.jpg"
+    "https://www.ehorses.com/hanoverian-mare-6years-162-hh-brown-dressagehorses-langelsheim/4244395.html",
+    "https://portret-konia.blogspot.com/2013/03/kon-hanowerski.html"
   ],
   "iomud": [
     "https://horse.xjau.edu.cn/breeds/list/99"
@@ -294,7 +294,7 @@ export const expansionPhotoSources: Record<string, string[]> = {
     "https://commons.wikimedia.org/wiki/File%3AWillowRDK_(cropped).jpg"
   ],
   "russian-heavy-draft": [
-    "https://commons.wikimedia.org/wiki/File%3AHetRussischeWerkpaard.jpg"
+    "https://www.ruhorses.ru/breed/russian_heavy/en"
   ],
   "sable-island-horse": [
     "https://commons.wikimedia.org/wiki/File%3ASableHorses2.jpg",
@@ -344,7 +344,7 @@ export const expansionPhotoSources: Record<string, string[]> = {
   ],
   "tersk": [
     "https://commons.wikimedia.org/wiki/File%3ABasilick_tersk.jpg",
-    "https://commons.wikimedia.org/wiki/File%3ATersk_horse.jpg"
+    "https://rahba.org/ru/horse/9405"
   ],
   "tibetan-pony": [
     "https://commons.wikimedia.org/wiki/File%3ATibetHorse2.jpg",
@@ -449,7 +449,7 @@ const expansionPhotoUrls: Record<string, string[]> = {
   ],
   "bosnian-mountain": [
     "/horses/expansion/bosnian-mountain-1.jpg",
-    "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/eb/Bosnian_Mountain_Horse_%28Bosnian_Pony%29.jpg/500px-Bosnian_Mountain_Horse_%28Bosnian_Pony%29.jpg"
+    "/horses/expansion/bosnian-mountain-2.jpg"
   ],
   "budyonny": [
     "/horses/expansion/budyonny-1.jpg",
@@ -526,7 +526,7 @@ const expansionPhotoUrls: Record<string, string[]> = {
   ],
   "frederiksborg": [
     "/horses/expansion/frederiksborg-1.jpg",
-    "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7d/Christian_David_Gebauer_-_Frederiksborg_horse.jpg/500px-Christian_David_Gebauer_-_Frederiksborg_horse.jpg"
+    "/horses/expansion/frederiksborg-2.jpg"
   ],
   "marismeno": [
     "/horses/expansion/marismeno-1.jpg"
@@ -536,7 +536,7 @@ const expansionPhotoUrls: Record<string, string[]> = {
   ],
   "gelderlander": [
     "/horses/expansion/gelderlander-1.jpg",
-    "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b4/Gelderlander.jpg/500px-Gelderlander.jpg"
+    "/horses/expansion/gelderlander-2.jpg"
   ],
   "groningen": [
     "/horses/expansion/groningen-1.jpg"
@@ -544,7 +544,7 @@ const expansionPhotoUrls: Record<string, string[]> = {
   "hackney-horse": [
     "/horses/expansion/hackney-horse-1.jpg",
     "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/51/Hackney_horse.jpg/330px-Hackney_horse.jpg",
-    "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d0/Fotoreproductie_van_een_schilderij_van_een_Hackney_paard_Hackney_Stallion%2C_%E2%80%9CRufus%E2%80%9D_%28titel_op_object%29%2C_RP-F-2001-7-403-5.jpg/500px-Fotoreproductie_van_een_schilderij_van_een_Hackney_paard_Hackney_Stallion%2C_%E2%80%9CRufus%E2%80%9D_%28titel_op_object%29%2C_RP-F-2001-7-403-5.jpg"
+    "/horses/expansion/hackney-horse-3.jpg"
   ],
   "henson-horse": [
     "/horses/expansion/henson-horse-1.jpg",
@@ -560,8 +560,8 @@ const expansionPhotoUrls: Record<string, string[]> = {
   ],
   "hanoverian": [
     "/horses/expansion/hanoverian-1.jpg",
-    "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1b/The_Hanoverian_Horse_and_British_Lion_Met_DP884325.jpg/960px-The_Hanoverian_Horse_and_British_Lion_Met_DP884325.jpg",
-    "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a2/The_Hanoverian_Horse_and_British_Lion_Met_DP884324.jpg/500px-The_Hanoverian_Horse_and_British_Lion_Met_DP884324.jpg"
+    "/horses/expansion/hanoverian-2.jpg",
+    "/horses/expansion/hanoverian-3.jpg"
   ],
   "iomud": [
     "/horses/expansion/iomud-1.jpg"
@@ -726,7 +726,7 @@ const expansionPhotoUrls: Record<string, string[]> = {
   ],
   "tersk": [
     "/horses/expansion/tersk-1.jpg",
-    "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/63/Tersk_horse.jpg/250px-Tersk_horse.jpg"
+    "/horses/expansion/tersk-2.jpg"
   ],
   "tibetan-pony": [
     "/horses/expansion/tibetan-pony-1.jpg",
