@@ -1337,6 +1337,52 @@ body,
 }
 .favorite-heart:hover, .favorite-heart.is-favorite { color: #fff; background: linear-gradient(#ff8fc8, var(--hot-pink)); }
 .favorite-heart:active { border-style: inset; box-shadow: none; transform: translate(1px, 1px); }
+.top-favorite-star {
+  width: 29px;
+  height: 27px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 2px outset #fff;
+  border-radius: 5px;
+  color: #a47728;
+  background: linear-gradient(#fff, #fff7ae);
+  box-shadow: 2px 2px 0 rgba(90, 40, 111, .35);
+  cursor: pointer;
+}
+.top-favorite-star:hover,
+.top-favorite-star.is-top-favorite { color: #9b4d00; background: linear-gradient(#fff67a, #ffc233); }
+.top-favorite-star:active { border-style: inset; box-shadow: none; transform: translate(1px, 1px); }
+
+.collection-nav .text-button.is-current {
+  padding: 7px 10px;
+  border: 2px outset #fff;
+  border-radius: 5px;
+  color: #713678;
+  background: linear-gradient(#fff7a3, #ffd45a);
+  text-shadow: none;
+  box-shadow: 2px 2px 0 rgba(80, 41, 111, .35);
+}
+.favorite-section-heading {
+  grid-column: 1 / -1;
+  min-height: 84px;
+  margin: 4px 0 1px;
+  padding: 13px 18px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  border: 5px ridge #fff;
+  outline: 2px solid #fe0889;
+  color: #fff;
+  background: linear-gradient(135deg, rgba(99, 52, 139, .95), rgba(211, 50, 143, .94));
+  box-shadow: 5px 5px 0 rgba(65, 40, 105, .36);
+}
+.favorite-section-heading > svg { width: 34px; height: 34px; flex: 0 0 34px; color: #fff267; filter: drop-shadow(2px 2px 0 #844176); }
+.favorite-section-heading span { color: #fff5a8; font: 700 .58rem 'Silkscreen', monospace; }
+.favorite-section-heading h2 { margin: 2px 0 0; color: #fff; font: 1.6rem 'Bubblegum Sans', cursive; }
+.favorite-section-heading p { margin: 1px 0 0; color: #ffeaf6; font-size: .75rem; font-weight: 800; }
+.favorite-section-heading--top { background: linear-gradient(135deg, #7750a3, #fe0889 72%, #ff9e3f); }
 
 .horse-day-backdrop { z-index: 4200; }
 .horse-day-card {

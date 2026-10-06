@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { Circle, CircleMarker, GeoJSON, MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 import L, { LatLngBoundsExpression } from 'leaflet'
 import type { GeoJsonObject } from 'geojson'
-import { ArrowRight, Award, BookHeart, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, Compass, Flag, Heart, Images, Lightbulb, ListChecks, LocateFixed, MapPin, Maximize2, RotateCcw, Search, Share2, Sparkles, Trophy, X, XCircle } from 'lucide-react'
+import { ArrowRight, Award, BookHeart, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, Compass, Flag, Heart, Images, Lightbulb, ListChecks, LocateFixed, MapPin, Maximize2, RotateCcw, Search, Share2, Sparkles, Star, Trophy, X, XCircle } from 'lucide-react'
 import { Breed, breeds } from './data'
 import { AtlasPlace, lookupAtlasPlace, nearestBreedOrigins, NearbyBreed } from './atlas'
 import { expansionBreedIds } from './breedExpansion'
@@ -13,7 +13,7 @@ import { horseQuotes } from './horseQuotes'
 import { BreedPhoto, photosForBreed } from './media'
 import { distanceToOriginZone, OriginZone, originZoneBounds, originZones } from './originRegions'
 import { breedsForPracticeRegion, pointsForOriginGuess, practiceRegions, PracticeRegionId } from './practiceRegions'
-import { cookieNames, readCookie, readDailyStreak, readFavoriteIds, readPassportIds, readPersonalBest, sanitizeInitials, updateDailyStreak, updatePersonalBest, writeCookie, writeFavoriteIds, writePassportIds } from './preferences'
+import { cookieNames, readCookie, readDailyStreak, readFavoriteIds, readPassportIds, readPersonalBest, readTopFavoriteIds, sanitizeInitials, updateDailyStreak, updatePersonalBest, writeCookie, writeFavoriteIds, writePassportIds, writeTopFavoriteIds } from './preferences'
 
 type Point = { lat: number; lng: number }
 type Screen = 'home' | 'practice-picker' | 'game' | 'summary' | 'guide' | 'favorites' | 'passport' | 'breed-quiz' | 'quiz-summary' | 'photo-quiz' | 'photo-summary'
@@ -72,7 +72,7 @@ function formatNumber(value: number) {
 function rideShareText(results: RoundResult[], total: number, dayKey: string, label: string, placement: LeaderboardPlacement | null) {
   const trail = results.map(result => result.insideRegion ? '🌟' : result.points >= 4000 ? '💖' : result.points >= 2500 ? '💗' : result.points >= 1000 ? '💙' : '🤍').join('')
   const ribbon = placement ? `\nNew ${placement.backend === 'firebase' ? 'worldwide' : 'device'} ranking: #${placement.rank} (${placement.initials})` : ''
-  return `HorseGuessr · ${label} · ${dayKey}\n${trail}\n${formatNumber(total)} / 40,000 points${ribbon}\nNo breeds spoiled ✦`
+  return `HorseGuessr · ${label} · ${dayKey}\n${trail}\n${formatNumber(total)} / 40,000 points${ribbon}`
 }
 
 type LeaderboardPlacement = { rank: number; initials: string; backend: 'firebase' | 'local' }
@@ -267,8 +267,8 @@ function ResizableStage({ className = '', storageKey, defaultPercent, children }
 type MagnificationContextValue = { enabled: boolean; setEnabled: (enabled: boolean) => void }
 const MagnificationContext = createContext<MagnificationContextValue>({ enabled: true, setEnabled: () => {} })
 
-type FavoritesContextValue = { favoriteIds: string[]; toggleFavorite: (breedId: string) => void }
-const FavoritesContext = createContext<FavoritesContextValue>({ favoriteIds: [], toggleFavorite: () => {} })
+type FavoritesContextValue = { favoriteIds: string[]; topFavoriteIds: string[]; toggleFavorite: (breedId: string) => void; toggleTopFavorite: (breedId: string) => void }
+const FavoritesContext = createContext<FavoritesContextValue>({ favoriteIds: [], topFavoriteIds: [], toggleFavorite: () => {}, toggleTopFavorite: () => {} })
 
 type PassportContextValue = { passportIds: string[]; awardPassportMedal: (breedId: string) => void }
 const PassportContext = createContext<PassportContextValue>({ passportIds: [], awardPassportMedal: () => {} })
@@ -290,8 +290,25 @@ function FavoriteButton({ breed }: { breed: Breed }) {
   )
 }
 
-function BreedName({ breed }: { breed: Breed }) {
-  return <span className="breed-name-with-heart"><span>{breed.name}</span><FavoriteButton breed={breed} /></span>
+function TopFavoriteButton({ breed }: { breed: Breed }) {
+  const { topFavoriteIds, toggleTopFavorite } = useContext(FavoritesContext)
+  const topFavorite = topFavoriteIds.includes(breed.id)
+  return (
+    <button
+      type="button"
+      className={`top-favorite-star ${topFavorite ? 'is-top-favorite' : ''}`}
+      onClick={event => { event.preventDefault(); event.stopPropagation(); toggleTopFavorite(breed.id) }}
+      aria-pressed={topFavorite}
+      aria-label={`${topFavorite ? 'Remove' : 'Add'} ${breed.name} ${topFavorite ? 'from' : 'to'} top favorites`}
+      title={topFavorite ? 'Remove from top favorites' : 'Make a top favorite'}
+    >
+      <Star size={18} fill={topFavorite ? 'currentColor' : 'none'} />
+    </button>
+  )
+}
+
+function BreedName({ breed, showTopFavorite = false }: { breed: Breed; showTopFavorite?: boolean }) {
+  return <span className="breed-name-with-heart"><span>{breed.name}</span><FavoriteButton breed={breed} />{showTopFavorite && <TopFavoriteButton breed={breed} />}</span>
 }
 
 function PassportMedal({ breed }: { breed: Breed }) {
@@ -1211,10 +1228,10 @@ function ShareableResultCard({ date, label, rank, score, maximum, rounds, placem
     try {
       if (navigator.share) {
         await navigator.share({ title: 'My HorseGuessr results', text: shareText, url })
-        setShareStatus('Shared without spoilers!')
+        setShareStatus('Results shared!')
       } else {
         await navigator.clipboard.writeText(`${shareText}\n${url}`)
-        setShareStatus('Spoiler-free result copied!')
+        setShareStatus('Result copied!')
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
@@ -1222,8 +1239,8 @@ function ShareableResultCard({ date, label, rank, score, maximum, rounds, placem
     }
   }
   return (
-    <section className="shareable-result-section" aria-label="Spoiler-free shareable results">
-      <div className="shareable-result-intro"><div><span>✦ YOUR SHAREABLE RIBBON ✦</span><h2>A little brag, no spoilers.</h2></div><p>Screenshot just the card below. No breeds or map locations are shown.</p></div>
+    <section className="shareable-result-section" aria-label="Shareable results">
+      <div className="shareable-result-intro"><div><span>✦ YOUR SHAREABLE RIBBON ✦</span><h2>A little brag.</h2></div><p>Screenshot the card below to share your ride.</p></div>
       <div className="shareable-result-card">
         <div className="shareable-result-card__mast"><span className="shareable-result-card__brand">♞ HORSEGUESSR</span><span>★ HORSE CLUB RESULTS ★</span></div>
         <div className="shareable-result-card__headline"><span>{label} · {prettyDate}</span><h3>{rank}</h3><p>Eight horses. One excellent ride. ✦</p></div>
@@ -1232,7 +1249,7 @@ function ShareableResultCard({ date, label, rank, score, maximum, rounds, placem
           {rounds.map((round, index) => <div key={index} className="shareable-result-card__round"><span>{String(index + 1).padStart(2, '0')}</span><i style={{ '--round-fill': `${Math.round(round.fraction * 100)}%` } as React.CSSProperties} /><b>{round.value}</b></div>)}
         </div>
         {(placement || newBest) && <div className="shareable-result-card__ribbons">{newBest && <span>✧ NEW PERSONAL BEST ✧</span>}{placement && <span>🏆 NEW #{placement.rank} {placement.backend === 'firebase' ? 'WORLDWIDE' : 'DEVICE'} RANK · {placement.initials}</span>}</div>}
-        <div className="shareable-result-card__footer"><span>NO BREEDS SPOILED · NO MAP REVEALED</span><span>horseguessr ★</span></div>
+        <div className="shareable-result-card__footer"><span>RIDE RESULTS · READY TO SHARE</span><span>horseguessr ★</span></div>
       </div>
       <div className="shareable-result-controls"><span>Tip: screenshot this card to share your ribbon as an image.</span><button className="secondary-button share-result-button" onClick={() => void shareResult()}><Share2 size={18} /> Copy / share text</button></div>
       {shareStatus && <p className="share-status" role="status">{shareStatus}</p>}
@@ -1288,7 +1305,7 @@ function QuizSummary({ results, kind, onReplay, onHome }: { results: QuizResult[
       <section className="summary-card quiz-summary-card">
         <div className="summary-title"><span className="medallion">{kind === 'photo' ? <Images size={29} /> : <ListChecks size={29} />}</span><p className="eyebrow"><span /> {kind === 'photo' ? 'Photo match complete' : 'Breed quiz complete'}</p><h1>{rank}</h1><p>{kind === 'photo' ? 'You matched breed names to photographs' : 'You identified horses'} from a collection of {breeds.length} breeds.</p></div>
         <div className="summary-score"><span>Correct answers</span><strong>{correct} / {MAX_ROUNDS}</strong><small>Personal best: {best}</small><div className="score-ring" style={{ '--score': `${percentage}%` } as React.CSSProperties}><span>{percentage}%</span></div></div>
-        <ShareableResultCard date={dateKey()} label={kind === 'photo' ? 'Pick the Photo' : 'Name the Breed'} rank={rank} score={String(correct)} maximum={String(MAX_ROUNDS)} rounds={results.map(result => ({ value: result.correct ? '✓' : '×', fraction: result.correct ? 1 : 0 }))} newBest={correct > previousBest} shareText={`HorseGuessr · ${kind === 'photo' ? 'Pick the Photo' : 'Name the Breed'} · ${dateKey()}\n${results.map(result => result.correct ? '💖' : '🤍').join('')}\n${correct} / ${MAX_ROUNDS} correct\nNo breeds spoiled ✦`} />
+        <ShareableResultCard date={dateKey()} label={kind === 'photo' ? 'Pick the Photo' : 'Name the Breed'} rank={rank} score={String(correct)} maximum={String(MAX_ROUNDS)} rounds={results.map(result => ({ value: result.correct ? '✓' : '×', fraction: result.correct ? 1 : 0 }))} newBest={correct > previousBest} shareText={`HorseGuessr · ${kind === 'photo' ? 'Pick the Photo' : 'Name the Breed'} · ${dateKey()}\n${results.map(result => result.correct ? '💖' : '🤍').join('')}\n${correct} / ${MAX_ROUNDS} correct`} />
         <ResultReviewMap results={results} kind={kind} />
         <div className="result-list">
           {results.map((result, index) => (
@@ -1452,8 +1469,41 @@ function BreedAtlas({ items }: { items: Breed[] }) {
   )
 }
 
-function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, showAtlas = false, onBack }: { shownBreeds: Breed[]; title: string; eyebrow: string; emptyCopy?: string; showAtlas?: boolean; onBack: () => void }) {
+type CollectionNavigationProps = {
+  current: 'guide' | 'favorites' | 'passport'
+  onHome: () => void
+  onGuide: () => void
+  onFavorites: () => void
+  onPassport: () => void
+}
+
+function CollectionNavigation({ current, onHome, onGuide, onFavorites, onPassport }: CollectionNavigationProps) {
+  return (
+    <nav className="summary-nav collection-nav">
+      <Brand inverse />
+      <div className="summary-nav-actions">
+        <MagnificationToggle />
+        <button className={`text-button ${current === 'passport' ? 'is-current' : ''}`} onClick={onPassport} aria-current={current === 'passport' ? 'page' : undefined}><Award size={17} /> Passport</button>
+        <button className={`text-button ${current === 'favorites' ? 'is-current' : ''}`} onClick={onFavorites} aria-current={current === 'favorites' ? 'page' : undefined}><BookHeart size={17} /> Favorites</button>
+        <button className={`text-button ${current === 'guide' ? 'is-current' : ''}`} onClick={onGuide} aria-current={current === 'guide' ? 'page' : undefined}><BookOpen size={17} /> Field guide</button>
+        <button className="text-button collection-home-link" onClick={onHome}><ChevronLeft size={17} /> Home</button>
+      </div>
+    </nav>
+  )
+}
+
+type BreedCollectionProps = CollectionNavigationProps & {
+  shownBreeds: Breed[]
+  title: string
+  eyebrow: string
+  emptyCopy?: string
+  showAtlas?: boolean
+  showTopFavorites?: boolean
+}
+
+function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, showAtlas = false, showTopFavorites = false, ...navigation }: BreedCollectionProps) {
   const { passportIds } = useContext(PassportContext)
+  const { topFavoriteIds } = useContext(FavoritesContext)
   const photoCount = shownBreeds.reduce((total, breed) => total + photosForBreed(breed).length, 0)
   const [galleryBreed, setGalleryBreed] = useState<Breed | null>(null)
   const [query, setQuery] = useState('')
@@ -1474,6 +1524,8 @@ function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, showAtlas = f
     })
   }, [country, passportFilter, passportIds, query, shownBreeds, tag])
   const suggestedBreed = useMemo(() => filteredBreeds.length ? null : suggestBreedName(query, shownBreeds), [filteredBreeds.length, query, shownBreeds])
+  const topFilteredBreeds = showTopFavorites ? filteredBreeds.filter(breed => topFavoriteIds.includes(breed.id)) : []
+  const otherFilteredBreeds = showTopFavorites ? filteredBreeds.filter(breed => !topFavoriteIds.includes(breed.id)) : filteredBreeds
   const resetFilters = () => { setQuery(''); setCountry(''); setTag(''); setPassportFilter('all') }
   const useSuggestion = () => {
     if (!suggestedBreed) return
@@ -1484,7 +1536,7 @@ function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, showAtlas = f
   }
   return (
     <main className="guide-screen">
-      <nav className="summary-nav"><Brand inverse /><div className="summary-nav-actions"><MagnificationToggle /><button className="text-button" onClick={onBack}><ArrowRight className="arrow-back" size={17} /> Back</button></div></nav>
+      <CollectionNavigation {...navigation} />
       <section className="guide-heading"><p className="eyebrow"><span /> {eyebrow}</p><h1>{title}</h1><p>{shownBreeds.length ? `Meet ${shownBreeds.length} breeds across ${photoCount} photographs—and follow their stories home.` : emptyCopy}</p></section>
       {showAtlas && <BreedAtlas items={shownBreeds} />}
       {shownBreeds.length > 0 && (
@@ -1504,10 +1556,18 @@ function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, showAtlas = f
         </div>
       )}
       <section className="guide-grid">
-        {filteredBreeds.map(breed => (
+        {showTopFavorites && <div className="favorite-section-heading favorite-section-heading--top"><Star size={21} fill="currentColor" /><div><span>PINNED TO THE TOP</span><h2>Top favorites</h2><p>{topFilteredBreeds.length ? 'Your most-loved horses, collected first.' : 'Tap the star beside any favorite breed to pin it here.'}</p></div></div>}
+        {topFilteredBreeds.map(breed => (
           <article className={`guide-card ${passportIds.includes(breed.id) ? 'guide-card--passport-earned' : ''}`} key={breed.id}>
             <MagnifiableImage src={breed.image} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} breedId={breed.id} loading="lazy" />
-            <div><span>{breed.country} · <button type="button" className="guide-photo-count" onClick={() => setGalleryBreed(breed)}>{photosForBreed(breed).length} photos <Images size={13} /></button></span><h2><BreedName breed={breed} /><PassportMedal breed={breed} /></h2><BreedBio breed={breed} /><a href={breed.source} target="_blank" rel="noreferrer">Open breed profile <ArrowRight size={15} /></a></div>
+            <div><span>{breed.country} · <button type="button" className="guide-photo-count" onClick={() => setGalleryBreed(breed)}>{photosForBreed(breed).length} photos <Images size={13} /></button></span><h2><BreedName breed={breed} showTopFavorite /><PassportMedal breed={breed} /></h2><BreedBio breed={breed} /><a href={breed.source} target="_blank" rel="noreferrer">Open breed profile <ArrowRight size={15} /></a></div>
+          </article>
+        ))}
+        {showTopFavorites && filteredBreeds.length > 0 && <div className="favorite-section-heading"><Heart size={21} fill="currentColor" /><div><span>YOUR HEARTED HORSES</span><h2>{topFilteredBreeds.length ? 'More favorites' : 'All favorites'}</h2></div></div>}
+        {otherFilteredBreeds.map(breed => (
+          <article className={`guide-card ${passportIds.includes(breed.id) ? 'guide-card--passport-earned' : ''}`} key={breed.id}>
+            <MagnifiableImage src={breed.image} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} breedId={breed.id} loading="lazy" />
+            <div><span>{breed.country} · <button type="button" className="guide-photo-count" onClick={() => setGalleryBreed(breed)}>{photosForBreed(breed).length} photos <Images size={13} /></button></span><h2><BreedName breed={breed} showTopFavorite={showTopFavorites} /><PassportMedal breed={breed} /></h2><BreedBio breed={breed} /><a href={breed.source} target="_blank" rel="noreferrer">Open breed profile <ArrowRight size={15} /></a></div>
           </article>
         ))}
         {shownBreeds.length > 0 && filteredBreeds.length === 0 && <p className="guide-empty">No breeds match this stable search. Try clearing one of the filters.</p>}
@@ -1517,23 +1577,23 @@ function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, showAtlas = f
   )
 }
 
-function FieldGuide({ onBack }: { onBack: () => void }) {
-  return <BreedCollection shownBreeds={breeds} eyebrow="The field guide" title="Breeds of the world" showAtlas onBack={onBack} />
+function FieldGuide(props: Omit<CollectionNavigationProps, 'current'>) {
+  return <BreedCollection {...props} current="guide" shownBreeds={breeds} eyebrow="The field guide" title="Breeds of the world" showAtlas />
 }
 
-function FavoriteBreeds({ onBack }: { onBack: () => void }) {
+function FavoriteBreeds(props: Omit<CollectionNavigationProps, 'current'>) {
   const { favoriteIds } = useContext(FavoritesContext)
   const favorites = breeds.filter(breed => favoriteIds.includes(breed.id))
-  return <BreedCollection shownBreeds={favorites} eyebrow="Your cookie-saved stable" title="Favorite breeds" emptyCopy="Your stable is empty. Tap the heart after any breed name to add it here." onBack={onBack} />
+  return <BreedCollection {...props} current="favorites" shownBreeds={favorites} eyebrow="Your hearted horses" title="Favorite breeds" emptyCopy="Your stable is empty. Tap the heart after any breed name to add it here." showTopFavorites />
 }
 
-function BreedPassport({ onBack }: { onBack: () => void }) {
+function BreedPassport(props: Omit<CollectionNavigationProps, 'current'>) {
   const { passportIds } = useContext(PassportContext)
   const earned = breeds.filter(breed => passportIds.includes(breed.id)).length
   const percentage = Math.round(earned / breeds.length * 100)
   return (
     <main className="guide-screen passport-screen">
-      <nav className="summary-nav"><Brand inverse /><div className="summary-nav-actions"><MagnificationToggle /><button className="text-button" onClick={onBack}><ArrowRight className="arrow-back" size={17} /> Back</button></div></nav>
+      <CollectionNavigation {...props} current="passport" />
       <section className="guide-heading passport-heading">
         <p className="eyebrow"><span /> Your breed passport</p>
         <h1>Stable sticker book</h1>
@@ -1648,6 +1708,7 @@ export default function App() {
   const [quizResults, setQuizResults] = useState<QuizResult[]>([])
   const [magnificationEnabled, setMagnificationEnabled] = useState(() => localStorage.getItem('horseguessr-photo-viewer') !== 'off')
   const [favoriteIds, setFavoriteIds] = useState(readFavoriteIds)
+  const [topFavoriteIds, setTopFavoriteIds] = useState(readTopFavoriteIds)
   const [passportIds, setPassportIds] = useState(readPassportIds)
   const [dailyStreak, setDailyStreak] = useState(readDailyStreak)
   const [dailyAttemptKey, setDailyAttemptKey] = useState(() => readCookie(cookieNames.dailyAttempt))
@@ -1663,7 +1724,18 @@ export default function App() {
     const next = isAdding ? [...favoriteIds, breedId] : favoriteIds.filter(id => id !== breedId)
     setFavoriteIds(next)
     writeFavoriteIds(next)
+    if (!isAdding && topFavoriteIds.includes(breedId)) {
+      const nextTopFavorites = topFavoriteIds.filter(id => id !== breedId)
+      setTopFavoriteIds(nextTopFavorites)
+      writeTopFavoriteIds(nextTopFavorites)
+    }
     if (isAdding) void recordBreedFavorite(breedId)
+  }
+  const toggleTopFavorite = (breedId: string) => {
+    if (!favoriteIds.includes(breedId)) return
+    const next = topFavoriteIds.includes(breedId) ? topFavoriteIds.filter(id => id !== breedId) : [...topFavoriteIds, breedId]
+    setTopFavoriteIds(next)
+    writeTopFavoriteIds(next)
   }
   const awardPassportMedal = (breedId: string) => {
     if (passportIds.includes(breedId)) return
@@ -1691,13 +1763,13 @@ export default function App() {
   else if (screen === 'quiz-summary') page = <QuizSummary kind="name" results={quizResults} onReplay={() => { setQuizResults([]); setScreen('breed-quiz') }} onHome={() => setScreen('home')} />
   else if (screen === 'photo-quiz') page = <PhotoQuiz onExit={() => setScreen('home')} onFinish={finalResults => { setQuizResults(finalResults); setScreen('photo-summary') }} />
   else if (screen === 'photo-summary') page = <QuizSummary kind="photo" results={quizResults} onReplay={() => { setQuizResults([]); setScreen('photo-quiz') }} onHome={() => setScreen('home')} />
-  else if (screen === 'guide') page = <FieldGuide onBack={() => setScreen('home')} />
-  else if (screen === 'favorites') page = <FavoriteBreeds onBack={() => setScreen('home')} />
-  else if (screen === 'passport') page = <BreedPassport onBack={() => setScreen('home')} />
+  else if (screen === 'guide') page = <FieldGuide onHome={() => setScreen('home')} onGuide={() => setScreen('guide')} onFavorites={() => setScreen('favorites')} onPassport={() => setScreen('passport')} />
+  else if (screen === 'favorites') page = <FavoriteBreeds onHome={() => setScreen('home')} onGuide={() => setScreen('guide')} onFavorites={() => setScreen('favorites')} onPassport={() => setScreen('passport')} />
+  else if (screen === 'passport') page = <BreedPassport onHome={() => setScreen('home')} onGuide={() => setScreen('guide')} onFavorites={() => setScreen('favorites')} onPassport={() => setScreen('passport')} />
   else page = <Home dailyKey={centralClock.key} dailyLocked={dailyLocked} resetIn={centralClock.resetIn} streak={dailyStreak} onStart={() => start('daily')} onPractice={() => setScreen('practice-picker')} onBreedQuiz={() => { setQuizResults([]); setScreen('breed-quiz') }} onPhotoQuiz={() => { setQuizResults([]); setScreen('photo-quiz') }} onGuide={() => setScreen('guide')} onFavorites={() => setScreen('favorites')} onPassport={() => setScreen('passport')} />
   return (
     <MagnificationContext.Provider value={{ enabled: magnificationEnabled, setEnabled: setMagnificationEnabled }}>
-      <FavoritesContext.Provider value={{ favoriteIds, toggleFavorite }}>
+      <FavoritesContext.Provider value={{ favoriteIds, topFavoriteIds, toggleFavorite, toggleTopFavorite }}>
         <PassportContext.Provider value={{ passportIds, awardPassportMedal }}>
           {page}
           {!reportDashboard && <CookieNotice />}

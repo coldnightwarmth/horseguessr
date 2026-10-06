@@ -7,6 +7,7 @@ export const cookieNames = {
   dailyStreak: 'hg_daily_streak',
   dailyStreakDay: 'hg_daily_streak_day',
   favorites: 'hg_favorite_breeds',
+  topFavorites: 'hg_top_favorite_breeds',
   passport: 'hg_breed_passport',
   cookieNotice: 'hg_cookie_notice',
 } as const
@@ -35,6 +36,19 @@ export function readFavoriteIds() {
 
 export function writeFavoriteIds(ids: string[]) {
   writeCookie(cookieNames.favorites, JSON.stringify([...new Set(ids)]))
+}
+
+export function readTopFavoriteIds() {
+  try {
+    const ids = JSON.parse(readCookie(cookieNames.topFavorites) || '[]')
+    return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+export function writeTopFavoriteIds(ids: string[]) {
+  writeCookie(cookieNames.topFavorites, JSON.stringify([...new Set(ids)]))
 }
 
 export function readPassportIds() {
