@@ -1,5 +1,6 @@
 export type LeaderboardEntry = {
   id: string
+  uid: string
   initials: string
   score: number
   dayKey: string
@@ -72,6 +73,7 @@ export async function fetchLeaderboard(): Promise<LeaderboardResult> {
       const fields = row.document.fields
       return [{
         id: row.document.name.split('/').pop() || crypto.randomUUID(),
+        uid: stringField(fields.uid),
         initials: stringField(fields.initials),
         score: integerField(fields.score),
         dayKey: stringField(fields.dayKey),
@@ -85,31 +87,39 @@ export async function fetchLeaderboard(): Promise<LeaderboardResult> {
   }
 }
 
-type AnonymousAuth = {
+export type FirebaseSession = {
   idToken: string
   localId: string
   refreshToken: string
   expiresAt: number
+  email?: string
+  displayName?: string
 }
 
-let authRequest: Promise<AnonymousAuth> | null = null
+let authRequest: Promise<FirebaseSession> | null = null
 
-function readAnonymousAuth(): AnonymousAuth | null {
+export function readFirebaseSession(): FirebaseSession | null {
   try {
-    const parsed = JSON.parse(localStorage.getItem(anonymousAuthKey) || 'null') as Partial<AnonymousAuth> | null
+    const parsed = JSON.parse(localStorage.getItem(anonymousAuthKey) || 'null') as Partial<FirebaseSession> | null
     if (!parsed || typeof parsed.idToken !== 'string' || typeof parsed.localId !== 'string' || typeof parsed.refreshToken !== 'string' || typeof parsed.expiresAt !== 'number') return null
-    return parsed as AnonymousAuth
+    return parsed as FirebaseSession
   } catch {
     return null
   }
 }
 
-function saveAnonymousAuth(auth: AnonymousAuth) {
+export function saveFirebaseSession(auth: FirebaseSession) {
   localStorage.setItem(anonymousAuthKey, JSON.stringify(auth))
+  authRequest = null
   return auth
 }
 
-async function refreshAnonymousToken(auth: AnonymousAuth): Promise<AnonymousAuth> {
+export function clearFirebaseSession() {
+  localStorage.removeItem(anonymousAuthKey)
+  authRequest = null
+}
+
+async function refreshAnonymousToken(auth: FirebaseSession): Promise<FirebaseSession> {
   const response = await fetch(`https://securetoken.googleapis.com/v1/token?key=${encodeURIComponent(apiKey!)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -117,22 +127,24 @@ async function refreshAnonymousToken(auth: AnonymousAuth): Promise<AnonymousAuth
   })
   if (!response.ok) throw new Error(`Anonymous token refresh returned ${response.status}`)
   const refreshed = await response.json() as { id_token: string; user_id: string; refresh_token: string; expires_in: string }
-  return saveAnonymousAuth({
+  return saveFirebaseSession({
     idToken: refreshed.id_token,
     localId: refreshed.user_id,
     refreshToken: refreshed.refresh_token,
     expiresAt: Date.now() + Math.max(60, Number(refreshed.expires_in) - 60) * 1000,
+    email: auth.email,
+    displayName: auth.displayName,
   })
 }
 
-async function requestAnonymousToken(): Promise<AnonymousAuth> {
-  const cached = readAnonymousAuth()
+async function requestAnonymousToken(): Promise<FirebaseSession> {
+  const cached = readFirebaseSession()
   if (cached && cached.expiresAt > Date.now()) return cached
   if (cached?.refreshToken) {
     try {
       return await refreshAnonymousToken(cached)
     } catch {
-      localStorage.removeItem(anonymousAuthKey)
+      clearFirebaseSession()
     }
   }
 
@@ -143,7 +155,7 @@ async function requestAnonymousToken(): Promise<AnonymousAuth> {
   })
   if (!response.ok) throw new Error(`Anonymous sign-in returned ${response.status}`)
   const created = await response.json() as { idToken: string; localId: string; refreshToken: string; expiresIn: string }
-  return saveAnonymousAuth({
+  return saveFirebaseSession({
     idToken: created.idToken,
     localId: created.localId,
     refreshToken: created.refreshToken,
@@ -151,10 +163,12 @@ async function requestAnonymousToken(): Promise<AnonymousAuth> {
   })
 }
 
-async function anonymousToken() {
+export async function firebaseSession() {
   if (!authRequest) authRequest = requestAnonymousToken().finally(() => { authRequest = null })
   return authRequest
 }
+
+const anonymousToken = firebaseSession
 
 export async function recordBreedFavorite(breedId: string): Promise<void> {
   if (!firebaseConfigured) return
@@ -214,7 +228,7 @@ function writePendingPhotoReports(reports: PendingPhotoReport[]) {
   localStorage.setItem(pendingPhotoReportsKey, JSON.stringify(reports))
 }
 
-async function sendPhotoReport(report: PendingPhotoReport, auth: AnonymousAuth) {
+async function sendPhotoReport(report: PendingPhotoReport, auth: FirebaseSession) {
   const documentId = report.reportId
   const response = await fetch(`https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId!)}/databases/(default)/documents/photoReports?documentId=${encodeURIComponent(documentId)}&key=${encodeURIComponent(apiKey!)}`, {
     method: 'POST',
@@ -315,7 +329,7 @@ export async function submitLeaderboardScore(initials: string, score: number, da
   const playedAt = new Date().toISOString()
   if (!firebaseConfigured) {
     const submittedId = crypto.randomUUID()
-    const entries = [...readLocalEntries(), { id: submittedId, initials, score, dayKey, playedAt }]
+    const entries = [...readLocalEntries(), { id: submittedId, uid: '', initials, score, dayKey, playedAt }]
       .sort((a, b) => b.score - a.score || a.playedAt.localeCompare(b.playedAt))
       .slice(0, 10)
     localStorage.setItem(localKey, JSON.stringify(entries))
@@ -342,7 +356,7 @@ export async function submitLeaderboardScore(initials: string, score: number, da
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Firebase is unavailable'
     const submittedId = crypto.randomUUID()
-    const fallback = [...readLocalEntries(), { id: submittedId, initials, score, dayKey, playedAt }]
+    const fallback = [...readLocalEntries(), { id: submittedId, uid: '', initials, score, dayKey, playedAt }]
       .sort((a, b) => b.score - a.score || a.playedAt.localeCompare(b.playedAt))
       .slice(0, 10)
     localStorage.setItem(localKey, JSON.stringify(fallback))

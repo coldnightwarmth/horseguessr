@@ -2,6 +2,59 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.uid == 'Lgu06oPJ40MESrZVChme6svrMB52';
+    }
+
+    function validPublicProfile(uid) {
+      return request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly([
+          'username', 'favorites', 'topFavorites', 'passport', 'personalBest',
+          'nameBreedBest', 'photoQuizBest', 'lastDailyScore', 'lastDailyDate',
+          'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.username is string
+        && request.resource.data.username.matches('^[a-z0-9_]{3,20}$')
+        && !request.resource.data.username.matches('.*(asshole|bastard|bitch|cock|cunt|dick|dildo|fuck|motherfucker|nigger|nigga|piss|porn|pussy|rape|rapist|retard|shit|slut|twat|vagina|whore).*')
+        && get(/databases/$(database)/documents/usernames/$(request.resource.data.username)).data.uid == request.auth.uid
+        && request.resource.data.favorites is list
+        && request.resource.data.favorites.size() <= 300
+        && request.resource.data.topFavorites is list
+        && request.resource.data.topFavorites.size() <= 300
+        && request.resource.data.passport is list
+        && request.resource.data.passport.size() <= 300
+        && request.resource.data.personalBest is int
+        && request.resource.data.personalBest >= 0
+        && request.resource.data.personalBest <= 40000
+        && request.resource.data.nameBreedBest is int
+        && request.resource.data.nameBreedBest >= 0
+        && request.resource.data.nameBreedBest <= 8
+        && request.resource.data.photoQuizBest is int
+        && request.resource.data.photoQuizBest >= 0
+        && request.resource.data.photoQuizBest <= 8
+        && request.resource.data.lastDailyScore is int
+        && request.resource.data.lastDailyScore >= 0
+        && request.resource.data.lastDailyScore <= 40000
+        && request.resource.data.lastDailyDate is string
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    function validPrivateAccount(uid) {
+      return request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['email', 'username', 'createdAt'])
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.email is string
+        && request.resource.data.username is string
+        && request.resource.data.username.matches('^[a-z0-9_]{3,20}$')
+        && !request.resource.data.username.matches('.*(asshole|bastard|bitch|cock|cunt|dick|dildo|fuck|motherfucker|nigger|nigga|piss|porn|pussy|rape|rapist|retard|shit|slut|twat|vagina|whore).*')
+        && get(/databases/$(database)/documents/usernames/$(request.resource.data.username)).data.uid == request.auth.uid
+        && request.resource.data.createdAt is timestamp;
+    }
+
     match /leaderboard/{entryId} {
       allow read: if true;
       allow create: if request.auth != null
@@ -48,6 +101,40 @@ service cloud.firestore {
         && request.resource.data.photoUrl.size() <= 2000
         && request.resource.data.reason in ['not-loading', 'horse-too-small', 'person-visible', 'not-color-photo', 'wrong-breed', 'other']
         && request.resource.data.reportedAt is timestamp;
+      allow update, delete: if false;
+    }
+
+    // Public player pages deliberately exclude email addresses. Owners can
+    // update only their own profile, while anyone may open a shared profile.
+    match /publicProfiles/{uid} {
+      allow read: if true;
+      allow create: if validPublicProfile(uid);
+      allow update: if validPublicProfile(uid)
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if false;
+    }
+
+    // Email is stored separately because Firestore reads are document-level:
+    // a public profile can never accidentally reveal a private field.
+    match /privateAccounts/{uid} {
+      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow create: if validPrivateAccount(uid);
+      allow update: if validPrivateAccount(uid)
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if false;
+    }
+
+    // Lowercase document IDs reserve usernames atomically at the database
+    // layer. Reservations are immutable so another account cannot take over a
+    // shared profile URL or leaderboard identity later.
+    match /usernames/{username} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && username.matches('^[a-z0-9_]{3,20}$')
+        && !username.matches('.*(asshole|bastard|bitch|cock|cunt|dick|dildo|fuck|motherfucker|nigger|nigga|piss|porn|pussy|rape|rapist|retard|shit|slut|twat|vagina|whore).*')
+        && request.resource.data.keys().hasOnly(['uid', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.createdAt is timestamp;
       allow update, delete: if false;
     }
   }

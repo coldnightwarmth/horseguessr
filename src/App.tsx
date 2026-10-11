@@ -3,20 +3,21 @@ import { createPortal } from 'react-dom'
 import { Circle, CircleMarker, GeoJSON, MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 import L, { LatLngBoundsExpression } from 'leaflet'
 import type { GeoJsonObject } from 'geojson'
-import { ArrowRight, Award, BookHeart, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, Compass, Flag, Heart, Images, Lightbulb, ListChecks, LocateFixed, MapPin, Maximize2, RotateCcw, Search, Share2, Sparkles, Star, Trophy, X, XCircle } from 'lucide-react'
+import { ArrowRight, Award, BookHeart, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, Compass, Flag, Heart, Images, Lightbulb, ListChecks, LocateFixed, LockKeyhole, LogIn, LogOut, MapPin, Maximize2, RotateCcw, Search, Share2, ShieldCheck, Sparkles, Star, Trophy, UserRound, UserRoundPlus, X, XCircle } from 'lucide-react'
+import { AccountSnapshot, adminLogin, fetchAdminAccounts, fetchPublicProfile, loginAccount, logoutAccount, PlayerAccount, PublicProfile, registerAccount, restoreAccount, saveAccountProgress, validateUsername } from './accounts'
 import { Breed, breeds } from './data'
 import { AtlasPlace, lookupAtlasPlace, nearestBreedOrigins, NearbyBreed } from './atlas'
 import { expansionBreedIds } from './breedExpansion'
-import { fetchLeaderboard, fetchPhotoQualityReports, LeaderboardResult, PhotoQualityReport, PhotoReportReason, recordBreedFavorite, recordPhotoQualityReport, submitLeaderboardScore } from './firebase'
+import { fetchLeaderboard, fetchPhotoQualityReports, FirebaseSession, LeaderboardResult, PhotoQualityReport, PhotoReportReason, recordBreedFavorite, recordPhotoQualityReport, submitLeaderboardScore } from './firebase'
 import { normalizeGuideText, suggestBreedName } from './guideSearch'
 import { horseQuotes } from './horseQuotes'
 import { BreedPhoto, photosForBreed } from './media'
 import { distanceToOriginZone, OriginZone, originZoneBounds, originZones } from './originRegions'
 import { breedsForPracticeRegion, pointsForOriginGuess, practiceRegions, PracticeRegionId } from './practiceRegions'
-import { cookieNames, readCookie, readDailyStreak, readFavoriteIds, readPassportIds, readPersonalBest, readTopFavoriteIds, sanitizeInitials, updateDailyStreak, updatePersonalBest, writeCookie, writeFavoriteIds, writePassportIds, writeTopFavoriteIds } from './preferences'
+import { cookieNames, readCookie, readFavoriteIds, readPassportIds, readPersonalBest, readTopFavoriteIds, sanitizeInitials, updatePersonalBest, writeCookie, writeFavoriteIds, writePassportIds, writeTopFavoriteIds } from './preferences'
 
 type Point = { lat: number; lng: number }
-type Screen = 'home' | 'practice-picker' | 'game' | 'summary' | 'guide' | 'favorites' | 'passport' | 'breed-quiz' | 'quiz-summary' | 'photo-quiz' | 'photo-summary'
+type Screen = 'home' | 'practice-picker' | 'game' | 'summary' | 'guide' | 'favorites' | 'passport' | 'breed-quiz' | 'quiz-summary' | 'photo-quiz' | 'photo-summary' | 'profile'
 type RoundResult = { breed: Breed; distance: number; points: number; guess: Point; usedHint: boolean; photo: BreedPhoto; insideRegion: boolean; nearest: Point }
 type QuizResult = { breed: Breed; choice: Breed; correct: boolean; photo: BreedPhoto }
 type ReviewResult = RoundResult | QuizResult
@@ -272,6 +273,87 @@ const FavoritesContext = createContext<FavoritesContextValue>({ favoriteIds: [],
 
 type PassportContextValue = { passportIds: string[]; awardPassportMedal: (breedId: string) => void }
 const PassportContext = createContext<PassportContextValue>({ passportIds: [], awardPassportMedal: () => {} })
+
+type AccountContextValue = {
+  account: PlayerAccount | null
+  openAuth: (mode: 'login' | 'signup') => void
+  signOut: () => void
+  openProfile: (uid: string) => void
+}
+const AccountContext = createContext<AccountContextValue>({ account: null, openAuth: () => {}, signOut: () => {}, openProfile: () => {} })
+
+function AccountButtons() {
+  const { account, openAuth, signOut, openProfile } = useContext(AccountContext)
+  if (account) {
+    return <div className="account-nav-buttons"><button className="text-button account-profile-button" onClick={() => openProfile(account.uid)}><UserRound size={17} /> {account.username}</button><button className="text-button account-signout-button" onClick={signOut} title="Log out"><LogOut size={17} /> Log out</button></div>
+  }
+  return <div className="account-nav-buttons"><button className="text-button account-login-button" onClick={() => openAuth('login')}><LogIn size={17} /> Log in</button><button className="text-button account-signup-button" onClick={() => openAuth('signup')}><UserRoundPlus size={17} /> Sign up</button></div>
+}
+
+function AccountModal({ mode: initialMode, snapshot, onClose, onSuccess }: { mode: 'login' | 'signup'; snapshot: AccountSnapshot; onClose: () => void; onSuccess: (account: PlayerAccount) => void }) {
+  const [mode, setMode] = useState(initialMode)
+  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  useEffect(() => {
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    window.addEventListener('keydown', close)
+    return () => window.removeEventListener('keydown', close)
+  }, [onClose])
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (mode === 'signup') {
+      const usernameError = validateUsername(username)
+      if (usernameError) { setError(usernameError); return }
+    }
+    setSaving(true)
+    setError('')
+    try {
+      const account = mode === 'signup'
+        ? await registerAccount(username, email, password, snapshot)
+        : await loginAccount(email, password, snapshot)
+      onSuccess(account)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'The stable door would not open. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+  return createPortal(
+    <div className="modal-backdrop account-modal-backdrop" role="presentation" onMouseDown={onClose}>
+      <section className="account-modal" role="dialog" aria-modal="true" aria-labelledby="account-modal-title" onMouseDown={event => event.stopPropagation()}>
+        <button className="account-modal__close" onClick={onClose} aria-label="Close account window"><X size={20} /></button>
+        <div className="account-modal__crest"><span>★</span><UserRound size={34} /><span>★</span></div>
+        <p className="account-modal__kicker">HORSEGUESSR RIDER CLUB</p>
+        <h2 id="account-modal-title">{mode === 'signup' ? 'Create your rider account' : 'Welcome back, rider!'}</h2>
+        <p>{mode === 'signup' ? 'Your current favorites, medals, and best scores will come with you.' : 'Log in to bring your saved stable and records onto this browser.'}</p>
+        <form onSubmit={submit}>
+          {mode === 'signup' && <label htmlFor="account-username"><span>Username</span><input id="account-username" value={username} onChange={event => setUsername(event.target.value.toLowerCase())} minLength={3} maxLength={20} autoComplete="username" placeholder="pony_pal" required /><small>3–20 lowercase letters, numbers, or underscores. Keep it horse-club friendly.</small></label>}
+          <label htmlFor="account-email"><span>Email</span><input id="account-email" type="email" value={email} onChange={event => setEmail(event.target.value)} autoComplete="email" placeholder="rider@example.com" required /></label>
+          <label htmlFor="account-password"><span>Password</span><input id="account-password" type="password" value={password} onChange={event => setPassword(event.target.value)} minLength={8} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} placeholder="At least 8 characters" required /></label>
+          {error && <p className="account-form-error" role="alert">{error}</p>}
+          <button className="primary-button" disabled={saving}>{saving ? 'Opening the stable…' : mode === 'signup' ? 'Create account' : 'Log in'} <ArrowRight size={18} /></button>
+        </form>
+        <button className="account-mode-switch" onClick={() => { setMode(mode === 'signup' ? 'login' : 'signup'); setError('') }}>{mode === 'signup' ? 'Already a member? Log in' : 'New rider? Sign up'}</button>
+        <small className="account-privacy-note"><LockKeyhole size={13} /> Email stays private. Passwords are handled by Firebase Authentication and are never readable by HorseGuessr.</small>
+      </section>
+    </div>, document.body,
+  )
+}
+
+function AccountInvitation() {
+  const { account, openAuth } = useContext(AccountContext)
+  if (account) return null
+  return (
+    <section className="account-invitation">
+      <span className="account-invitation__icon"><UserRoundPlus size={27} /></span>
+      <div><small>KEEP THIS RIDE</small><h2>Save your stable and scores</h2><p>Create an optional account to carry favorites, medals, and records between browsers.</p></div>
+      <div><button className="primary-button" onClick={() => openAuth('signup')}>Sign up</button><button className="secondary-button" onClick={() => openAuth('login')}>Log in</button></div>
+    </section>
+  )
+}
 
 function FavoriteButton({ breed }: { breed: Breed }) {
   const { favoriteIds, toggleFavorite } = useContext(FavoritesContext)
@@ -597,6 +679,7 @@ function HorseDetailsModal({ breed, photo, onClose }: { breed: Breed; photo: Bre
 }
 
 function LeaderboardPanel({ score, dayKey, allowEntry = false, onPlacement }: { score?: number; dayKey?: string; allowEntry?: boolean; onPlacement?: (placement: LeaderboardPlacement) => void }) {
+  const { openProfile } = useContext(AccountContext)
   const [board, setBoard] = useState<LeaderboardResult>({ entries: [], backend: 'local' })
   const [loading, setLoading] = useState(true)
   const [initials, setInitials] = useState(() => sanitizeInitials(readCookie(cookieNames.initials)))
@@ -644,7 +727,7 @@ function LeaderboardPanel({ score, dayKey, allowEntry = false, onPlacement }: { 
       <ol className="leaderboard-list">
         {loading && <li className="leaderboard-empty">Loading the ribbon board…</li>}
         {!loading && !board.entries.length && <li className="leaderboard-empty">No ribbons yet—be the first rider on the board!</li>}
-        {board.entries.map((entry, index) => <li key={entry.id}><span>{index + 1}</span><b>{entry.initials}</b><strong>{formatNumber(entry.score)}</strong><small>{entry.dayKey}</small></li>)}
+        {board.entries.map((entry, index) => <li key={entry.id}><span>{index + 1}</span>{entry.uid ? <button className="leaderboard-profile-link" onClick={() => openProfile(entry.uid)} title="Open rider profile"><b>{entry.initials}</b><UserRound size={13} /></button> : <b>{entry.initials}</b>}<strong>{formatNumber(entry.score)}</strong><small>{entry.dayKey}</small></li>)}
       </ol>
       {board.note && <p className="leaderboard-note">{board.note}</p>}
     </section>
@@ -657,13 +740,13 @@ function CookieNotice() {
   const dismiss = () => { writeCookie(cookieNames.cookieNotice, 'ok'); setVisible(false) }
   return (
     <aside className="cookie-notice">
-      <span>🍪</span><p><b>Stable cookies!</b> HorseGuessr saves your initials, records, daily streak, passport medals, and favorite breeds on this device.</p>
+      <span>🍪</span><p><b>Stable cookies!</b> HorseGuessr saves your initials, records, passport medals, and favorite breeds on this device. An optional account can sync them.</p>
       <button onClick={dismiss}>Okay!</button>
     </aside>
   )
 }
 
-function Home({ dailyKey, dailyLocked, resetIn, streak, onStart, onPractice, onBreedQuiz, onPhotoQuiz, onGuide, onFavorites, onPassport }: { dailyKey: string; dailyLocked: boolean; resetIn: string; streak: number; onStart: () => void; onPractice: () => void; onBreedQuiz: () => void; onPhotoQuiz: () => void; onGuide: () => void; onFavorites: () => void; onPassport: () => void }) {
+function Home({ dailyKey, dailyLocked, resetIn, onStart, onPractice, onBreedQuiz, onPhotoQuiz, onGuide, onFavorites, onPassport }: { dailyKey: string; dailyLocked: boolean; resetIn: string; onStart: () => void; onPractice: () => void; onBreedQuiz: () => void; onPhotoQuiz: () => void; onGuide: () => void; onFavorites: () => void; onPassport: () => void }) {
   const best = readPersonalBest()
   const [horseOpen, setHorseOpen] = useState(false)
   const dailyHorse = useMemo(() => seededShuffle(dailyBreedPool(dailyKey), `horse-of-day-${dailyKey}`)[0], [dailyKey])
@@ -682,6 +765,7 @@ function Home({ dailyKey, dailyLocked, resetIn, streak, onStart, onPractice, onB
           <button className="text-button" onClick={onPassport}><Award size={17} /> Passport</button>
           <button className="text-button" onClick={onFavorites}><BookHeart size={17} /> Favorites</button>
           <button className="text-button" onClick={onGuide}><BookOpen size={17} /> Field guide</button>
+          <AccountButtons />
         </div>
       </nav>
 
@@ -723,7 +807,6 @@ function Home({ dailyKey, dailyLocked, resetIn, streak, onStart, onPractice, onB
             <div><strong>{MAX_ROUNDS}</strong><span>breeds today</span></div>
             <div><strong>40K</strong><span>max points</span></div>
             <div><strong>{best ? formatNumber(best) : '—'}</strong><span>your best</span></div>
-            <div className="streak-ribbon"><strong>{streak}</strong><span>daily streak</span></div>
           </div>
           <p className="daily-reset">{dailyLocked ? `Next daily ride in ${resetIn}` : `One daily try · resets at 12:00 AM Central · ${dailyKey}`}</p>
         </div>
@@ -1285,6 +1368,7 @@ function Summary({ results, mode, practiceRegion, dayKey, onReplay, onHome }: { 
         </div>
         <LeaderboardPanel score={total} dayKey={dayKey} allowEntry={mode === 'daily'} onPlacement={setPlacement} />
         <p className="personal-best-ribbon">Your personal record: <b>{formatNumber(best)}</b> points</p>
+        <AccountInvitation />
         <div className="summary-actions"><button className="secondary-button" onClick={onHome}>Return home</button><button className="primary-button" onClick={onReplay}><RotateCcw size={18} /> Ride again</button></div>
       </section>
     </main>
@@ -1316,6 +1400,7 @@ function QuizSummary({ results, kind, onReplay, onHome }: { results: QuizResult[
             </div>
           ))}
         </div>
+        <AccountInvitation />
         <div className="summary-actions"><button className="secondary-button" onClick={onHome}>Return home</button><button className="primary-button" onClick={onReplay}><RotateCcw size={18} /> Try another set</button></div>
       </section>
     </main>
@@ -1620,6 +1705,112 @@ function BreedPassport(props: Omit<CollectionNavigationProps, 'current'>) {
   )
 }
 
+function PlayerProfilePage({ uid, onBack }: { uid: string; onBack: () => void }) {
+  const [profile, setProfile] = useState<PublicProfile | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [shareStatus, setShareStatus] = useState('')
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    fetchPublicProfile(uid).then(result => {
+      if (!active) return
+      setProfile(result)
+      if (!result) setError('This rider profile could not be found.')
+    }).catch(() => { if (active) setError('This rider profile is unavailable right now.') }).finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [uid])
+  const share = async () => {
+    if (!profile) return
+    const url = `${window.location.origin}${import.meta.env.BASE_URL}?profile=${encodeURIComponent(profile.uid)}`
+    try {
+      const canShare = Boolean(navigator.share)
+      if (canShare) await navigator.share({ title: `${profile.username} on HorseGuessr`, text: `See ${profile.username}’s HorseGuessr stable and scores.`, url })
+      else await navigator.clipboard.writeText(url)
+      setShareStatus(canShare ? 'Profile shared!' : 'Profile link copied!')
+    } catch (reason) {
+      if (!(reason instanceof DOMException && reason.name === 'AbortError')) setShareStatus('Copy the page address from your browser to share this profile.')
+    }
+  }
+  const favoriteBreeds = profile ? breeds.filter(breed => profile.favorites.includes(breed.id)) : []
+  const identifiedBreeds = profile ? breeds.filter(breed => profile.passport.includes(breed.id)) : []
+  return (
+    <main className="guide-screen player-profile-screen">
+      <nav className="summary-nav"><Brand inverse /><div className="summary-nav-actions"><button className="text-button" onClick={onBack}><ChevronLeft size={17} /> Home</button></div></nav>
+      {loading && <p className="profile-status">Loading rider stable…</p>}
+      {!loading && error && <section className="profile-status profile-status--error"><h1>Lost on the trail</h1><p>{error}</p><button className="primary-button" onClick={onBack}>Return home</button></section>}
+      {!loading && profile && (
+        <>
+          <section className="profile-hero">
+            <div className="profile-avatar"><img src={`${import.meta.env.BASE_URL}horse-head-logo.png`} alt="" /></div>
+            <div><p className="eyebrow"><span /> HorseGuessr rider profile</p><h1>{profile.username}</h1><p>Member since {new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(new Date(profile.createdAt))}</p></div>
+            <button className="secondary-button profile-share-button" onClick={() => void share()}><Share2 size={18} /> Share profile</button>
+            {shareStatus && <span className="profile-share-status">{shareStatus}</span>}
+          </section>
+          <section className="profile-score-grid" aria-label="Rider high scores">
+            <article><span>Geography best</span><strong>{profile.personalBest ? formatNumber(profile.personalBest) : '—'}</strong><small>out of 40,000</small></article>
+            <article><span>Name the Breed</span><strong>{profile.nameBreedBest || '—'}</strong><small>out of 8</small></article>
+            <article><span>Pick the Photo</span><strong>{profile.photoQuizBest || '—'}</strong><small>out of 8</small></article>
+            <article><span>Last daily ride</span><strong>{profile.lastDailyDate ? formatNumber(profile.lastDailyScore || 0) : '—'}</strong><small>{profile.lastDailyDate || 'No daily saved yet'}</small></article>
+          </section>
+          <ProfileBreedShelf title="Favorite breeds" icon={<Heart size={23} fill="currentColor" />} items={favoriteBreeds} empty="No favorite breeds shared yet." />
+          <ProfileBreedShelf title="Correctly identified" icon={<Award size={23} />} items={identifiedBreeds} empty="No passport medals earned yet." />
+        </>
+      )}
+    </main>
+  )
+}
+
+function ProfileBreedShelf({ title, icon, items, empty }: { title: string; icon: React.ReactNode; items: Breed[]; empty: string }) {
+  return (
+    <section className="profile-breed-shelf">
+      <div className="profile-shelf-heading">{icon}<div><h2>{title}</h2><span>{items.length} {items.length === 1 ? 'breed' : 'breeds'}</span></div></div>
+      {items.length ? <div className="profile-breed-grid">{items.map(breed => <article key={breed.id}><img src={breed.image} alt={breed.name} loading="lazy" /><div><span>{breed.flag} {breed.country}</span><strong>{breed.name}</strong></div></article>)}</div> : <p className="profile-shelf-empty">{empty}</p>}
+    </section>
+  )
+}
+
+function AccountAdminDashboard() {
+  const [password, setPassword] = useState('')
+  const [session, setSession] = useState<FirebaseSession | null>(null)
+  const [rows, setRows] = useState<Awaited<ReturnType<typeof fetchAdminAccounts>>>([])
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const enter = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setLoading(true)
+    setError('')
+    try {
+      const nextSession = await adminLogin(password)
+      const accounts = await fetchAdminAccounts(nextSession)
+      setSession(nextSession)
+      setRows(accounts)
+      setPassword('')
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Stable Office access failed.')
+    } finally {
+      setLoading(false)
+    }
+  }
+  return (
+    <main className="guide-screen account-admin-screen">
+      <nav className="summary-nav"><Brand inverse /><span className="admin-private-label"><ShieldCheck size={16} /> PRIVATE STABLE OFFICE</span></nav>
+      {!session ? (
+        <section className="admin-login-card">
+          <LockKeyhole size={42} /><p className="eyebrow"><span /> Unlisted administrator page</p><h1>Account stable office</h1><p>Enter the dedicated Stable Office password. Player passwords are managed by Firebase and can never be viewed here.</p>
+          <form onSubmit={enter}><label htmlFor="admin-account-password"><span>Administrator password</span><input id="admin-account-password" type="password" value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" required /></label>{error && <p role="alert">{error}</p>}<button className="primary-button" disabled={loading}>{loading ? 'Unlocking…' : 'Open Stable Office'}</button></form>
+        </section>
+      ) : (
+        <section className="admin-account-list">
+          <div className="admin-account-heading"><div><p className="eyebrow"><span /> Private database</p><h1>Registered riders</h1><p>{rows.length} accounts. Emails are visible only in this authenticated office.</p></div><button className="secondary-button" onClick={() => { setSession(null); setRows([]) }}><LogOut size={16} /> Lock office</button></div>
+          <div className="admin-account-table"><div className="admin-account-row admin-account-row--header"><span>Rider</span><span>Email</span><span>Joined</span><span>Collection</span></div>{rows.map(row => <div className="admin-account-row" key={row.uid}><span><b>{row.username}</b><small>{row.uid}</small></span><span>{row.email}</span><span>{row.createdAt ? new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(new Date(row.createdAt)) : '—'}</span><span>{row.profile?.favorites.length || 0} favorites · {row.profile?.passport.length || 0} medals</span></div>)}</div>
+          {!rows.length && <p className="admin-account-empty">No player accounts have registered yet.</p>}
+        </section>
+      )}
+    </main>
+  )
+}
+
 type PhotoReportGroup = {
   photoId: string
   photoUrl: string
@@ -1701,7 +1892,9 @@ function PhotoReportDashboard() {
 }
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>('home')
+  const initialProfileUid = new URLSearchParams(window.location.search).get('profile') || ''
+  const [screen, setScreen] = useState<Screen>(initialProfileUid ? 'profile' : 'home')
+  const [profileUid, setProfileUid] = useState(initialProfileUid)
   const [mode, setMode] = useState<'daily' | 'practice'>('daily')
   const [practiceRegion, setPracticeRegion] = useState<PracticeRegionId>('world')
   const [results, setResults] = useState<RoundResult[]>([])
@@ -1710,15 +1903,79 @@ export default function App() {
   const [favoriteIds, setFavoriteIds] = useState(readFavoriteIds)
   const [topFavoriteIds, setTopFavoriteIds] = useState(readTopFavoriteIds)
   const [passportIds, setPassportIds] = useState(readPassportIds)
-  const [dailyStreak, setDailyStreak] = useState(readDailyStreak)
+  const [account, setAccount] = useState<PlayerAccount | null>(null)
+  const [authMode, setAuthMode] = useState<'login' | 'signup' | null>(null)
   const [dailyAttemptKey, setDailyAttemptKey] = useState(() => readCookie(cookieNames.dailyAttempt))
   const centralClock = useCentralClock()
   const dailyLocked = dailyAttemptKey === centralClock.key
   const reportDashboard = new URLSearchParams(window.location.search).get('stable-view') === 'photo-reports'
+  const accountDashboard = new URLSearchParams(window.location.search).get('stable-view') === 'accounts'
   useEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'auto' }) }, [screen])
+  const accountSnapshot = (overrides: Partial<AccountSnapshot> = {}): AccountSnapshot => ({
+    favorites: favoriteIds,
+    topFavorites: topFavoriteIds,
+    passport: passportIds,
+    personalBest: readPersonalBest(),
+    nameBreedBest: Number(localStorage.getItem('horseguessr-quiz-best') || 0),
+    photoQuizBest: Number(localStorage.getItem('horseguessr-photo-quiz-best') || 0),
+    ...(mode === 'daily' && results.length === MAX_ROUNDS ? { lastDailyScore: results.reduce((sum, result) => sum + result.points, 0), lastDailyDate: dailyAttemptKey } : {}),
+    ...overrides,
+  })
+  const applyAccount = (nextAccount: PlayerAccount) => {
+    setAccount(nextAccount)
+    setFavoriteIds(nextAccount.profile.favorites)
+    setTopFavoriteIds(nextAccount.profile.topFavorites)
+    setPassportIds(nextAccount.profile.passport)
+    writeFavoriteIds(nextAccount.profile.favorites)
+    writeTopFavoriteIds(nextAccount.profile.topFavorites)
+    writePassportIds(nextAccount.profile.passport)
+    updatePersonalBest(nextAccount.profile.personalBest)
+    localStorage.setItem('horseguessr-quiz-best', String(nextAccount.profile.nameBreedBest))
+    localStorage.setItem('horseguessr-photo-quiz-best', String(nextAccount.profile.photoQuizBest))
+    if (nextAccount.profile.lastDailyDate && nextAccount.profile.lastDailyDate >= dailyAttemptKey) {
+      writeCookie(cookieNames.dailyAttempt, nextAccount.profile.lastDailyDate)
+      setDailyAttemptKey(nextAccount.profile.lastDailyDate)
+    }
+    setAuthMode(null)
+  }
   useEffect(() => {
-    if (dailyAttemptKey === centralClock.key) setDailyStreak(updateDailyStreak(centralClock.key))
-  }, [centralClock.key, dailyAttemptKey])
+    let active = true
+    restoreAccount().then(async restored => {
+      if (!active || !restored) return
+      const profile = await saveAccountProgress(restored, accountSnapshot())
+      if (active) applyAccount({ ...restored, profile })
+    }).catch(() => {})
+    return () => { active = false }
+    // The initial browser snapshot is intentionally migrated only once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  useEffect(() => {
+    if (!account) return
+    const timer = window.setTimeout(() => {
+      saveAccountProgress(account, accountSnapshot()).then(profile => setAccount(current => current?.uid === account.uid ? { ...current, profile } : current)).catch(() => {})
+    }, 900)
+    return () => window.clearTimeout(timer)
+    // Score cookies are synchronized explicitly when a challenge finishes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [account?.uid, favoriteIds, passportIds, topFavoriteIds])
+  const saveChallengeToAccount = (overrides: Partial<AccountSnapshot>) => {
+    if (!account) return
+    saveAccountProgress(account, accountSnapshot(overrides)).then(profile => setAccount(current => current?.uid === account.uid ? { ...current, profile } : current)).catch(() => {})
+  }
+  const openProfile = (uid: string) => {
+    setProfileUid(uid)
+    setScreen('profile')
+    window.history.pushState({}, '', `${import.meta.env.BASE_URL}?profile=${encodeURIComponent(uid)}`)
+  }
+  const returnHome = () => {
+    setScreen('home')
+    setProfileUid('')
+    window.history.pushState({}, '', import.meta.env.BASE_URL)
+  }
+  const signOut = () => {
+    logoutAccount()
+    setAccount(null)
+  }
   const toggleFavorite = (breedId: string) => {
     const isAdding = !favoriteIds.includes(breedId)
     const next = isAdding ? [...favoriteIds, breedId] : favoriteIds.filter(id => id !== breedId)
@@ -1755,26 +2012,31 @@ export default function App() {
     setScreen('game')
   }
   let page
-  if (reportDashboard) page = <PhotoReportDashboard />
+  if (accountDashboard) page = <AccountAdminDashboard />
+  else if (reportDashboard) page = <PhotoReportDashboard />
+  else if (screen === 'profile') page = <PlayerProfilePage uid={profileUid} onBack={returnHome} />
   else if (screen === 'practice-picker') page = <PracticePicker onChoose={region => start('practice', region)} onBack={() => setScreen('home')} />
-  else if (screen === 'game') page = <Game mode={mode} practiceRegion={practiceRegion} onExit={() => setScreen('home')} onFinish={finalResults => { setResults(finalResults); setScreen('summary') }} />
+  else if (screen === 'game') page = <Game mode={mode} practiceRegion={practiceRegion} onExit={() => setScreen('home')} onFinish={finalResults => { const total = finalResults.reduce((sum, result) => sum + result.points, 0); setResults(finalResults); saveChallengeToAccount({ personalBest: Math.max(readPersonalBest(), total), ...(mode === 'daily' ? { lastDailyScore: total, lastDailyDate: dailyAttemptKey } : {}) }); setScreen('summary') }} />
   else if (screen === 'summary') page = <Summary results={results} mode={mode} practiceRegion={practiceRegion} dayKey={mode === 'daily' ? dailyAttemptKey : centralClock.key} onReplay={() => mode === 'daily' ? setScreen('practice-picker') : start('practice', practiceRegion)} onHome={() => setScreen('home')} />
-  else if (screen === 'breed-quiz') page = <BreedQuiz onExit={() => setScreen('home')} onFinish={finalResults => { setQuizResults(finalResults); setScreen('quiz-summary') }} />
+  else if (screen === 'breed-quiz') page = <BreedQuiz onExit={() => setScreen('home')} onFinish={finalResults => { const correct = finalResults.filter(result => result.correct); const passport = [...new Set([...passportIds, ...correct.map(result => result.breed.id)])]; setQuizResults(finalResults); saveChallengeToAccount({ nameBreedBest: Math.max(Number(localStorage.getItem('horseguessr-quiz-best') || 0), correct.length), passport }); setScreen('quiz-summary') }} />
   else if (screen === 'quiz-summary') page = <QuizSummary kind="name" results={quizResults} onReplay={() => { setQuizResults([]); setScreen('breed-quiz') }} onHome={() => setScreen('home')} />
-  else if (screen === 'photo-quiz') page = <PhotoQuiz onExit={() => setScreen('home')} onFinish={finalResults => { setQuizResults(finalResults); setScreen('photo-summary') }} />
+  else if (screen === 'photo-quiz') page = <PhotoQuiz onExit={() => setScreen('home')} onFinish={finalResults => { const correct = finalResults.filter(result => result.correct); const passport = [...new Set([...passportIds, ...correct.map(result => result.breed.id)])]; setQuizResults(finalResults); saveChallengeToAccount({ photoQuizBest: Math.max(Number(localStorage.getItem('horseguessr-photo-quiz-best') || 0), correct.length), passport }); setScreen('photo-summary') }} />
   else if (screen === 'photo-summary') page = <QuizSummary kind="photo" results={quizResults} onReplay={() => { setQuizResults([]); setScreen('photo-quiz') }} onHome={() => setScreen('home')} />
   else if (screen === 'guide') page = <FieldGuide onHome={() => setScreen('home')} onGuide={() => setScreen('guide')} onFavorites={() => setScreen('favorites')} onPassport={() => setScreen('passport')} />
   else if (screen === 'favorites') page = <FavoriteBreeds onHome={() => setScreen('home')} onGuide={() => setScreen('guide')} onFavorites={() => setScreen('favorites')} onPassport={() => setScreen('passport')} />
   else if (screen === 'passport') page = <BreedPassport onHome={() => setScreen('home')} onGuide={() => setScreen('guide')} onFavorites={() => setScreen('favorites')} onPassport={() => setScreen('passport')} />
-  else page = <Home dailyKey={centralClock.key} dailyLocked={dailyLocked} resetIn={centralClock.resetIn} streak={dailyStreak} onStart={() => start('daily')} onPractice={() => setScreen('practice-picker')} onBreedQuiz={() => { setQuizResults([]); setScreen('breed-quiz') }} onPhotoQuiz={() => { setQuizResults([]); setScreen('photo-quiz') }} onGuide={() => setScreen('guide')} onFavorites={() => setScreen('favorites')} onPassport={() => setScreen('passport')} />
+  else page = <Home dailyKey={centralClock.key} dailyLocked={dailyLocked} resetIn={centralClock.resetIn} onStart={() => start('daily')} onPractice={() => setScreen('practice-picker')} onBreedQuiz={() => { setQuizResults([]); setScreen('breed-quiz') }} onPhotoQuiz={() => { setQuizResults([]); setScreen('photo-quiz') }} onGuide={() => setScreen('guide')} onFavorites={() => setScreen('favorites')} onPassport={() => setScreen('passport')} />
   return (
     <MagnificationContext.Provider value={{ enabled: magnificationEnabled, setEnabled: setMagnificationEnabled }}>
-      <FavoritesContext.Provider value={{ favoriteIds, topFavoriteIds, toggleFavorite, toggleTopFavorite }}>
-        <PassportContext.Provider value={{ passportIds, awardPassportMedal }}>
-          {page}
-          {!reportDashboard && <CookieNotice />}
-        </PassportContext.Provider>
-      </FavoritesContext.Provider>
+      <AccountContext.Provider value={{ account, openAuth: setAuthMode, signOut, openProfile }}>
+        <FavoritesContext.Provider value={{ favoriteIds, topFavoriteIds, toggleFavorite, toggleTopFavorite }}>
+          <PassportContext.Provider value={{ passportIds, awardPassportMedal }}>
+            {page}
+            {!reportDashboard && !accountDashboard && <CookieNotice />}
+            {authMode && <AccountModal mode={authMode} snapshot={accountSnapshot()} onClose={() => setAuthMode(null)} onSuccess={applyAccount} />}
+          </PassportContext.Provider>
+        </FavoritesContext.Provider>
+      </AccountContext.Provider>
     </MagnificationContext.Provider>
   )
 }
