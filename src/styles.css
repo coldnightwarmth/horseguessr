@@ -2440,6 +2440,34 @@ body,
 .quiz-launch small { font-size: .69rem; }
 .quiz-launch__meta { font-size: .52rem; }
 
+/* Keep the home control panel compact so Horse of the Day owns the stage. */
+@media (min-width: 901px) {
+  .hero {
+    grid-template-columns: minmax(0, 1.35fr) minmax(440px, 500px);
+    gap: clamp(42px, 6vw, 88px);
+  }
+  .hero-photo { min-height: 570px; }
+  .hero-copy {
+    width: 100%;
+    max-width: 500px;
+    justify-self: end;
+  }
+  .club-ticker,
+  .hero-actions,
+  .quiz-launch-grid,
+  .daily-meta { width: 100%; }
+  .quiz-launch {
+    min-height: 60px;
+    gap: 3px 8px;
+    padding: 7px 8px;
+  }
+  .quiz-launch__icon { width: 30px; height: 30px; }
+  .quiz-launch__icon svg { width: 17px; height: 17px; }
+  .quiz-launch strong { font-size: .9rem; }
+  .quiz-launch small { font-size: .61rem; }
+  .quiz-launch__meta { font-size: .46rem; }
+}
+
 .home-footer { position: relative; padding: 37px max(20px, 5vw) 20px; border-top: 7px ridge #fff; color: #fff; background: radial-gradient(circle, rgba(255,255,255,.48) 0 1px, transparent 2px) 0 0 / 19px 19px, linear-gradient(135deg, #753aab, #fe0889 58%, #ff88bd); box-shadow: inset 0 6px 0 rgba(255,255,255,.32); }
 .home-footer__intro { max-width: 1180px; margin: 0 auto 20px; }
 .home-footer__intro > span { color: #fff5a0; font: 700 .68rem 'Silkscreen', monospace; }
@@ -2459,7 +2487,7 @@ body,
 .home-footer__account { display: none; }
 .home-footer__signoff { margin: 29px 0 0; color: #fff4a0; font: 700 .63rem 'Silkscreen', monospace; text-align: center; }
 
-@media (max-width: 1100px) {
+@media (max-width: 900px) {
   .hero-actions { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 760px) {
@@ -2899,7 +2927,17 @@ html[data-rider-theme='male'] .guide-card div > span,
 html[data-rider-theme='male'] .guide-card a { color: #71341f; }
 html[data-rider-theme='male'] .guide-card h2 { font-family: Rockwell, Georgia, serif; }
 html[data-rider-theme='male'] .guide-card p { color: #674c38; }
-html[data-rider-theme='male'] .guide-photo-count { color: #71341f; }
+html[data-rider-theme='male'] .guide-photo-count {
+  border-color: #f0d28a;
+  color: #fff0c9;
+  background: linear-gradient(#99512e, #71341f 52%, #512819 53%, #7e3a22);
+  box-shadow: 2px 2px 0 #321d13;
+}
+html[data-rider-theme='male'] .guide-photo-count:hover,
+html[data-rider-theme='male'] .guide-photo-count:focus-visible {
+  color: #43291b;
+  background: linear-gradient(#f7e7bc, #d3a557 52%, #bd8138 53%, #e0ba6d);
+}
 html[data-rider-theme='male'] .guide-card--passport-earned { box-shadow: 5px 5px 0 rgba(48,27,17,.58), 0 0 20px rgba(232,189,88,.72); }
 html[data-rider-theme='male'] .guide-card .breed-name-with-heart { align-items: center; gap: 8px; line-height: 1.05; }
 html[data-rider-theme='male'] .guide-card .breed-name-actions { align-self: center; gap: 5px; }
