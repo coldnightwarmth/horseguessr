@@ -3,8 +3,8 @@ import { createPortal } from 'react-dom'
 import { Circle, CircleMarker, GeoJSON, MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 import L, { LatLngBoundsExpression } from 'leaflet'
 import type { GeoJsonObject } from 'geojson'
-import { ArrowRight, Award, BookHeart, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, Compass, Flag, Heart, Images, Lightbulb, ListChecks, LocateFixed, LockKeyhole, LogIn, LogOut, MapPin, Maximize2, RotateCcw, Search, Share2, ShieldCheck, Sparkles, Star, Trophy, UserRound, UserRoundPlus, X, XCircle } from 'lucide-react'
-import { AccountSnapshot, adminLogin, fetchAdminAccounts, fetchPublicProfile, loginAccount, logoutAccount, PlayerAccount, PublicProfile, registerAccount, restoreAccount, saveAccountProgress, validateUsername } from './accounts'
+import { ArrowRight, Award, Ban, BookHeart, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, Compass, Flag, Heart, Images, Lightbulb, ListChecks, LocateFixed, LockKeyhole, LogIn, LogOut, MapPin, Maximize2, RotateCcw, Search, Share2, ShieldCheck, Sparkles, Star, Trophy, UserRound, UserRoundPlus, X, XCircle } from 'lucide-react'
+import { AccountSnapshot, adminLogin, BANNED_ACCOUNT_MESSAGE, checkAccountBanned, fetchAdminAccounts, fetchPublicProfile, isBannedAccountError, loginAccount, logoutAccount, PlayerAccount, PublicProfile, registerAccount, restoreAccount, saveAccountProgress, setAdminAccountBanned, validateUsername } from './accounts'
 import { Breed, breeds } from './data'
 import { AtlasPlace, lookupAtlasPlace, nearestBreedOrigins, NearbyBreed } from './atlas'
 import { expansionBreedIds } from './breedExpansion'
@@ -340,6 +340,21 @@ function AccountModal({ mode: initialMode, snapshot, onClose, onSuccess }: { mod
         <small className="account-privacy-note"><LockKeyhole size={13} /> Email stays private. Passwords are handled by Firebase Authentication and are never readable by HorseGuessr.</small>
       </section>
     </div>, document.body,
+  )
+}
+
+function AccountStatusNotice({ message, onClose }: { message: string; onClose: () => void }) {
+  return createPortal(
+    <div className="modal-backdrop account-modal-backdrop" role="presentation" onMouseDown={onClose}>
+      <section className="account-modal account-status-modal" role="alertdialog" aria-modal="true" aria-labelledby="account-status-title" onMouseDown={event => event.stopPropagation()}>
+        <div className="account-modal__crest account-status-modal__crest"><span>×</span><Ban size={34} /><span>×</span></div>
+        <p className="account-modal__kicker">RIDER ACCOUNT NOTICE</p>
+        <h2 id="account-status-title">Account banned</h2>
+        <p>{message}</p>
+        <button className="primary-button" onClick={onClose}>Okay</button>
+      </section>
+    </div>,
+    document.body,
   )
 }
 
@@ -1775,7 +1790,9 @@ function AccountAdminDashboard() {
   const [session, setSession] = useState<FirebaseSession | null>(null)
   const [rows, setRows] = useState<Awaited<ReturnType<typeof fetchAdminAccounts>>>([])
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(false)
+  const [moderatingUid, setModeratingUid] = useState('')
   const enter = async (event: React.FormEvent) => {
     event.preventDefault()
     setLoading(true)
@@ -1792,6 +1809,25 @@ function AccountAdminDashboard() {
       setLoading(false)
     }
   }
+  const toggleBan = async (row: Awaited<ReturnType<typeof fetchAdminAccounts>>[number]) => {
+    if (!session || moderatingUid) return
+    const nextBanned = !row.banned
+    if (nextBanned && !window.confirm(`Ban ${row.username}? They will be logged out and all of their leaderboard entries will be permanently removed.`)) return
+    setModeratingUid(row.uid)
+    setError('')
+    setNotice('')
+    try {
+      const result = await setAdminAccountBanned(session, row.uid, nextBanned)
+      setRows(current => current.map(item => item.uid === row.uid ? { ...item, banned: result.banned, moderatedAt: result.moderatedAt } : item))
+      setNotice(nextBanned
+        ? `${row.username} is banned and ${result.removedScores} leaderboard ${result.removedScores === 1 ? 'entry was' : 'entries were'} removed.`
+        : `${row.username} can log in again. Previously removed leaderboard entries remain removed.`)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'The account status could not be changed.')
+    } finally {
+      setModeratingUid('')
+    }
+  }
   return (
     <main className="guide-screen account-admin-screen">
       <nav className="summary-nav"><Brand inverse /><span className="admin-private-label"><ShieldCheck size={16} /> PRIVATE STABLE OFFICE</span></nav>
@@ -1802,8 +1838,10 @@ function AccountAdminDashboard() {
         </section>
       ) : (
         <section className="admin-account-list">
-          <div className="admin-account-heading"><div><p className="eyebrow"><span /> Private database</p><h1>Registered riders</h1><p>{rows.length} accounts. Emails are visible only in this authenticated office.</p></div><button className="secondary-button" onClick={() => { setSession(null); setRows([]) }}><LogOut size={16} /> Lock office</button></div>
-          <div className="admin-account-table"><div className="admin-account-row admin-account-row--header"><span>Rider</span><span>Email</span><span>Joined</span><span>Collection</span></div>{rows.map(row => <div className="admin-account-row" key={row.uid}><span><b>{row.username}</b><small>{row.uid}</small></span><span>{row.email}</span><span>{row.createdAt ? new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(new Date(row.createdAt)) : '—'}</span><span>{row.profile?.favorites.length || 0} favorites · {row.profile?.passport.length || 0} medals</span></div>)}</div>
+          <div className="admin-account-heading"><div><p className="eyebrow"><span /> Private database</p><h1>Registered riders</h1><p>{rows.length} accounts. Emails are visible only in this authenticated office.</p></div><button className="secondary-button" onClick={() => { setSession(null); setRows([]); setNotice(''); setError('') }}><LogOut size={16} /> Lock office</button></div>
+          {notice && <p className="admin-account-notice" role="status">{notice}</p>}
+          {error && <p className="admin-account-notice admin-account-notice--error" role="alert">{error}</p>}
+          <div className="admin-account-table"><div className="admin-account-row admin-account-row--header"><span>Rider</span><span>Email</span><span>Joined</span><span>Collection</span><span>Status</span></div>{rows.map(row => <div className={`admin-account-row${row.banned ? ' admin-account-row--banned' : ''}`} key={row.uid}><span><b>{row.username}</b><small>{row.uid}</small></span><span>{row.email}</span><span>{row.createdAt ? new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(new Date(row.createdAt)) : '—'}</span><span>{row.profile?.favorites.length || 0} favorites · {row.profile?.passport.length || 0} medals</span><span className="admin-account-status"><b>{row.banned ? 'Banned' : 'Active'}</b><button type="button" className={row.banned ? 'admin-unban-button' : 'admin-ban-button'} disabled={Boolean(moderatingUid)} onClick={() => void toggleBan(row)}>{moderatingUid === row.uid ? 'Saving…' : row.banned ? <><RotateCcw size={14} /> Unban</> : <><Ban size={14} /> Ban</>}</button></span></div>)}</div>
           {!rows.length && <p className="admin-account-empty">No player accounts have registered yet.</p>}
         </section>
       )}
@@ -1905,6 +1943,7 @@ export default function App() {
   const [passportIds, setPassportIds] = useState(readPassportIds)
   const [account, setAccount] = useState<PlayerAccount | null>(null)
   const [authMode, setAuthMode] = useState<'login' | 'signup' | null>(null)
+  const [accountNotice, setAccountNotice] = useState('')
   const [dailyAttemptKey, setDailyAttemptKey] = useState(() => readCookie(cookieNames.dailyAttempt))
   const centralClock = useCentralClock()
   const dailyLocked = dailyAttemptKey === centralClock.key
@@ -1938,21 +1977,51 @@ export default function App() {
     }
     setAuthMode(null)
   }
+  const handleAccountError = (reason: unknown) => {
+    if (!isBannedAccountError(reason)) return
+    logoutAccount()
+    setAccount(null)
+    setAccountNotice(BANNED_ACCOUNT_MESSAGE)
+  }
   useEffect(() => {
     let active = true
     restoreAccount().then(async restored => {
       if (!active || !restored) return
       const profile = await saveAccountProgress(restored, accountSnapshot())
       if (active) applyAccount({ ...restored, profile })
-    }).catch(() => {})
+    }).catch(handleAccountError)
     return () => { active = false }
     // The initial browser snapshot is intentionally migrated only once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+  const accountUid = account?.uid || ''
+  useEffect(() => {
+    if (!accountUid) return
+    let active = true
+    const checkBan = async () => {
+      try {
+        if (await checkAccountBanned(accountUid) && active) {
+          logoutAccount()
+          setAccount(null)
+          setAccountNotice(BANNED_ACCOUNT_MESSAGE)
+        }
+      } catch {
+        // Temporary network failures should not sign a rider out.
+      }
+    }
+    void checkBan()
+    const timer = window.setInterval(checkBan, 30_000)
+    window.addEventListener('focus', checkBan)
+    return () => {
+      active = false
+      window.clearInterval(timer)
+      window.removeEventListener('focus', checkBan)
+    }
+  }, [accountUid])
   useEffect(() => {
     if (!account) return
     const timer = window.setTimeout(() => {
-      saveAccountProgress(account, accountSnapshot()).then(profile => setAccount(current => current?.uid === account.uid ? { ...current, profile } : current)).catch(() => {})
+      saveAccountProgress(account, accountSnapshot()).then(profile => setAccount(current => current?.uid === account.uid ? { ...current, profile } : current)).catch(handleAccountError)
     }, 900)
     return () => window.clearTimeout(timer)
     // Score cookies are synchronized explicitly when a challenge finishes.
@@ -1960,7 +2029,7 @@ export default function App() {
   }, [account?.uid, favoriteIds, passportIds, topFavoriteIds])
   const saveChallengeToAccount = (overrides: Partial<AccountSnapshot>) => {
     if (!account) return
-    saveAccountProgress(account, accountSnapshot(overrides)).then(profile => setAccount(current => current?.uid === account.uid ? { ...current, profile } : current)).catch(() => {})
+    saveAccountProgress(account, accountSnapshot(overrides)).then(profile => setAccount(current => current?.uid === account.uid ? { ...current, profile } : current)).catch(handleAccountError)
   }
   const openProfile = (uid: string) => {
     setProfileUid(uid)
@@ -2034,6 +2103,7 @@ export default function App() {
             {page}
             {!reportDashboard && !accountDashboard && <CookieNotice />}
             {authMode && <AccountModal mode={authMode} snapshot={accountSnapshot()} onClose={() => setAuthMode(null)} onSuccess={applyAccount} />}
+            {accountNotice && <AccountStatusNotice message={accountNotice} onClose={() => setAccountNotice('')} />}
           </PassportContext.Provider>
         </FavoritesContext.Provider>
       </AccountContext.Provider>

@@ -4,6 +4,8 @@ const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID?.trim()
 const apiKey = import.meta.env.VITE_FIREBASE_API_KEY?.trim()
 const adminEmail = 'stablekeeper@horseguessr.invalid'
 
+export const BANNED_ACCOUNT_MESSAGE = 'This HorseGuessr account has been banned. You have been logged out.'
+
 export type AccountSnapshot = {
   favorites: string[]
   topFavorites: string[]
@@ -35,6 +37,8 @@ export type AdminAccountRow = {
   email: string
   username: string
   createdAt: string
+  banned: boolean
+  moderatedAt: string
   profile: PublicProfile | null
 }
 
@@ -42,6 +46,7 @@ type FirestoreValue = {
   stringValue?: string
   integerValue?: string
   timestampValue?: string
+  booleanValue?: boolean
   arrayValue?: { values?: FirestoreValue[] }
 }
 
@@ -82,6 +87,10 @@ function stringValue(value: FirestoreValue | undefined) {
 
 function numberValue(value: FirestoreValue | undefined) {
   return Math.max(0, Number(value?.integerValue || 0) || 0)
+}
+
+function booleanValue(value: FirestoreValue | undefined) {
+  return value?.booleanValue === true
 }
 
 function profileFromDocument(document: FirestoreDocument): PublicProfile {
@@ -165,6 +174,36 @@ async function writeDocument(collection: string, id: string, fields: Record<stri
   if (!response.ok) await authError(response, `Could not save ${collection}.`)
 }
 
+async function patchDocumentFields(collection: string, id: string, fields: Record<string, FirestoreValue>, session: FirebaseSession) {
+  const mask = Object.keys(fields).map(field => `updateMask.fieldPaths=${encodeURIComponent(field)}`).join('&')
+  const response = await fetch(`${documentUrl(collection, id)}&${mask}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.idToken}` },
+    body: JSON.stringify({ fields }),
+  })
+  if (!response.ok) await authError(response, `Could not update ${collection}.`)
+}
+
+async function privateAccountIsBanned(uid: string, session: FirebaseSession) {
+  const document = await fetchDocument('privateAccounts', uid, session)
+  return booleanValue(document?.fields?.banned)
+}
+
+function bannedAccountError() {
+  clearFirebaseSession()
+  return new Error(BANNED_ACCOUNT_MESSAGE)
+}
+
+export function isBannedAccountError(reason: unknown) {
+  return reason instanceof Error && reason.message === BANNED_ACCOUNT_MESSAGE
+}
+
+export async function checkAccountBanned(uid: string) {
+  const session = await firebaseSession()
+  if (session.localId !== uid) return true
+  return privateAccountIsBanned(uid, session)
+}
+
 async function createUsername(username: string, session: FirebaseSession) {
   const usernameLower = username.toLowerCase()
   const response = await fetch(`https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId!)}/databases/(default)/documents/usernames?documentId=${encodeURIComponent(usernameLower)}&key=${encodeURIComponent(apiKey!)}`, {
@@ -207,6 +246,7 @@ export async function fetchPublicProfile(uid: string) {
 export async function saveAccountProgress(account: PlayerAccount, snapshot: AccountSnapshot) {
   const session = await firebaseSession()
   if (session.localId !== account.uid) throw new Error('Please log in again to save your progress.')
+  if (await privateAccountIsBanned(account.uid, session)) throw bannedAccountError()
   const current = await fetchPublicProfile(account.uid)
   const profile = mergeProfile(account.uid, account.username, current, snapshot)
   await writeDocument('publicProfiles', account.uid, profileFields(profile), session)
@@ -247,6 +287,8 @@ export async function registerAccount(usernameValue: string, emailValue: string,
     email: { stringValue: email },
     username: { stringValue: username },
     createdAt: { timestampValue: profile.createdAt },
+    banned: { booleanValue: false },
+    moderatedAt: { timestampValue: profile.createdAt },
   }, session)
   return { uid: session.localId, email, username, session, profile }
 }
@@ -268,6 +310,7 @@ export async function loginAccount(emailValue: string, password: string, snapsho
     email: signedIn.email,
     displayName: signedIn.displayName,
   })
+  if (await privateAccountIsBanned(session.localId, session)) throw bannedAccountError()
   const existing = await fetchPublicProfile(session.localId)
   if (!existing) throw new Error('This login does not have a HorseGuessr profile yet.')
   const profile = mergeProfile(session.localId, existing.username, existing, snapshot)
@@ -280,10 +323,12 @@ export async function restoreAccount(): Promise<PlayerAccount | null> {
   if (!cached?.email) return null
   try {
     const session = await firebaseSession()
+    if (await privateAccountIsBanned(session.localId, session)) throw bannedAccountError()
     const profile = await fetchPublicProfile(session.localId)
     if (!profile) return null
     return { uid: session.localId, email: session.email || cached.email, username: profile.username, session, profile }
-  } catch {
+  } catch (reason) {
+    if (isBannedAccountError(reason)) throw reason
     return null
   }
 }
@@ -330,6 +375,43 @@ export async function fetchAdminAccounts(session: FirebaseSession): Promise<Admi
     email: stringValue(item.fields.email),
     username: stringValue(item.fields.username),
     createdAt: stringValue(item.fields.createdAt),
+    banned: booleanValue(item.fields.banned),
+    moderatedAt: stringValue(item.fields.moderatedAt),
     profile: await fetchPublicProfile(item.uid),
   })))
+}
+
+export async function setAdminAccountBanned(session: FirebaseSession, uid: string, banned: boolean) {
+  if (!/^[A-Za-z0-9_-]{4,128}$/.test(uid)) throw new Error('That account ID is not valid.')
+  const moderatedAt = new Date().toISOString()
+  await patchDocumentFields('privateAccounts', uid, {
+    banned: { booleanValue: banned },
+    moderatedAt: { timestampValue: moderatedAt },
+  }, session)
+
+  let removedScores = 0
+  if (banned) {
+    const response = await fetch(`https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId!)}/databases/(default)/documents:runQuery?key=${encodeURIComponent(apiKey!)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.idToken}` },
+      body: JSON.stringify({ structuredQuery: {
+        from: [{ collectionId: 'leaderboard' }],
+        where: { fieldFilter: { field: { fieldPath: 'uid' }, op: 'EQUAL', value: { stringValue: uid } } },
+        limit: 500,
+      } }),
+    })
+    if (!response.ok) await authError(response, 'The account was banned, but its leaderboard entries could not be located.')
+    const rows = await response.json() as Array<{ document?: FirestoreDocument }>
+    const ids = rows.flatMap(row => row.document?.name ? [row.document.name.split('/').pop() || ''] : []).filter(Boolean)
+    const deletions = await Promise.all(ids.map(async id => {
+      const deletion = await fetch(documentUrl('leaderboard', id), {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${session.idToken}` },
+      })
+      return deletion.ok
+    }))
+    removedScores = deletions.filter(Boolean).length
+    if (removedScores !== ids.length) throw new Error(`The account was banned, but ${ids.length - removedScores} leaderboard entries could not be removed.`)
+  }
+  return { banned, moderatedAt, removedScores }
 }

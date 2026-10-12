@@ -7,9 +7,15 @@ service cloud.firestore {
         && request.auth.uid == 'Lgu06oPJ40MESrZVChme6svrMB52';
     }
 
+    function isBanned(uid) {
+      return exists(/databases/$(database)/documents/privateAccounts/$(uid))
+        && get(/databases/$(database)/documents/privateAccounts/$(uid)).data.get('banned', false) == true;
+    }
+
     function validPublicProfile(uid) {
       return request.auth != null
         && request.auth.uid == uid
+        && !isBanned(uid)
         && request.resource.data.keys().hasOnly([
           'username', 'favorites', 'topFavorites', 'passport', 'personalBest',
           'nameBreedBest', 'photoQuizBest', 'lastDailyScore', 'lastDailyDate',
@@ -45,19 +51,22 @@ service cloud.firestore {
     function validPrivateAccount(uid) {
       return request.auth != null
         && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['email', 'username', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['email', 'username', 'createdAt', 'banned', 'moderatedAt'])
         && request.resource.data.email == request.auth.token.email
         && request.resource.data.email is string
         && request.resource.data.username is string
         && request.resource.data.username.matches('^[a-z0-9_]{3,20}$')
         && !request.resource.data.username.matches('.*(asshole|bastard|bitch|cock|cunt|dick|dildo|fuck|motherfucker|nigger|nigga|piss|porn|pussy|rape|rapist|retard|shit|slut|twat|vagina|whore).*')
         && get(/databases/$(database)/documents/usernames/$(request.resource.data.username)).data.uid == request.auth.uid
-        && request.resource.data.createdAt is timestamp;
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.banned == false
+        && request.resource.data.moderatedAt is timestamp;
     }
 
     match /leaderboard/{entryId} {
       allow read: if true;
       allow create: if request.auth != null
+        && !isBanned(request.auth.uid)
         && request.resource.data.keys().hasOnly(['initials', 'score', 'dayKey', 'uid', 'playedAt'])
         && request.resource.data.uid == request.auth.uid
         && entryId == request.resource.data.dayKey + '_' + request.auth.uid
@@ -69,7 +78,8 @@ service cloud.firestore {
         && request.resource.data.dayKey is string
         && request.resource.data.dayKey.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
         && request.resource.data.playedAt is timestamp;
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if isAdmin();
     }
 
     // One immutable document per anonymous browser account and breed. These stay
@@ -119,8 +129,12 @@ service cloud.firestore {
     match /privateAccounts/{uid} {
       allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
       allow create: if validPrivateAccount(uid);
-      allow update: if validPrivateAccount(uid)
-        && request.resource.data.createdAt == resource.data.createdAt;
+      allow update: if (validPrivateAccount(uid)
+          && request.resource.data.createdAt == resource.data.createdAt)
+        || (isAdmin()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['banned', 'moderatedAt'])
+          && request.resource.data.banned is bool
+          && request.resource.data.moderatedAt is timestamp);
       allow delete: if false;
     }
 
