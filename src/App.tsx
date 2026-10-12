@@ -547,9 +547,9 @@ function MagnifiableImage({ src, alt, breedId, loading = 'eager', fallbacks = []
   )
 }
 
-function MobilePhotoAdvance({ lastRound, onNext }: { lastRound: boolean; onNext: () => void }) {
+function QuizAdvance({ lastRound, onNext }: { lastRound: boolean; onNext: () => void }) {
   return (
-    <button type="button" className="primary-button mobile-photo-advance" onClick={onNext}>
+    <button type="button" className="primary-button quiz-advance" onClick={onNext}>
       {lastRound ? 'See results' : 'Next question'} <ChevronRight size={18} aria-hidden="true" />
     </button>
   )
@@ -1009,8 +1009,9 @@ function Game({ mode, practiceRegion, onFinish, onExit }: { mode: 'daily' | 'pra
             <div className="photo-corners" aria-hidden="true"><i /><i /><i /><i /></div>
             {!result && <figcaption>Observe closely <span>•</span> no reverse image search</figcaption>}
             {result && <a href={currentPhoto.source} target="_blank" rel="noreferrer">Image source ↗ · photo {photoIndex + 1} of {photoPool.length}</a>}
-            {result && <MobilePhotoAdvance lastRound={round === MAX_ROUNDS - 1} onNext={nextRound} />}
           </figure>
+
+          {result && <QuizAdvance lastRound={round === MAX_ROUNDS - 1} onNext={nextRound} />}
 
           {!result ? (
             <>
@@ -1031,7 +1032,6 @@ function Game({ mode, practiceRegion, onFinish, onExit }: { mode: 'daily' | 'pra
               <div className="tag-row">{breed.tags.map(tag => <span key={tag}>{tag}</span>)}</div>
               <div className="reveal-actions">
                 <a href={breed.source} target="_blank" rel="noreferrer">Learn more ↗</a>
-                <button className="primary-button" onClick={nextRound}>{round === MAX_ROUNDS - 1 ? 'See results' : 'Next breed'} <ChevronRight size={18} /></button>
               </div>
             </div>
           )}
@@ -1124,7 +1124,6 @@ function BreedQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
             <div className="photo-corners" aria-hidden="true"><i /><i /><i /><i /></div>
             {!choice && <figcaption>Study build, coat, head, mane, and proportions</figcaption>}
             {choice && <a href={currentPhoto.source} target="_blank" rel="noreferrer">Image source ↗ · photo {photoIndex + 1} of {photoPool.length}</a>}
-            {choice && <MobilePhotoAdvance lastRound={round === MAX_ROUNDS - 1} onNext={nextQuestion} />}
           </figure>
 
           <div className="quiz-options" aria-label="Breed choices">
@@ -1149,6 +1148,8 @@ function BreedQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
             })}
           </div>
 
+          {choice && <QuizAdvance lastRound={round === MAX_ROUNDS - 1} onNext={nextQuestion} />}
+
           {choice && (
             <div className={`quiz-answer ${answeredCorrectly ? 'quiz-answer--correct' : 'quiz-answer--wrong'}`}>
               <div className="quiz-answer__title">
@@ -1159,7 +1160,6 @@ function BreedQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
               <div className="tag-row">{breed.tags.map(tag => <span key={tag}>{tag}</span>)}</div>
               <div className="reveal-actions">
                 <a href={breed.source} target="_blank" rel="noreferrer">Learn more ↗</a>
-                <button className="primary-button" onClick={nextQuestion}>{round === MAX_ROUNDS - 1 ? 'See quiz results' : 'Next question'} <ChevronRight size={18} /></button>
               </div>
             </div>
           )}
@@ -1261,7 +1261,7 @@ function PhotoQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
             <p>{choice ? `${breed.location}, ${breed.country}` : 'Which of these four horses is the named breed?'}</p>
           </div>
 
-          <div className={`photo-choice-grid ${choice ? 'photo-choice-grid--revealed' : ''}`} aria-label="Horse photo choices">
+          <div className="photo-choice-grid" aria-label="Horse photo choices">
             {photoOptions.map((option, index) => {
               const isCorrect = choice && option.breed.id === breed.id
               const isWrongChoice = choice?.id === option.breed.id && option.breed.id !== breed.id
@@ -1291,8 +1291,8 @@ function PhotoQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
                 </div>
               )
             })}
-            {choice && <MobilePhotoAdvance lastRound={round === MAX_ROUNDS - 1} onNext={nextQuestion} />}
           </div>
+          {choice && <QuizAdvance lastRound={round === MAX_ROUNDS - 1} onNext={nextQuestion} />}
         </section>
 
         <section className={`photo-result-pane ${choice ? 'photo-result-pane--revealed' : ''}`} aria-label="Photo match result">
@@ -1327,7 +1327,6 @@ function PhotoQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
               <div className="tag-row">{breed.tags.map(tag => <span key={tag}>{tag}</span>)}</div>
               <div className="photo-profile__actions">
                 <span><a href={correctOption.photo.source} target="_blank" rel="noreferrer">Image source ↗</a><a href={breed.source} target="_blank" rel="noreferrer">Breed profile ↗</a></span>
-                <button className="primary-button" onClick={nextQuestion}>{round === MAX_ROUNDS - 1 ? 'See quiz results' : 'Next question'} <ChevronRight size={18} /></button>
               </div>
             </article>
           )}

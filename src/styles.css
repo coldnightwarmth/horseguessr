@@ -202,7 +202,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(184, 72, 46, .35
 .photo-quiz-panel { padding: 20px 22px; }
 .photo-quiz-copy { margin: 12px 0 13px; }
 .photo-choice-grid { position: relative; min-height: 0; flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 10px; }
-.mobile-photo-advance { display: none; }
+.quiz-advance { width: 100%; min-height: 48px; margin: 14px 0; flex-shrink: 0; touch-action: manipulation; }
 .photo-choice { position: relative; min-height: 190px; padding: 0; overflow: hidden; border: 3px solid transparent; border-radius: 5px; background: #d9d4c8; cursor: pointer; transition: transform .18s, border-color .18s, opacity .18s; }
 .photo-choice:not(:disabled):hover { border-color: var(--gold); }
 .photo-choice:disabled { cursor: default; }
@@ -2031,25 +2031,6 @@ body,
   }
   .horse-photo figcaption,
   .horse-photo a { padding: 38px 8px 10px; font-size: .52rem; }
-  .mobile-photo-advance {
-    position: absolute;
-    z-index: 8;
-    right: 8px;
-    bottom: 8px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    min-height: 44px;
-    max-width: calc(100% - 16px);
-    padding: 8px 10px;
-    font-size: .78rem;
-    white-space: nowrap;
-    touch-action: manipulation;
-  }
-  .horse-photo--revealed > a { bottom: 56px; padding-bottom: 6px; }
-  .photo-choice-grid--revealed > .photo-choice:last-of-type .photo-choice__name { bottom: 54px; }
-  .photo-choice-grid--revealed > .photo-choice:last-of-type .photo-choice__status { bottom: auto; top: 42px; }
   .magnify-hint { min-height: 34px; padding-inline: 9px; font-size: .55rem; }
   .hint-card button { min-height: 58px; }
   .submit-button {
