@@ -406,7 +406,7 @@ function TopFavoriteButton({ breed }: { breed: Breed }) {
 }
 
 function BreedName({ breed, showTopFavorite = false }: { breed: Breed; showTopFavorite?: boolean }) {
-  return <span className="breed-name-with-heart"><span>{breed.name}</span><FavoriteButton breed={breed} />{showTopFavorite && <TopFavoriteButton breed={breed} />}</span>
+  return <span className="breed-name-with-heart"><span className="breed-name-text">{breed.name}</span><span className="breed-name-actions"><FavoriteButton breed={breed} />{showTopFavorite && <TopFavoriteButton breed={breed} />}</span></span>
 }
 
 function PassportMedal({ breed }: { breed: Breed }) {
@@ -1668,14 +1668,14 @@ function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, showAtlas = f
         {showTopFavorites && <div className="favorite-section-heading favorite-section-heading--top"><Star size={21} fill="currentColor" /><div><span>PINNED TO THE TOP</span><h2>Top favorites</h2><p>{topFilteredBreeds.length ? 'Your most-loved horses, collected first.' : 'Tap the star beside any favorite breed to pin it here.'}</p></div></div>}
         {topFilteredBreeds.map(breed => (
           <article className={`guide-card ${passportIds.includes(breed.id) ? 'guide-card--passport-earned' : ''}`} key={breed.id}>
-            <MagnifiableImage src={breed.image} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} breedId={breed.id} loading="lazy" showFullViewButton={!showTopFavorites} clickToExpand={showTopFavorites} />
+            <MagnifiableImage src={breed.image} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} breedId={breed.id} loading="lazy" showFullViewButton={false} clickToExpand />
             <div><span>{breed.country} · <button type="button" className="guide-photo-count" onClick={() => setGalleryBreed(breed)}>{photosForBreed(breed).length} photos <Images size={13} /></button></span><h2><BreedName breed={breed} showTopFavorite /><PassportMedal breed={breed} /></h2><BreedBio breed={breed} /><a href={breed.source} target="_blank" rel="noreferrer">Open breed profile <ArrowRight size={15} /></a></div>
           </article>
         ))}
         {showTopFavorites && filteredBreeds.length > 0 && <div className="favorite-section-heading"><Heart size={21} fill="currentColor" /><div><span>YOUR HEARTED HORSES</span><h2>{topFilteredBreeds.length ? 'More favorites' : 'All favorites'}</h2></div></div>}
         {otherFilteredBreeds.map(breed => (
           <article className={`guide-card ${passportIds.includes(breed.id) ? 'guide-card--passport-earned' : ''}`} key={breed.id}>
-            <MagnifiableImage src={breed.image} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} breedId={breed.id} loading="lazy" showFullViewButton={!showTopFavorites} clickToExpand={showTopFavorites} />
+            <MagnifiableImage src={breed.image} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} breedId={breed.id} loading="lazy" showFullViewButton={false} clickToExpand />
             <div><span>{breed.country} · <button type="button" className="guide-photo-count" onClick={() => setGalleryBreed(breed)}>{photosForBreed(breed).length} photos <Images size={13} /></button></span><h2><BreedName breed={breed} showTopFavorite={showTopFavorites} /><PassportMedal breed={breed} /></h2><BreedBio breed={breed} /><a href={breed.source} target="_blank" rel="noreferrer">Open breed profile <ArrowRight size={15} /></a></div>
           </article>
         ))}

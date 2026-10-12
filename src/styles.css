@@ -860,9 +860,7 @@ button:focus-visible, a:focus-visible, [role='button']:focus-visible { outline-c
   box-shadow: 0 8px 0 rgba(65,40,105,.34), 0 18px 35px rgba(51,31,80,.25);
   transition: transform .2s;
 }
-.guide-card:nth-child(3n + 1) { transform: rotate(-.35deg); }
-.guide-card:nth-child(3n + 2) { transform: rotate(.35deg); }
-.guide-card:hover { transform: translateY(-5px) rotate(0); }
+.guide-card:nth-child(3n + 1), .guide-card:nth-child(3n + 2), .guide-card:hover { transform: none; }
 .guide-card h2 { color: #5e3d77; font-family: 'Bubblegum Sans', cursive; }
 
 @media (max-width: 900px) {
@@ -1232,8 +1230,7 @@ body {
 .summary-score { background: repeating-linear-gradient(45deg, #fff56d 0 14px, #ffacd7 14px 28px); }
 .score-ring { background: conic-gradient(var(--hot-pink) var(--score), rgba(90,37,108,.22) 0); }
 .review-horse-marker, .review-map-card { border-radius: 4px; }
-.guide-card:nth-child(3n + 1), .guide-card:nth-child(3n + 2) { transform: none; }
-.guide-card:hover { transform: translate(-2px, -4px); }
+.guide-card:nth-child(3n + 1), .guide-card:nth-child(3n + 2), .guide-card:hover { transform: none; }
 
 @media (max-width: 700px) {
   .magnified-preview__media { width: calc(100% - 58px); height: calc(100% - 74px); }
@@ -1360,6 +1357,8 @@ body,
 .daily-reset { margin: 12px 0 0; color: #fff5a2; font-family: 'Silkscreen', monospace; font-size: .66rem; line-height: 1.5; }
 
 .breed-name-with-heart { display: inline-flex; align-items: center; gap: 5px; vertical-align: middle; }
+.breed-name-text { min-width: 0; }
+.breed-name-actions { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; }
 .favorite-heart {
   width: 29px;
   height: 27px;
@@ -2902,6 +2901,10 @@ html[data-rider-theme='male'] .guide-card h2 { font-family: Rockwell, Georgia, s
 html[data-rider-theme='male'] .guide-card p { color: #674c38; }
 html[data-rider-theme='male'] .guide-photo-count { color: #71341f; }
 html[data-rider-theme='male'] .guide-card--passport-earned { box-shadow: 5px 5px 0 rgba(48,27,17,.58), 0 0 20px rgba(232,189,88,.72); }
+html[data-rider-theme='male'] .guide-card .breed-name-with-heart { align-items: center; gap: 8px; line-height: 1.05; }
+html[data-rider-theme='male'] .guide-card .breed-name-actions { align-self: center; gap: 5px; }
+html[data-rider-theme='male'] .guide-card .favorite-heart,
+html[data-rider-theme='male'] .guide-card .top-favorite-star { width: 27px; height: 27px; }
 html[data-rider-theme='male'] .favorite-section-heading,
 html[data-rider-theme='male'] .favorite-section-heading--top { border-color: #e8c877; outline-color: #71341f; color: #fff0c9; background: linear-gradient(135deg, #3e2a20, #7f4024 72%, #b77a38); box-shadow: 5px 5px 0 #321c12; }
 html[data-rider-theme='male'] .favorite-section-heading > svg,
