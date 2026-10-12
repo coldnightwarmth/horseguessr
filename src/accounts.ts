@@ -137,13 +137,19 @@ function documentUrl(collection: string, id: string) {
 
 async function authError(response: Response, fallback: string) {
   let code = ''
+  let detail = ''
   try {
     const body = await response.json() as { error?: { message?: string; status?: string } }
-    code = body.error?.status || body.error?.message || ''
+    detail = body.error?.message || ''
+    code = body.error?.status || ''
   } catch {
     // Use the friendly fallback below.
   }
-  const normalizedCode = code.split(/[\s:]/, 1)[0]
+  const messageCode = detail.split(/[\s:]/, 1)[0]
+  const normalizedCode = /^[A-Z][A-Z0-9_]+$/.test(messageCode) ? messageCode : code
+  if (normalizedCode === 'OPERATION_NOT_ALLOWED' && /verify the new email/i.test(detail)) {
+    throw new Error('Email verification is required before changing this account’s email. Refresh the page to get the latest sign-up form and try again.')
+  }
   const friendly: Record<string, string> = {
     EMAIL_EXISTS: 'That email already has an account. Try logging in instead.',
     EMAIL_NOT_FOUND: 'No account was found for that email.',
@@ -274,7 +280,9 @@ export async function registerAccount(usernameValue: string, emailValue: string,
   const reserved = await fetchDocument('usernames', username.toLowerCase(), guestSession)
   if (reserved) throw new Error('That username is already taken. Please choose another.')
 
-  const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:update?key=${encodeURIComponent(apiKey!)}`, {
+  // signUp with an ID token links credentials to the guest's existing UID.
+  // accounts:update rejects this conversion when email enumeration protection is enabled.
+  const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${encodeURIComponent(apiKey!)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ idToken: guestSession.idToken, email, password, displayName: username, returnSecureToken: true }),
