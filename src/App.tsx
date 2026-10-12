@@ -547,6 +547,14 @@ function MagnifiableImage({ src, alt, breedId, loading = 'eager', fallbacks = []
   )
 }
 
+function MobilePhotoAdvance({ lastRound, onNext }: { lastRound: boolean; onNext: () => void }) {
+  return (
+    <button type="button" className="primary-button mobile-photo-advance" onClick={onNext}>
+      {lastRound ? 'See results' : 'Next question'} <ChevronRight size={18} aria-hidden="true" />
+    </button>
+  )
+}
+
 function SuccessSparkles({ show }: { show: boolean }) {
   if (!show) return null
   return createPortal(
@@ -1001,6 +1009,7 @@ function Game({ mode, practiceRegion, onFinish, onExit }: { mode: 'daily' | 'pra
             <div className="photo-corners" aria-hidden="true"><i /><i /><i /><i /></div>
             {!result && <figcaption>Observe closely <span>•</span> no reverse image search</figcaption>}
             {result && <a href={currentPhoto.source} target="_blank" rel="noreferrer">Image source ↗ · photo {photoIndex + 1} of {photoPool.length}</a>}
+            {result && <MobilePhotoAdvance lastRound={round === MAX_ROUNDS - 1} onNext={nextRound} />}
           </figure>
 
           {!result ? (
@@ -1115,6 +1124,7 @@ function BreedQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
             <div className="photo-corners" aria-hidden="true"><i /><i /><i /><i /></div>
             {!choice && <figcaption>Study build, coat, head, mane, and proportions</figcaption>}
             {choice && <a href={currentPhoto.source} target="_blank" rel="noreferrer">Image source ↗ · photo {photoIndex + 1} of {photoPool.length}</a>}
+            {choice && <MobilePhotoAdvance lastRound={round === MAX_ROUNDS - 1} onNext={nextQuestion} />}
           </figure>
 
           <div className="quiz-options" aria-label="Breed choices">
@@ -1251,7 +1261,7 @@ function PhotoQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
             <p>{choice ? `${breed.location}, ${breed.country}` : 'Which of these four horses is the named breed?'}</p>
           </div>
 
-          <div className="photo-choice-grid" aria-label="Horse photo choices">
+          <div className={`photo-choice-grid ${choice ? 'photo-choice-grid--revealed' : ''}`} aria-label="Horse photo choices">
             {photoOptions.map((option, index) => {
               const isCorrect = choice && option.breed.id === breed.id
               const isWrongChoice = choice?.id === option.breed.id && option.breed.id !== breed.id
@@ -1281,6 +1291,7 @@ function PhotoQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
                 </div>
               )
             })}
+            {choice && <MobilePhotoAdvance lastRound={round === MAX_ROUNDS - 1} onNext={nextQuestion} />}
           </div>
         </section>
 
