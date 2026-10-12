@@ -138,21 +138,30 @@ function documentUrl(collection: string, id: string) {
 async function authError(response: Response, fallback: string) {
   let code = ''
   try {
-    const body = await response.json() as { error?: { message?: string } }
-    code = body.error?.message || ''
+    const body = await response.json() as { error?: { message?: string; status?: string } }
+    code = body.error?.status || body.error?.message || ''
   } catch {
     // Use the friendly fallback below.
   }
+  const normalizedCode = code.split(/[\s:]/, 1)[0]
   const friendly: Record<string, string> = {
     EMAIL_EXISTS: 'That email already has an account. Try logging in instead.',
     EMAIL_NOT_FOUND: 'No account was found for that email.',
+    INVALID_EMAIL: 'Enter a valid email address.',
     INVALID_LOGIN_CREDENTIALS: 'That email or password is not correct.',
     INVALID_PASSWORD: 'That email or password is not correct.',
     OPERATION_NOT_ALLOWED: 'Email/password accounts need to be enabled in Firebase Authentication first.',
     TOO_MANY_ATTEMPTS_TRY_LATER: 'Too many attempts. Please wait a little while and try again.',
     WEAK_PASSWORD: 'Choose a stronger password with at least 8 characters.',
+    CREDENTIAL_TOO_OLD_LOGIN_AGAIN: 'Your guest session expired. Refresh the page and try creating the account again.',
+    INVALID_ID_TOKEN: 'Your guest session expired. Refresh the page and try creating the account again.',
+    TOKEN_EXPIRED: 'Your guest session expired. Refresh the page and try creating the account again.',
+    UNAUTHORIZED_DOMAIN: 'This site domain needs to be added to Firebase Authentication\'s authorized domains.',
+    DOMAIN_NOT_WHITELISTED: 'This site domain needs to be added to Firebase Authentication\'s authorized domains.',
+    API_KEY_HTTP_REFERRER_BLOCKED: 'This site domain needs to be allowed in the Firebase web API key settings.',
+    PERMISSION_DENIED: 'Firebase blocked the final profile save. Check that the current Firestore rules are published.',
   }
-  throw new Error(friendly[code] || fallback)
+  throw new Error(friendly[normalizedCode] || fallback)
 }
 
 async function fetchDocument(collection: string, id: string, session?: FirebaseSession) {

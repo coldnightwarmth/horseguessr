@@ -2692,6 +2692,9 @@ html[data-rider-theme='male'] .brand-mark {
   box-shadow: inset 2px 2px 0 rgba(255,255,255,.25), inset -2px -2px 0 #30150d, 3px 3px 0 #25160f, 0 0 0 2px #b98739;
 }
 
+/* The horse-club watermark belongs only to the pink theme. */
+html[data-rider-theme='male'] .hero::before { display: none; content: none; }
+
 html[data-rider-theme='male'] .rider-theme-toggle { border-color: #d8b66d; background: #2f1b12; box-shadow: 2px 2px 0 #1e110c; }
 html[data-rider-theme='male'] .rider-theme-toggle button { color: #bea984; }
 html[data-rider-theme='male'] .rider-theme-toggle button.is-active { border-color: #f3d892; color: #fff0c2; background: linear-gradient(#aa6337, #70351f); box-shadow: inset 1px 1px rgba(255,255,255,.22), 1px 1px #170d09; }
@@ -2729,6 +2732,7 @@ html[data-rider-theme='male'] .ride-launch-label,
 html[data-rider-theme='male'] .quiz-launch-label { color: #f1cc71; }
 html[data-rider-theme='male'] .club-ticker { border-color: #d8b260; color: #f8e5b4; background: #2f1b12; box-shadow: 3px 3px 0 #1f110b; }
 html[data-rider-theme='male'] .y2k-badge { border-color: #f0d18a; color: #4d2c1b; background: linear-gradient(90deg, #f4dfaa, #c9954b 52%, #e8ca87); }
+html[data-rider-theme='male'] .y2k-badge span { color: #8b3f22; }
 html[data-rider-theme='male'] .specimen-label { border: 2px solid #d5aa51; color: #fff0c3; background: #492719; }
 html[data-rider-theme='male'] .hero-actions { border-color: #d8b05f; background: linear-gradient(135deg, rgba(232,189,88,.18), rgba(103,52,28,.4)); box-shadow: 4px 4px 0 #29170f, inset 0 0 0 3px rgba(240,210,138,.12); }
 html[data-rider-theme='male'] .hero-actions .primary-button,
@@ -2750,7 +2754,7 @@ html[data-rider-theme='male'] .quiz-launch {
   text-shadow: none;
 }
 html[data-rider-theme='male'] .quiz-launch small { color: #765943; }
-html[data-rider-theme='male'] .quiz-launch__icon { color: #7c351e; background: rgba(135,71,36,.14); }
+html[data-rider-theme='male'] .quiz-launch__icon { border-color: #b97845; color: #7c351e; background: rgba(135,71,36,.14); }
 html[data-rider-theme='male'] .quiz-launch__meta { color: #77341e; }
 
 html[data-rider-theme='male'] .how-strip,
@@ -2775,6 +2779,14 @@ html[data-rider-theme='male'] .guide-heading { border: 0; outline: 0; color: #ff
 html[data-rider-theme='male'] .guide-heading h1 { color: #fff0c3; text-shadow: 3px 3px #28160e, 5px 5px #7b3a22; }
 html[data-rider-theme='male'] .guide-heading > p:last-child { color: #f0dfbd; }
 html[data-rider-theme='male'] .how-strip { border-block: 5px ridge #e7c273; }
+html[data-rider-theme='male'] .strip-title,
+html[data-rider-theme='male'] .how-step { border-color: rgba(113,65,35,.34); }
+html[data-rider-theme='male'] .strip-title span,
+html[data-rider-theme='male'] .how-step > span,
+html[data-rider-theme='male'] .how-step svg { color: #8b3f22; filter: none; }
+html[data-rider-theme='male'] .strip-title strong,
+html[data-rider-theme='male'] .how-step > strong { color: #4d2c1c; }
+html[data-rider-theme='male'] .how-step p { color: #70533d; }
 html[data-rider-theme='male'] .home-footer__links button,
 html[data-rider-theme='male'] .practice-region-card,
 html[data-rider-theme='male'] .guide-card,
@@ -2891,7 +2903,7 @@ html[data-rider-theme='male'] .guide-card p { color: #674c38; }
 html[data-rider-theme='male'] .guide-photo-count { color: #71341f; }
 html[data-rider-theme='male'] .guide-card--passport-earned { box-shadow: 5px 5px 0 rgba(48,27,17,.58), 0 0 20px rgba(232,189,88,.72); }
 html[data-rider-theme='male'] .favorite-section-heading,
-html[data-rider-theme='male'] .favorite-section-heading--top { border-color: #e8c877; color: #fff0c9; background: linear-gradient(135deg, #3e2a20, #7f4024 72%, #b77a38); box-shadow: 5px 5px 0 #321c12; }
+html[data-rider-theme='male'] .favorite-section-heading--top { border-color: #e8c877; outline-color: #71341f; color: #fff0c9; background: linear-gradient(135deg, #3e2a20, #7f4024 72%, #b77a38); box-shadow: 5px 5px 0 #321c12; }
 html[data-rider-theme='male'] .favorite-section-heading > svg,
 html[data-rider-theme='male'] .favorite-section-heading span { color: #edc96f; filter: none; }
 html[data-rider-theme='male'] .favorite-section-heading h2 { color: #fff0c9; font-family: Rockwell, Georgia, serif; }
@@ -2953,6 +2965,76 @@ html[data-rider-theme='male'] .account-modal input { background: #fff0ca; }
 html[data-rider-theme='male'] .account-modal h2,
 html[data-rider-theme='male'] .account-modal__crest { color: #71341f; }
 html[data-rider-theme='male'] .account-mode-switch { color: #71341f; }
+
+html[data-rider-theme='male'] .account-modal__close { border-color: #f0d28a; color: #fff0c9; background: #74351f; box-shadow: 2px 2px 0 #321d13; }
+html[data-rider-theme='male'] .account-modal__crest span { color: #c9963f; }
+html[data-rider-theme='male'] .account-modal > p:not(.account-modal__kicker),
+html[data-rider-theme='male'] .account-modal label small,
+html[data-rider-theme='male'] .account-privacy-note { color: #70533d; }
+html[data-rider-theme='male'] .account-form-error { border-color: #9a4a2a; color: #6d291c; background: #f0cf89; }
+html[data-rider-theme='male'] .photo-report-menu { border-color: #e6c477; outline-color: #71341f; color: #43291b; background: #f4dfb5; box-shadow: 5px 5px 0 rgba(49,27,17,.62); }
+html[data-rider-theme='male'] .photo-report-menu button { border-color: #f1d590; color: #43291b; background: linear-gradient(#fff0c7, #d8b477); }
+html[data-rider-theme='male'] .photo-report-status { color: #f2d58d; }
+html[data-rider-theme='male'] .guide-suggestion { border-color: #f0d28a; color: #43291b; background: #efd49a; box-shadow: 4px 4px 0 rgba(49,27,17,.55); }
+html[data-rider-theme='male'] .guide-suggestion svg { color: #813b21; }
+html[data-rider-theme='male'] .guide-suggestion button { border-color: #f1d590; color: #fff0c9; background: linear-gradient(#a9522a, #71341f); }
+html[data-rider-theme='male'] .profile-status { border-color: #f0d28a; color: #43291b; background: #efd9a9; box-shadow: 7px 7px 0 rgba(49,27,17,.55); }
+html[data-rider-theme='male'] .profile-status h1 { color: #71341f; }
+html[data-rider-theme='male'] .profile-score-grid article,
+html[data-rider-theme='male'] .profile-breed-shelf { border-color: #f0d28a; outline-color: #71341f; color: #43291b; background: linear-gradient(#fff0c8, #ddba77); box-shadow: 4px 4px 0 rgba(49,27,17,.55); }
+html[data-rider-theme='male'] .profile-score-grid strong,
+html[data-rider-theme='male'] .profile-shelf-heading h2,
+html[data-rider-theme='male'] .profile-breed-grid span { color: #71341f; }
+html[data-rider-theme='male'] .profile-score-grid small,
+html[data-rider-theme='male'] .profile-shelf-heading span { color: #70533d; }
+html[data-rider-theme='male'] .profile-breed-grid article { border-color: #f0d28a; outline-color: #8d5a31; background: #f9e8bf; box-shadow: 3px 3px 0 #8a603c; }
+html[data-rider-theme='male'] .profile-shelf-empty { border-color: #a66c3e; color: #43291b; background: #f8e7bd; }
+html[data-rider-theme='male'] .report-dashboard__totals,
+html[data-rider-theme='male'] .report-dashboard__status { border-color: #f0d28a; outline-color: #71341f; color: #43291b; background: #efd9a9; box-shadow: 5px 5px 0 rgba(49,27,17,.55); }
+html[data-rider-theme='male'] .report-dashboard__totals strong { color: #71341f; }
+html[data-rider-theme='male'] .report-dashboard__status--error { color: #6d291c; background: #efc68e; }
+html[data-rider-theme='male'] .report-card { border-color: #f0d28a; outline-color: #71341f; color: #43291b; background: #f8e7bd; box-shadow: 7px 7px 0 rgba(49,27,17,.58); }
+html[data-rider-theme='male'] .report-card__photo { border-color: #f0d28a; background: #b9966b; }
+html[data-rider-theme='male'] .report-card__body > span,
+html[data-rider-theme='male'] .report-card h2,
+html[data-rider-theme='male'] .report-card li b,
+html[data-rider-theme='male'] .report-card__body > a { color: #71341f; }
+html[data-rider-theme='male'] .report-card ul { border-color: #b27a48; background: #efd7a5; }
+html[data-rider-theme='male'] .report-card small { color: #70533d; }
+html[data-rider-theme='male'] .admin-account-heading p,
+html[data-rider-theme='male'] .admin-account-empty,
+html[data-rider-theme='male'] .admin-account-row small { color: #70533d; }
+html[data-rider-theme='male'] .admin-account-notice { color: #31543a; background: #dce3bd; box-shadow: 4px 4px 0 rgba(49,27,17,.38); }
+html[data-rider-theme='male'] .admin-account-notice--error { color: #6d291c; background: #efcf91; }
+html[data-rider-theme='male'] .admin-account-row { border-color: #c59a61; }
+html[data-rider-theme='male'] .admin-account-row--banned { color: #6d291c; background: repeating-linear-gradient(-45deg, #f3ddbd, #f3ddbd 12px, #e7c9a5 12px, #e7c9a5 24px); }
+html[data-rider-theme='male'] .admin-account-row--banned .admin-account-status > b { color: #8b321f; }
+html[data-rider-theme='male'] .admin-account-empty { background: #efd9a9; }
+html[data-rider-theme='male'] .collection-nav .text-button.is-current { outline-color: #7b3920; color: #43291b; background: linear-gradient(#f3d990, #c18a3c); }
+html[data-rider-theme='male'] .related-breeds { border-color: #b17b49; color: #674c38; background: #efd8a8; }
+html[data-rider-theme='male'] .leaflet-control-zoom a { color: #4a2c1c !important; background: #f7e8c7 !important; }
+html[data-rider-theme='male'] .leaflet-tooltip { border-color: #f1d590; color: #fff0c9; background: #5c301f; box-shadow: 0 3px 0 rgba(42,24,15,.45); }
+html[data-rider-theme='male'] .leaflet-tooltip-top::before { border-top-color: #5c301f; }
+html[data-rider-theme='male'] .atlas-section .leaflet-interactive[fill='#9553b1'] { fill: #7d4a2d !important; }
+html[data-rider-theme='male'] .atlas-section .leaflet-interactive[fill='#fe0889'] { fill: #b35b2d !important; }
+html[data-rider-theme='male'] .atlas-map-note { color: #fff0c9; background: #5c301f; }
+html[data-rider-theme='male'] .photo-loading { color: #d8b45d; background: repeating-linear-gradient(45deg, #4d2e1e 0 10px, #6b432a 10px 20px); }
+html[data-rider-theme='male'] .photo-loading i { color: #d8b45d !important; }
+html[data-rider-theme='male'] .horse-photo { background: #d6bf98; }
+html[data-rider-theme='male'] .progress-track i { border-color: #a98b63; }
+html[data-rider-theme='male'] .question-index,
+html[data-rider-theme='male'] .map-label span { color: #8b3f22; }
+html[data-rider-theme='male'] .map-label strong { color: #43291b; }
+html[data-rider-theme='male'] .practice-picker-kicker { color: #8b3f22; }
+html[data-rider-theme='male'] .practice-picker-board h1 { color: #71341f; }
+html[data-rider-theme='male'] .practice-region-card:hover,
+html[data-rider-theme='male'] .practice-region-card:focus-visible { outline-color: #7b3920; box-shadow: 7px 8px 0 #5a351f; }
+html[data-rider-theme='male'] .practice-region-card__badge { color: #fff0c9; background: radial-gradient(#b96834, #71341f); box-shadow: 2px 3px 0 #4d2c1c; }
+html[data-rider-theme='male'] .practice-region-card__copy small,
+html[data-rider-theme='male'] .practice-region-card__copy strong,
+html[data-rider-theme='male'] .practice-region-card__copy em,
+html[data-rider-theme='male'] .practice-region-card > svg { color: #71341f; }
+html[data-rider-theme='male'] .practice-region-card__copy em { background: #f2d58d; }
 
 @media (max-width: 760px), (pointer: coarse) and (max-width: 950px) {
   .rider-theme-toggle { min-height: 40px; padding: 3px; }
