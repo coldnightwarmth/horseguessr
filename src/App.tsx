@@ -265,9 +265,6 @@ function ResizableStage({ className = '', storageKey, defaultPercent, children }
   )
 }
 
-type MagnificationContextValue = { enabled: boolean; setEnabled: (enabled: boolean) => void }
-const MagnificationContext = createContext<MagnificationContextValue>({ enabled: true, setEnabled: () => {} })
-
 type RiderTheme = 'female' | 'male'
 type ThemeContextValue = { theme: RiderTheme; setTheme: (theme: RiderTheme) => void }
 const ThemeContext = createContext<ThemeContextValue>({ theme: 'female', setTheme: () => {} })
@@ -418,20 +415,6 @@ function PassportMedal({ breed }: { breed: Breed }) {
   return <span className="passport-earned-medal" title="Correctly identified · Passport medal earned" aria-label="Passport medal earned"><Award size={19} /></span>
 }
 
-function MagnificationToggle() {
-  const { enabled, setEnabled } = useContext(MagnificationContext)
-  const toggle = () => {
-    const next = !enabled
-    localStorage.setItem('horseguessr-photo-viewer', next ? 'on' : 'off')
-    setEnabled(next)
-  }
-  return (
-    <button className={`magnification-toggle ${enabled ? 'is-on' : ''}`} onClick={toggle} aria-pressed={enabled} title="Turn the full-photo viewer on or off">
-      <Maximize2 size={15} /><span>Full view</span><i aria-hidden="true" />
-    </button>
-  )
-}
-
 function RiderThemeToggle() {
   const { theme, setTheme } = useContext(ThemeContext)
   const chooseTheme = (nextTheme: RiderTheme) => {
@@ -441,10 +424,10 @@ function RiderThemeToggle() {
   return (
     <div className="rider-theme-toggle" role="group" aria-label="Choose site style">
       <button type="button" className={theme === 'female' ? 'is-active' : ''} onClick={() => chooseTheme('female')} aria-pressed={theme === 'female'} title="Classic horse girl style">
-        <b aria-hidden="true">♀</b><span>Classic</span>
+        <b aria-hidden="true">♀</b><span>Horse girl</span>
       </button>
       <button type="button" className={theme === 'male' ? 'is-active' : ''} onClick={() => chooseTheme('male')} aria-pressed={theme === 'male'} title="Western cowboy style">
-        <b aria-hidden="true">♂</b><span>Western</span>
+        <b aria-hidden="true">♂</b><span>Cowboy</span>
       </button>
     </div>
   )
@@ -536,11 +519,10 @@ function PhotoViewer({ photos, startSrc, alt, breedId, onClose }: { photos: Bree
   )
 }
 
-function MagnifiableImage({ src, alt, breedId, loading = 'eager', fallbacks = [], photos = [] }: { src: string; alt: string; breedId?: string; loading?: 'eager' | 'lazy'; fallbacks?: string[]; photos?: BreedPhoto[] }) {
+function MagnifiableImage({ src, alt, breedId, loading = 'eager', fallbacks = [], photos = [], showFullViewButton = true, clickToExpand = false }: { src: string; alt: string; breedId?: string; loading?: 'eager' | 'lazy'; fallbacks?: string[]; photos?: BreedPhoto[]; showFullViewButton?: boolean; clickToExpand?: boolean }) {
   const [expanded, setExpanded] = useState(false)
   const [candidateIndex, setCandidateIndex] = useState(0)
   const [loaded, setLoaded] = useState(false)
-  const { enabled } = useContext(MagnificationContext)
   const candidates = useMemo(() => [...new Set([src, ...photos.map(photo => photo.src), ...fallbacks, `${import.meta.env.BASE_URL}horses/akhal-teke.jpg`])], [src, fallbacks, photos])
   const activeSrc = candidates[Math.min(candidateIndex, candidates.length - 1)]
   const gallery = useMemo(() => {
@@ -551,12 +533,16 @@ function MagnifiableImage({ src, alt, breedId, loading = 'eager', fallbacks = []
     setLoaded(false)
     setCandidateIndex(index => Math.min(index + 1, candidates.length - 1))
   }
+  const openFullView = () => setExpanded(true)
   return (
-    <span className={`magnifiable-image ${loaded ? 'is-loaded' : 'is-loading'}`}>
+    <span
+      className={`magnifiable-image ${loaded ? 'is-loaded' : 'is-loading'} ${clickToExpand ? 'magnifiable-image--clickable' : ''}`}
+      {...(clickToExpand ? { role: 'button', tabIndex: 0, 'aria-label': `Open full view of ${alt}`, onClick: () => { if (!expanded) openFullView() }, onKeyDown: (event: React.KeyboardEvent) => { if (!expanded && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openFullView() } } } : {})}
+    >
       {!loaded && <span className="photo-loading" aria-hidden="true"><i>♥</i><small>loading horse...</small></span>}
       <img src={activeSrc} alt={alt} loading={loading} onLoad={() => setLoaded(true)} onError={tryNextPhoto} />
-      {enabled && <button type="button" className="magnify-hint" onClick={event => { event.preventDefault(); event.stopPropagation(); setExpanded(true) }}><Maximize2 size={13} /> Full view</button>}
-      {expanded && enabled && <PhotoViewer photos={gallery} startSrc={activeSrc} alt={alt} breedId={breedId} onClose={() => setExpanded(false)} />}
+      {showFullViewButton && <button type="button" className="magnify-hint" onClick={event => { event.preventDefault(); event.stopPropagation(); openFullView() }}><Maximize2 size={13} /> Full view</button>}
+      {expanded && <PhotoViewer photos={gallery} startSrc={activeSrc} alt={alt} breedId={breedId} onClose={() => setExpanded(false)} />}
     </span>
   )
 }
@@ -799,7 +785,6 @@ function Home({ dailyKey, dailyLocked, resetIn, onStart, onPractice, onBreedQuiz
         <Brand inverse />
         <div className="home-nav-actions">
           <RiderThemeToggle />
-          <MagnificationToggle />
           <button className="text-button" onClick={onPassport}><Award size={17} /> Passport</button>
           <button className="text-button" onClick={onFavorites}><BookHeart size={17} /> Favorites</button>
           <button className="text-button" onClick={onGuide}><BookOpen size={17} /> Field guide</button>
@@ -879,6 +864,7 @@ function Home({ dailyKey, dailyLocked, resetIn, onStart, onPractice, onBreedQuiz
           <button onClick={onFavorites}><BookHeart size={27} /><span><strong>Favorites</strong><small>Revisit the horses you’ve saved with a heart.</small></span><ArrowRight size={20} /></button>
           <button onClick={onGuide}><BookOpen size={27} /><span><strong>Field guide</strong><small>Browse every breed, photo, bio, and homeland.</small></span><ArrowRight size={20} /></button>
         </nav>
+        <div className="home-footer__account"><span>Save your stable on every device</span><AccountButtons /></div>
         <p className="home-footer__signoff">♥ HORSEGUESSR HORSE CLUB ♥</p>
       </footer>
       {horseOpen && <HorseDetailsModal breed={dailyHorse} photo={dailyPhoto} onClose={() => setHorseOpen(false)} />}
@@ -921,7 +907,7 @@ function QuizHeader({ round, correct }: { round: number; correct: number }) {
         </div>
       </div>
       <div className="score-box"><span>Correct</span><strong>{correct}</strong><small>/ {MAX_ROUNDS}</small></div>
-      <div className="game-header-controls"><RiderThemeToggle /><MagnificationToggle /></div>
+      <div className="game-header-controls"><RiderThemeToggle /></div>
     </header>
   )
 }
@@ -937,7 +923,7 @@ function GameHeader({ round, total, trail }: { round: number; total: number; tra
         </div>
       </div>
       <div className="score-box"><span>Score</span><strong>{formatNumber(total)}</strong><small>/ 40,000</small></div>
-      <div className="game-header-controls"><RiderThemeToggle /><MagnificationToggle /></div>
+      <div className="game-header-controls"><RiderThemeToggle /></div>
     </header>
   )
 }
@@ -1389,7 +1375,7 @@ function Summary({ results, mode, practiceRegion, dayKey, onReplay, onHome }: { 
   const label = mode === 'daily' ? 'Today’s Ride' : `${practiceRegions[practiceRegion].label} Practice`
   return (
     <main className="summary-screen">
-      <nav className="summary-nav"><Brand inverse /><div className="summary-nav-actions"><RiderThemeToggle /><MagnificationToggle /><button className="text-button" onClick={onHome}>Back home</button></div></nav>
+      <nav className="summary-nav"><Brand inverse /><div className="summary-nav-actions"><RiderThemeToggle /><button className="text-button" onClick={onHome}>Back home</button></div></nav>
       <section className="summary-card">
         <div className="summary-title"><span className="medallion"><Trophy size={30} /></span><p className="eyebrow"><span /> Ride complete</p><h1>{rank}</h1><p>You followed eight bloodlines through their accepted homelands.</p></div>
         <div className="summary-score"><span>Final score</span><strong>{formatNumber(total)}</strong><small>out of 40,000</small><div className="score-ring" style={{ '--score': `${percentage}%` } as React.CSSProperties}><span>{percentage}%</span></div></div>
@@ -1423,7 +1409,7 @@ function QuizSummary({ results, kind, onReplay, onHome }: { results: QuizResult[
   const rank = correct === MAX_ROUNDS ? 'Perfect pedigree' : correct >= 6 ? 'Breed connoisseur' : correct >= 4 ? 'Keen horse spotter' : 'Promising stablehand'
   return (
     <main className="summary-screen">
-      <nav className="summary-nav"><Brand inverse /><div className="summary-nav-actions"><RiderThemeToggle /><MagnificationToggle /><button className="text-button" onClick={onHome}>Back home</button></div></nav>
+      <nav className="summary-nav"><Brand inverse /><div className="summary-nav-actions"><RiderThemeToggle /><button className="text-button" onClick={onHome}>Back home</button></div></nav>
       <section className="summary-card quiz-summary-card">
         <div className="summary-title"><span className="medallion">{kind === 'photo' ? <Images size={29} /> : <ListChecks size={29} />}</span><p className="eyebrow"><span /> {kind === 'photo' ? 'Photo match complete' : 'Breed quiz complete'}</p><h1>{rank}</h1><p>{kind === 'photo' ? 'You matched breed names to photographs' : 'You identified horses'} from a collection of {breeds.length} breeds.</p></div>
         <div className="summary-score"><span>Correct answers</span><strong>{correct} / {MAX_ROUNDS}</strong><small>Personal best: {best}</small><div className="score-ring" style={{ '--score': `${percentage}%` } as React.CSSProperties}><span>{percentage}%</span></div></div>
@@ -1606,7 +1592,6 @@ function CollectionNavigation({ current, onHome, onGuide, onFavorites, onPasspor
       <Brand inverse />
       <div className="summary-nav-actions">
         <RiderThemeToggle />
-        <MagnificationToggle />
         <button className={`text-button ${current === 'passport' ? 'is-current' : ''}`} onClick={onPassport} aria-current={current === 'passport' ? 'page' : undefined}><Award size={17} /> Passport</button>
         <button className={`text-button ${current === 'favorites' ? 'is-current' : ''}`} onClick={onFavorites} aria-current={current === 'favorites' ? 'page' : undefined}><BookHeart size={17} /> Favorites</button>
         <button className={`text-button ${current === 'guide' ? 'is-current' : ''}`} onClick={onGuide} aria-current={current === 'guide' ? 'page' : undefined}><BookOpen size={17} /> Field guide</button>
@@ -1683,14 +1668,14 @@ function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, showAtlas = f
         {showTopFavorites && <div className="favorite-section-heading favorite-section-heading--top"><Star size={21} fill="currentColor" /><div><span>PINNED TO THE TOP</span><h2>Top favorites</h2><p>{topFilteredBreeds.length ? 'Your most-loved horses, collected first.' : 'Tap the star beside any favorite breed to pin it here.'}</p></div></div>}
         {topFilteredBreeds.map(breed => (
           <article className={`guide-card ${passportIds.includes(breed.id) ? 'guide-card--passport-earned' : ''}`} key={breed.id}>
-            <MagnifiableImage src={breed.image} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} breedId={breed.id} loading="lazy" />
+            <MagnifiableImage src={breed.image} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} breedId={breed.id} loading="lazy" showFullViewButton={!showTopFavorites} clickToExpand={showTopFavorites} />
             <div><span>{breed.country} · <button type="button" className="guide-photo-count" onClick={() => setGalleryBreed(breed)}>{photosForBreed(breed).length} photos <Images size={13} /></button></span><h2><BreedName breed={breed} showTopFavorite /><PassportMedal breed={breed} /></h2><BreedBio breed={breed} /><a href={breed.source} target="_blank" rel="noreferrer">Open breed profile <ArrowRight size={15} /></a></div>
           </article>
         ))}
         {showTopFavorites && filteredBreeds.length > 0 && <div className="favorite-section-heading"><Heart size={21} fill="currentColor" /><div><span>YOUR HEARTED HORSES</span><h2>{topFilteredBreeds.length ? 'More favorites' : 'All favorites'}</h2></div></div>}
         {otherFilteredBreeds.map(breed => (
           <article className={`guide-card ${passportIds.includes(breed.id) ? 'guide-card--passport-earned' : ''}`} key={breed.id}>
-            <MagnifiableImage src={breed.image} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} breedId={breed.id} loading="lazy" />
+            <MagnifiableImage src={breed.image} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} breedId={breed.id} loading="lazy" showFullViewButton={!showTopFavorites} clickToExpand={showTopFavorites} />
             <div><span>{breed.country} · <button type="button" className="guide-photo-count" onClick={() => setGalleryBreed(breed)}>{photosForBreed(breed).length} photos <Images size={13} /></button></span><h2><BreedName breed={breed} showTopFavorite={showTopFavorites} /><PassportMedal breed={breed} /></h2><BreedBio breed={breed} /><a href={breed.source} target="_blank" rel="noreferrer">Open breed profile <ArrowRight size={15} /></a></div>
           </article>
         ))}
@@ -1961,7 +1946,6 @@ export default function App() {
   const [practiceRegion, setPracticeRegion] = useState<PracticeRegionId>('world')
   const [results, setResults] = useState<RoundResult[]>([])
   const [quizResults, setQuizResults] = useState<QuizResult[]>([])
-  const [magnificationEnabled, setMagnificationEnabled] = useState(() => localStorage.getItem('horseguessr-photo-viewer') !== 'off')
   const [riderTheme, setRiderTheme] = useState<RiderTheme>(() => localStorage.getItem('horseguessr-rider-theme') === 'male' ? 'male' : 'female')
   const [favoriteIds, setFavoriteIds] = useState(readFavoriteIds)
   const [topFavoriteIds, setTopFavoriteIds] = useState(readTopFavoriteIds)
@@ -2126,18 +2110,16 @@ export default function App() {
   else page = <Home dailyKey={centralClock.key} dailyLocked={dailyLocked} resetIn={centralClock.resetIn} onStart={() => start('daily')} onPractice={() => setScreen('practice-picker')} onBreedQuiz={() => { setQuizResults([]); setScreen('breed-quiz') }} onPhotoQuiz={() => { setQuizResults([]); setScreen('photo-quiz') }} onGuide={() => setScreen('guide')} onFavorites={() => setScreen('favorites')} onPassport={() => setScreen('passport')} />
   return (
     <ThemeContext.Provider value={{ theme: riderTheme, setTheme: setRiderTheme }}>
-      <MagnificationContext.Provider value={{ enabled: magnificationEnabled, setEnabled: setMagnificationEnabled }}>
-        <AccountContext.Provider value={{ account, openAuth: setAuthMode, signOut, openProfile }}>
-          <FavoritesContext.Provider value={{ favoriteIds, topFavoriteIds, toggleFavorite, toggleTopFavorite }}>
-            <PassportContext.Provider value={{ passportIds, awardPassportMedal }}>
-              {page}
-              {!reportDashboard && !accountDashboard && <CookieNotice />}
-              {authMode && <AccountModal mode={authMode} snapshot={accountSnapshot()} onClose={() => setAuthMode(null)} onSuccess={applyAccount} />}
-              {accountNotice && <AccountStatusNotice message={accountNotice} onClose={() => setAccountNotice('')} />}
-            </PassportContext.Provider>
-          </FavoritesContext.Provider>
-        </AccountContext.Provider>
-      </MagnificationContext.Provider>
+      <AccountContext.Provider value={{ account, openAuth: setAuthMode, signOut, openProfile }}>
+        <FavoritesContext.Provider value={{ favoriteIds, topFavoriteIds, toggleFavorite, toggleTopFavorite }}>
+          <PassportContext.Provider value={{ passportIds, awardPassportMedal }}>
+            {page}
+            {!reportDashboard && !accountDashboard && <CookieNotice />}
+            {authMode && <AccountModal mode={authMode} snapshot={accountSnapshot()} onClose={() => setAuthMode(null)} onSuccess={applyAccount} />}
+            {accountNotice && <AccountStatusNotice message={accountNotice} onClose={() => setAccountNotice('')} />}
+          </PassportContext.Provider>
+        </FavoritesContext.Provider>
+      </AccountContext.Provider>
     </ThemeContext.Provider>
   )
 }

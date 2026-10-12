@@ -112,6 +112,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(184, 72, 46, .35
 .horse-photo figcaption span { color: var(--gold); padding: 0 4px; }
 .magnifiable-image { position: relative; display: block; min-width: 0; min-height: 0; overflow: hidden; }
 .magnifiable-image > img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.magnifiable-image--clickable { cursor: zoom-in; }
+.magnifiable-image--clickable:focus-visible { outline: 4px solid var(--lemon); outline-offset: -4px; }
 .magnify-hint { position: absolute; z-index: 5; top: 9px; right: 9px; min-height: 26px; padding: 0 8px; display: flex; align-items: center; gap: 5px; border: 1px solid rgba(255,255,255,.35); border-radius: 20px; color: #fff; background: rgba(20,31,26,.72); backdrop-filter: blur(5px); box-shadow: 0 4px 14px rgba(0,0,0,.18); font-size: 8px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; pointer-events: none; }
 .magnified-preview { position: fixed; z-index: 2800; inset: 22px; display: flex; align-items: center; justify-content: center; padding: 50px 54px 62px; border: 1px solid rgba(255,255,255,.22); border-radius: 7px; background: rgba(11,20,16,.94); box-shadow: 0 30px 100px rgba(0,0,0,.62); opacity: 0; visibility: hidden; transition: opacity .18s ease, visibility .18s ease; pointer-events: none; }
 .magnified-preview--open { opacity: 1; visibility: visible; }
@@ -1672,32 +1674,33 @@ body,
   width: min(1290px, 90%);
   margin: auto;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+  gap: 12px;
 }
 .passport-sticker {
   min-width: 0;
   position: relative;
-  padding: 10px 10px 16px;
-  border: 7px ridge #fff;
-  outline: 3px solid var(--hot-pink);
+  padding: 6px 6px 10px;
+  border: 5px ridge #fff;
+  outline: 2px solid var(--hot-pink);
   color: #57286c;
   background: repeating-linear-gradient(45deg, #fff 0 12px, #ffdbea 12px 24px);
-  box-shadow: 6px 6px 0 rgba(70, 31, 97, .46);
+  box-shadow: 4px 4px 0 rgba(70, 31, 97, .46);
   transform: rotate(-.35deg);
 }
 .passport-sticker:nth-child(even) { transform: rotate(.35deg); }
-.passport-sticker__photo { width: 100%; aspect-ratio: 4 / 3; overflow: hidden; border: 5px ridge #fff; outline: 2px solid #8142a1; background: #d9c2df; }
+.passport-sticker__photo { width: 100%; aspect-ratio: 4 / 3; overflow: hidden; border: 3px ridge #fff; outline: 1px solid #8142a1; background: #d9c2df; }
 .passport-sticker__photo > .magnifiable-image { width: 100%; height: 100%; }
 .passport-sticker__mystery { width: 100%; height: 100%; display: grid; place-items: center; position: relative; background: linear-gradient(135deg, #9a82b7, #d6bfdc); }
 .passport-sticker__mystery img { width: 65%; height: 65%; object-fit: contain; filter: grayscale(1) opacity(.28); }
 .passport-sticker__mystery span { position: absolute; color: rgba(255,255,255,.82); font-family: 'Silkscreen', monospace; font-size: 2rem; text-shadow: 2px 2px #704386; }
-.passport-sticker__medal { width: 40px; height: 40px; display: grid; place-items: center; position: absolute; right: 5px; top: 5px; border: 3px outset #fff; color: #fff; background: linear-gradient(#fff46b, #ffb51f); filter: drop-shadow(3px 3px 0 #7b377f); }
+.passport-sticker__medal { width: 28px; height: 28px; display: grid; place-items: center; position: absolute; right: 3px; top: 3px; border: 2px outset #fff; color: #fff; background: linear-gradient(#fff46b, #ffb51f); filter: drop-shadow(2px 2px 0 #7b377f); }
+.passport-sticker__medal svg { width: 17px; height: 17px; }
 .passport-sticker--locked { filter: saturate(.42); opacity: .78; }
 .passport-sticker--locked .passport-sticker__medal { color: #856f91; background: #d4c7db; }
-.passport-sticker > div:last-child { display: grid; gap: 3px; padding: 12px 5px 0; }
-.passport-sticker small { color: #a22570; font-family: 'Silkscreen', monospace; font-size: .56rem; line-height: 1.45; }
-.passport-sticker strong { font-family: 'Bubblegum Sans', cursive; font-size: 1.3rem; }
+.passport-sticker > div:last-child { display: grid; gap: 2px; padding: 7px 2px 0; }
+.passport-sticker small { color: #a22570; font-family: 'Silkscreen', monospace; font-size: .43rem; line-height: 1.35; }
+.passport-sticker strong { font-family: 'Bubblegum Sans', cursive; font-size: .92rem; line-height: 1.05; }
 
 .share-status { grid-column: 1 / -1; margin: 12px 48px 0; padding: 9px; border: 2px dashed #24af78; color: #126f4c; background: #caffea; font-weight: 900; text-align: center; }
 .share-result-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
@@ -2170,12 +2173,12 @@ body,
   .passport-earned-medal { width: 31px; height: 29px; }
 
   .passport-progress { margin-top: 16px; padding: 10px; }
-  .passport-grid { width: calc(100% - 18px); grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
-  .passport-sticker { padding: 7px 7px 11px; border-width: 5px; box-shadow: 4px 4px 0 rgba(70, 31, 97, .46); }
-  .passport-sticker__photo { border-width: 4px; }
-  .passport-sticker__medal { width: 34px; height: 34px; }
-  .passport-sticker small { font-size: .46rem; }
-  .passport-sticker strong { font-size: 1rem; }
+  .passport-grid { width: calc(100% - 18px); grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .passport-sticker { padding: 4px 4px 8px; }
+  .passport-sticker__medal { width: 23px; height: 23px; }
+  .passport-sticker__medal svg { width: 14px; height: 14px; }
+  .passport-sticker small { font-size: .34rem; }
+  .passport-sticker strong { font-size: .74rem; }
 
   .report-dashboard__grid { width: calc(100% - 18px); grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .report-card { grid-template-columns: minmax(0, 1fr); border-width: 5px; }
@@ -2241,7 +2244,7 @@ body,
   .result-row { grid-template-columns: 20px 42px minmax(0, 1fr) auto; }
   .result-row img { width: 42px; height: 38px; }
   .daily-meta { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 10px; }
-  .passport-grid { grid-template-columns: minmax(0, 1fr); }
+  .passport-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (hover: none) and (pointer: coarse) {
@@ -2454,6 +2457,7 @@ body,
 .home-footer__links button > span { min-width: 0; display: grid; gap: 3px; }
 .home-footer__links strong { color: #6d327b; font: 1.45rem 'Bubblegum Sans', cursive; line-height: 1; }
 .home-footer__links small { color: #765780; font-size: .69rem; font-weight: 800; line-height: 1.35; }
+.home-footer__account { display: none; }
 .home-footer__signoff { margin: 29px 0 0; color: #fff4a0; font: 700 .63rem 'Silkscreen', monospace; text-align: center; }
 
 @media (max-width: 1100px) {
@@ -2463,6 +2467,11 @@ body,
   .home-footer { padding: 28px 13px 23px; }
   .home-footer__links { grid-template-columns: minmax(0, 1fr); gap: 11px; }
   .home-footer__links button { min-height: 78px; padding: 11px 14px; }
+  .home-footer__account { max-width: 520px; margin: 18px auto 0; padding: 12px; display: grid; gap: 9px; border: 4px ridge #fff; color: #fff; background: rgba(85,35,109,.48); text-align: center; }
+  .home-footer__account > span { font: 700 .58rem 'Silkscreen', monospace; }
+  .home-footer__account .account-nav-buttons { width: 100%; padding: 0; border: 0; justify-content: center; }
+  .home-footer__account .account-nav-buttons .text-button { width: auto; min-width: 120px; height: auto; min-height: 44px; padding: 7px 14px; display: inline-flex; border: 3px outset #fff; border-radius: 5px; color: #fff; background: #7d368d; font-size: .78rem; }
+  .home-footer__account .account-signup-button { color: #713678; background: linear-gradient(#fff7a3, #ffd45a); }
   .ride-launch-label { margin-top: 20px; }
   .hero-actions { gap: 10px; margin-bottom: 17px; padding: 9px; }
   .hero-actions .primary-button, .hero-actions .secondary-button { min-height: 64px; font-size: 1.1rem; }
@@ -2625,12 +2634,12 @@ html[data-rider-theme='male'] .summary-screen,
 html[data-rider-theme='male'] .guide-screen,
 html[data-rider-theme='male'] .game-screen,
 html[data-rider-theme='male'] .practice-picker-screen {
-  background-color: #704527;
+  background-color: #624028;
   background-image:
-    linear-gradient(rgba(44, 26, 16, .28), rgba(44, 26, 16, .28)),
-    repeating-linear-gradient(90deg, rgba(255,255,255,.035) 0 2px, transparent 2px 37px),
-    repeating-linear-gradient(0deg, #7f512e 0 5px, #754728 5px 10px, #6b3f25 10px 15px);
-  background-size: auto, auto, 100% 15px;
+    linear-gradient(rgba(42, 25, 16, .16), rgba(42, 25, 16, .34)),
+    url('./assets/western-wood-tile.svg');
+  background-repeat: repeat, repeat;
+  background-size: auto, 320px 160px;
   background-attachment: fixed;
 }
 
@@ -2639,10 +2648,11 @@ html[data-rider-theme='male'] .summary-screen,
 html[data-rider-theme='male'] .guide-screen,
 html[data-rider-theme='male'] .practice-picker-screen {
   background-image:
-    radial-gradient(circle at 50% 9%, rgba(232, 183, 89, .42), transparent 36%),
-    linear-gradient(rgba(53, 31, 18, .24), rgba(53, 31, 18, .5)),
-    repeating-linear-gradient(90deg, rgba(255,255,255,.035) 0 2px, transparent 2px 37px),
-    repeating-linear-gradient(0deg, #80512f 0 5px, #744528 5px 10px, #694026 10px 15px);
+    radial-gradient(circle at 50% 8%, rgba(238, 195, 103, .3), transparent 38%),
+    linear-gradient(rgba(52, 30, 18, .16), rgba(52, 30, 18, .46)),
+    url('./assets/western-wood-tile.svg');
+  background-repeat: no-repeat, repeat, repeat;
+  background-size: 100% 760px, auto, 320px 160px;
 }
 
 html[data-rider-theme='male'] .home-nav,
@@ -2748,7 +2758,6 @@ html[data-rider-theme='male'] .daily-quote,
 html[data-rider-theme='male'] .leaderboard,
 html[data-rider-theme='male'] .home-footer,
 html[data-rider-theme='male'] .summary-card,
-html[data-rider-theme='male'] .guide-heading,
 html[data-rider-theme='male'] .guide-toolbar,
 html[data-rider-theme='male'] .atlas-section,
 html[data-rider-theme='male'] .practice-picker-board,
@@ -2762,6 +2771,9 @@ html[data-rider-theme='male'] .account-modal {
   background: repeating-linear-gradient(0deg, #f7e8c7 0 28px, #efd9ae 29px);
   box-shadow: 7px 7px 0 rgba(39,22,14,.58);
 }
+html[data-rider-theme='male'] .guide-heading { border: 0; outline: 0; color: #fff0cb; background: transparent; box-shadow: none; }
+html[data-rider-theme='male'] .guide-heading h1 { color: #fff0c3; text-shadow: 3px 3px #28160e, 5px 5px #7b3a22; }
+html[data-rider-theme='male'] .guide-heading > p:last-child { color: #f0dfbd; }
 html[data-rider-theme='male'] .how-strip { border-block: 5px ridge #e7c273; }
 html[data-rider-theme='male'] .home-footer__links button,
 html[data-rider-theme='male'] .practice-region-card,
@@ -2816,12 +2828,141 @@ html[data-rider-theme='male'] .account-modal__kicker,
 html[data-rider-theme='male'] .account-modal label > span,
 html[data-rider-theme='male'] .profile-score-grid span { color: #863b21; }
 
+/* Every Western surface stays inside the saddle-leather, brass, parchment, sage palette. */
+html[data-rider-theme='male'] .daily-quote__sparkles,
+html[data-rider-theme='male'] .daily-quote__label,
+html[data-rider-theme='male'] .daily-quote__label span,
+html[data-rider-theme='male'] .daily-quote cite { color: #8b3f22; }
+html[data-rider-theme='male'] .daily-quote blockquote { color: #3f291c; font-family: Rockwell, Georgia, serif; text-shadow: 2px 2px #fff1c9; }
+html[data-rider-theme='male'] .daily-quote p { color: #70533d; }
+html[data-rider-theme='male'] .daily-quote a { color: #472b1c; background: #e8c66f; box-shadow: 2px 3px 0 #51301e; }
+html[data-rider-theme='male'] .daily-quote a:hover,
+html[data-rider-theme='male'] .daily-quote a:focus-visible { color: #fff2c9; background: #7d371f; outline-color: #e8c66f; }
+
+html[data-rider-theme='male'] .leaderboard-panel { border-color: #e4c77f; outline-color: #71351f; color: #442b1c; background: #f1ddb3; box-shadow: 7px 7px 0 rgba(42,24,15,.56); }
+html[data-rider-theme='male'] .leaderboard-heading { border-color: #a96a3a; }
+html[data-rider-theme='male'] .leaderboard-heading > span,
+html[data-rider-theme='male'] .leaderboard-heading > strong { color: #75341f; }
+html[data-rider-theme='male'] .leaderboard-heading > small,
+html[data-rider-theme='male'] .leaderboard-note { color: #715843; }
+html[data-rider-theme='male'] .leaderboard-list li { color: #3f291c; background: linear-gradient(90deg, #fff0c5, #dfbb76 74%, #c7904d); }
+html[data-rider-theme='male'] .leaderboard-list li > span { background: #71422a; }
+html[data-rider-theme='male'] .leaderboard-list li > small { color: #6e513d; }
+html[data-rider-theme='male'] .leaderboard-profile-link { color: #4e2e1e; background: #f8e7be; }
+
+html[data-rider-theme='male'] .home-footer { color: #432a1b; background: url('./assets/western-wood-tile.svg') repeat; background-size: 320px 160px; }
+html[data-rider-theme='male'] .home-footer__intro > span,
+html[data-rider-theme='male'] .home-footer__signoff { color: #f0cf7e; }
+html[data-rider-theme='male'] .home-footer__intro h2 { color: #fff0c5; font-family: Rockwell, Georgia, serif; text-shadow: 3px 3px #331d13; }
+html[data-rider-theme='male'] .home-footer__links button,
+html[data-rider-theme='male'] .home-footer__links button:nth-child(2),
+html[data-rider-theme='male'] .home-footer__links button:nth-child(3) { color: #432a1b; background: linear-gradient(145deg, #fff0c7, #d5ad68); }
+html[data-rider-theme='male'] .home-footer__links button > svg:first-child,
+html[data-rider-theme='male'] .home-footer__links button > svg:last-child,
+html[data-rider-theme='male'] .home-footer__links strong { color: #74351f; }
+html[data-rider-theme='male'] .home-footer__links strong { font-family: Rockwell, Georgia, serif; }
+html[data-rider-theme='male'] .home-footer__links small { color: #6c503a; }
+html[data-rider-theme='male'] .home-footer__account { color: #fff0c9; background: rgba(45,25,16,.76); }
+html[data-rider-theme='male'] .home-footer__account .text-button { color: #fff0c9; background: #6f3822; }
+html[data-rider-theme='male'] .home-footer__account .account-signup-button { color: #43291b; background: linear-gradient(#f6dfa3, #c99543); }
+
+html[data-rider-theme='male'] .summary-title h1,
+html[data-rider-theme='male'] .summary-score > strong { color: #6f321e; font-family: Rockwell, Georgia, serif; }
+html[data-rider-theme='male'] .summary-title > p:last-child,
+html[data-rider-theme='male'] .summary-score > small,
+html[data-rider-theme='male'] .result-row small { color: #705741; }
+html[data-rider-theme='male'] .summary-score { color: #42291b; background: repeating-linear-gradient(45deg, #f4e0b6 0 14px, #d2a966 14px 28px); }
+html[data-rider-theme='male'] .result-row img { outline-color: #956039; }
+html[data-rider-theme='male'] .result-row > b { color: #7b351f; }
+
+html[data-rider-theme='male'] .guide-tools { border-color: #f0d28a; outline-color: #71341f; color: #43291b; background: linear-gradient(135deg, #f8e7bd, #dcb574 58%, #b77d43); box-shadow: 6px 6px 0 rgba(43,24,15,.56); }
+html[data-rider-theme='male'] .guide-tools label > span,
+html[data-rider-theme='male'] .guide-filter-result strong,
+html[data-rider-theme='male'] .guide-filter-result button,
+html[data-rider-theme='male'] .guide-search svg { color: #71341f; }
+html[data-rider-theme='male'] .guide-tools input,
+html[data-rider-theme='male'] .guide-tools select { color: #43291b; background: #fff0ca; }
+html[data-rider-theme='male'] .guide-filter-result span { color: #6f533e; }
+html[data-rider-theme='male'] .guide-card h2,
+html[data-rider-theme='male'] .guide-card div > span,
+html[data-rider-theme='male'] .guide-card a { color: #71341f; }
+html[data-rider-theme='male'] .guide-card h2 { font-family: Rockwell, Georgia, serif; }
+html[data-rider-theme='male'] .guide-card p { color: #674c38; }
+html[data-rider-theme='male'] .guide-photo-count { color: #71341f; }
+html[data-rider-theme='male'] .guide-card--passport-earned { box-shadow: 5px 5px 0 rgba(48,27,17,.58), 0 0 20px rgba(232,189,88,.72); }
+html[data-rider-theme='male'] .favorite-section-heading,
+html[data-rider-theme='male'] .favorite-section-heading--top { border-color: #e8c877; color: #fff0c9; background: linear-gradient(135deg, #3e2a20, #7f4024 72%, #b77a38); box-shadow: 5px 5px 0 #321c12; }
+html[data-rider-theme='male'] .favorite-section-heading > svg,
+html[data-rider-theme='male'] .favorite-section-heading span { color: #edc96f; filter: none; }
+html[data-rider-theme='male'] .favorite-section-heading h2 { color: #fff0c9; font-family: Rockwell, Georgia, serif; }
+html[data-rider-theme='male'] .favorite-section-heading p { color: #e8d6b7; }
+
+html[data-rider-theme='male'] .atlas-section { color: #432a1b; background: #f1ddb3; }
+html[data-rider-theme='male'] .atlas-kicker,
+html[data-rider-theme='male'] .atlas-list-kicker,
+html[data-rider-theme='male'] .atlas-card-label,
+html[data-rider-theme='male'] .atlas-heading h2,
+html[data-rider-theme='male'] .atlas-search > label,
+html[data-rider-theme='male'] .atlas-homeland,
+html[data-rider-theme='male'] .atlas-breed-copy > a { color: #74351f; }
+html[data-rider-theme='male'] .atlas-heading p,
+html[data-rider-theme='male'] .atlas-distance-note { color: #70543d; }
+html[data-rider-theme='male'] .atlas-search > div,
+html[data-rider-theme='male'] .atlas-panel,
+html[data-rider-theme='male'] .atlas-breed-card { color: #432a1b; background: #f7e7c2; }
+html[data-rider-theme='male'] .atlas-search input { color: #432a1b; }
+html[data-rider-theme='male'] .atlas-search button,
+html[data-rider-theme='male'] .atlas-pin-count,
+html[data-rider-theme='male'] .atlas-nearby-number { color: #fff0c9; background: #7d371f; box-shadow: 2px 2px 0 #3a2015; }
+html[data-rider-theme='male'] .atlas-welcome > span,
+html[data-rider-theme='male'] .atlas-welcome h3,
+html[data-rider-theme='male'] .atlas-breed-copy h3,
+html[data-rider-theme='male'] .atlas-nearby h3,
+html[data-rider-theme='male'] .atlas-nearby-copy strong { color: #62321f; font-family: Rockwell, Georgia, serif; }
+
+html[data-rider-theme='male'] .passport-progress { border-color: #efd18a; outline-color: #74351f; color: #432a1b; background: linear-gradient(#fff0c8, #d9b16e); box-shadow: 5px 5px 0 #3a2116; }
+html[data-rider-theme='male'] .passport-progress strong,
+html[data-rider-theme='male'] .passport-progress b { color: #71341f; }
+html[data-rider-theme='male'] .passport-progress > i { background: #b99a6b; }
+html[data-rider-theme='male'] .passport-progress > i span { background: linear-gradient(90deg, #71341f, #bd6d35, #e5bd5c); }
+html[data-rider-theme='male'] .passport-sticker { outline-color: #74351f; color: #432a1b; background: repeating-linear-gradient(45deg, #fff0c9 0 12px, #dfbd7d 12px 24px); box-shadow: 4px 4px 0 #3a2116; }
+html[data-rider-theme='male'] .passport-sticker__photo { outline-color: #754226; background: #bd9b70; }
+html[data-rider-theme='male'] .passport-sticker__mystery { background: linear-gradient(135deg, #84664c, #c3a274); }
+html[data-rider-theme='male'] .passport-sticker__mystery span { color: #f6e1b3; text-shadow: 2px 2px #4a2a1a; }
+html[data-rider-theme='male'] .passport-sticker small { color: #74351f; }
+html[data-rider-theme='male'] .passport-sticker strong { color: #3f291c; font-family: Rockwell, Georgia, serif; }
+html[data-rider-theme='male'] .passport-sticker__medal { filter: drop-shadow(2px 2px 0 #4f2c1b); }
+html[data-rider-theme='male'] .passport-sticker--locked .passport-sticker__medal { color: #735d48; background: #c3ad88; }
+
+html[data-rider-theme='male'] .magnify-hint { border-color: #e7c778; color: #fff0c9; background: rgba(65,34,20,.88); }
+html[data-rider-theme='male'] .magnified-preview__frame { outline-color: #8b4225; background: repeating-linear-gradient(45deg, #e7c989 0 14px, #7c4930 14px 28px); }
+html[data-rider-theme='male'] .magnified-preview__frame::before { color: #43291b; background: #e7c568; }
+html[data-rider-theme='male'] .gallery-arrow,
+html[data-rider-theme='male'] .magnified-preview__close,
+html[data-rider-theme='male'] .photo-report-button { color: #fff0ca; background: #74351f; }
+html[data-rider-theme='male'] .success-sparkles i { color: #e8bd58; }
+html[data-rider-theme='male'] .success-sparkles i:nth-child(3n) { color: #7f9874; }
+html[data-rider-theme='male'] .success-sparkles i:nth-child(4n) { color: #bd6734; }
+html[data-rider-theme='male'] .success-sparkles strong { color: #fff0c9; background: linear-gradient(#bd6734, #71341f 50%, #4b2718 52%, #8e4224); box-shadow: 6px 6px 0 #302016; text-shadow: 2px 2px #452518; }
+
+html[data-rider-theme='male'] .account-nav-buttons .account-signup-button { color: #43291b; background: linear-gradient(#f5dda1, #c99442); box-shadow: 2px 2px 0 #301b12; }
+html[data-rider-theme='male'] .account-nav-buttons .account-profile-button { color: #edcd82; }
+html[data-rider-theme='male'] .account-modal,
+html[data-rider-theme='male'] .account-modal input { color: #43291b; }
+html[data-rider-theme='male'] .account-modal input { background: #fff0ca; }
+html[data-rider-theme='male'] .account-modal h2,
+html[data-rider-theme='male'] .account-modal__crest { color: #71341f; }
+html[data-rider-theme='male'] .account-mode-switch { color: #71341f; }
+
 @media (max-width: 760px), (pointer: coarse) and (max-width: 950px) {
   .rider-theme-toggle { min-height: 40px; padding: 3px; }
   .rider-theme-toggle button { width: 30px; min-width: 30px; height: 30px; min-height: 30px; padding: 0; }
   .rider-theme-toggle button span { display: none; }
   .game-header-controls { grid-column: 3; grid-row: 1; gap: 4px; }
   .game-header-controls .magnification-toggle { grid-column: auto; grid-row: auto; }
+  html[data-rider-theme='male'] .home-nav-actions .text-button,
+  html[data-rider-theme='male'] .summary-nav-actions .text-button { border-color: #e4c374; color: #fff0c9; background: #5c301f; }
+  html[data-rider-theme='male'] .collection-nav .text-button.is-current { color: #43291b; background: linear-gradient(#f3d990, #c18a3c); }
   html[data-rider-theme='male'] body,
   html[data-rider-theme='male'] .home-screen,
   html[data-rider-theme='male'] .summary-screen,
