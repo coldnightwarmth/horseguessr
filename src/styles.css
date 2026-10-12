@@ -483,6 +483,43 @@ button:focus-visible, a:focus-visible, [role='button']:focus-visible { outline-c
 }
 .magnification-toggle.is-on i { background: linear-gradient(90deg, #ff7fbc, #b077d3); }
 .magnification-toggle.is-on i::after { transform: translateX(13px); }
+.game-header-controls { display: flex; align-items: center; justify-self: end; gap: 8px; }
+.rider-theme-toggle {
+  min-height: 34px;
+  padding: 3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: 2px outset #fff;
+  border-radius: 7px;
+  background: rgba(74, 31, 91, .38);
+  box-shadow: 2px 2px 0 rgba(65, 29, 85, .4);
+}
+.rider-theme-toggle button {
+  min-width: 31px;
+  min-height: 27px;
+  padding: 2px 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  color: rgba(255, 255, 255, .72);
+  background: transparent;
+  font-family: 'Silkscreen', monospace;
+  font-size: .56rem;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.rider-theme-toggle button:hover { color: #fff; background: rgba(255,255,255,.14); }
+.rider-theme-toggle button b { font-family: Arial, sans-serif; font-size: 1.05rem; line-height: 1; }
+.rider-theme-toggle button.is-active {
+  border-color: #fff;
+  color: #7d286e;
+  background: linear-gradient(#fff, #ffd8ed);
+  box-shadow: inset 1px 1px 0 #fff, 1px 1px 0 rgba(61,26,80,.35);
+}
 
 .hero {
   min-height: 690px;
@@ -2559,4 +2596,243 @@ body,
   .admin-account-row > span:nth-child(3)::before { content: 'Joined: '; color: #a42975; }
   .admin-account-row > span:nth-child(4)::before { content: 'Collection: '; color: #a42975; }
   .admin-account-status { margin-top: 7px; padding-top: 8px; border-top: 2px dashed #e9a8c8; }
+}
+
+/* Switchable rider styles: the existing pink horse-club theme remains the default. */
+html[data-rider-theme='male'] {
+  --hot-pink: #9b4323;
+  --hot-pink-dark: #542718;
+  --hot-pink-light: #d17a3e;
+  --cyber-blue: #6f9ca0;
+  --lemon: #e8bd58;
+  --mint: #76906b;
+  --paper: #f7e8c7;
+  --ink: #3d281b;
+  --terra: #9b4323;
+  --forest: #3c3024;
+  --forest-2: #574333;
+  --gold: #d6a449;
+  --cream: #fff3d2;
+  --sky: #86a8a7;
+  --line: rgba(64, 39, 24, .25);
+  color: var(--ink);
+  background: #4b3223;
+}
+
+html[data-rider-theme='male'] body,
+html[data-rider-theme='male'] .home-screen,
+html[data-rider-theme='male'] .summary-screen,
+html[data-rider-theme='male'] .guide-screen,
+html[data-rider-theme='male'] .game-screen,
+html[data-rider-theme='male'] .practice-picker-screen {
+  background-color: #704527;
+  background-image:
+    linear-gradient(rgba(44, 26, 16, .28), rgba(44, 26, 16, .28)),
+    repeating-linear-gradient(90deg, rgba(255,255,255,.035) 0 2px, transparent 2px 37px),
+    repeating-linear-gradient(0deg, #7f512e 0 5px, #754728 5px 10px, #6b3f25 10px 15px);
+  background-size: auto, auto, 100% 15px;
+  background-attachment: fixed;
+}
+
+html[data-rider-theme='male'] .home-screen,
+html[data-rider-theme='male'] .summary-screen,
+html[data-rider-theme='male'] .guide-screen,
+html[data-rider-theme='male'] .practice-picker-screen {
+  background-image:
+    radial-gradient(circle at 50% 9%, rgba(232, 183, 89, .42), transparent 36%),
+    linear-gradient(rgba(53, 31, 18, .24), rgba(53, 31, 18, .5)),
+    repeating-linear-gradient(90deg, rgba(255,255,255,.035) 0 2px, transparent 2px 37px),
+    repeating-linear-gradient(0deg, #80512f 0 5px, #744528 5px 10px, #694026 10px 15px);
+}
+
+html[data-rider-theme='male'] .home-nav,
+html[data-rider-theme='male'] .summary-nav,
+html[data-rider-theme='male'] .game-header {
+  border-color: #f0cc7b;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.17) 0 7%, transparent 8%),
+    repeating-linear-gradient(90deg, transparent 0 90px, rgba(255,255,255,.035) 90px 92px),
+    linear-gradient(#633821, #3f2418 52%, #2d1b13 53%, #512d1d);
+  box-shadow: inset 0 -4px 0 #22140e, inset 0 3px 0 #a86a3c, 0 5px 0 rgba(32,18,12,.48);
+}
+
+html[data-rider-theme='male'] .brand,
+html[data-rider-theme='male'] .hero-copy h1,
+html[data-rider-theme='male'] .summary-title h1,
+html[data-rider-theme='male'] .guide-heading h1,
+html[data-rider-theme='male'] .question-copy h2,
+html[data-rider-theme='male'] .quiz-launch strong,
+html[data-rider-theme='male'] .strip-title strong,
+html[data-rider-theme='male'] .practice-picker-board h1,
+html[data-rider-theme='male'] .practice-region-card__copy strong,
+html[data-rider-theme='male'] .profile-hero h1,
+html[data-rider-theme='male'] .account-modal h2,
+html[data-rider-theme='male'] .admin-login-card h1,
+html[data-rider-theme='male'] .admin-account-heading h1 {
+  font-family: Rockwell, 'Roboto Slab', Georgia, serif;
+  letter-spacing: .015em;
+}
+
+html[data-rider-theme='male'] .brand { color: #fff1c7; text-shadow: 2px 2px 0 #25150e; }
+html[data-rider-theme='male'] .brand > span:last-child span { color: #e8bd58; }
+html[data-rider-theme='male'] .brand-mark {
+  border-radius: 5px 5px 14px 14px;
+  border-color: #f5d990;
+  background: linear-gradient(#b96532, #7b331d 54%, #512315 55%, #8a3b20);
+  box-shadow: inset 2px 2px 0 rgba(255,255,255,.25), inset -2px -2px 0 #30150d, 3px 3px 0 #25160f, 0 0 0 2px #b98739;
+}
+
+html[data-rider-theme='male'] .rider-theme-toggle { border-color: #d8b66d; background: #2f1b12; box-shadow: 2px 2px 0 #1e110c; }
+html[data-rider-theme='male'] .rider-theme-toggle button { color: #bea984; }
+html[data-rider-theme='male'] .rider-theme-toggle button.is-active { border-color: #f3d892; color: #fff0c2; background: linear-gradient(#aa6337, #70351f); box-shadow: inset 1px 1px rgba(255,255,255,.22), 1px 1px #170d09; }
+html[data-rider-theme='male'] .rider-theme-toggle button:hover { color: #fff2c7; background-color: rgba(232,189,88,.14); }
+
+html[data-rider-theme='male'] .text-button,
+html[data-rider-theme='male'] .admin-private-label { color: #f7dfaa; text-shadow: 1px 1px #24150e; }
+html[data-rider-theme='male'] .magnification-toggle,
+html[data-rider-theme='male'] .icon-button,
+html[data-rider-theme='male'] .icon-button--light {
+  border-color: #f2d58d;
+  color: #4b2c1d;
+  background: linear-gradient(#fff1c8, #d8b16a 47%, #ad7737 50%, #e0bd78);
+  box-shadow: 2px 2px 0 #24150e;
+}
+html[data-rider-theme='male'] .magnification-toggle.is-on i { background: #9b4323; }
+
+html[data-rider-theme='male'] .hero-copy {
+  border-color: #e8c678;
+  color: #fff2cf;
+  background: linear-gradient(145deg, rgba(60,34,22,.95), rgba(92,50,28,.93));
+  box-shadow: 8px 8px 0 rgba(34,20,13,.62), inset 0 0 0 2px rgba(232,189,88,.26);
+}
+html[data-rider-theme='male'] .hero-copy h1 { color: #fff0c3; text-shadow: 3px 3px #28160e, 5px 5px #7b3a22; }
+html[data-rider-theme='male'] .hero-copy h1 em,
+html[data-rider-theme='male'] .eyebrow { color: #e8bd58; }
+html[data-rider-theme='male'] .hero-description { color: #ecdcbf; }
+html[data-rider-theme='male'] .hero-photo { border-color: #f1d48c; outline-color: #6a311d; background: #493528; box-shadow: 9px 9px 0 #321c12, 14px 14px 0 rgba(222,177,86,.5); }
+html[data-rider-theme='male'] .hero-photo::after { border-color: #e8bd58; }
+html[data-rider-theme='male'] .hero-photo::before { content: '★ HORSE OF THE DAY ★'; color: #3e2719; background: linear-gradient(#f8e5ac, #d7a849); }
+html[data-rider-theme='male'] .specimen-label strong { background: #9b4323; }
+html[data-rider-theme='male'] .club-ticker,
+html[data-rider-theme='male'] .y2k-badge,
+html[data-rider-theme='male'] .ride-launch-label,
+html[data-rider-theme='male'] .quiz-launch-label { color: #f1cc71; }
+html[data-rider-theme='male'] .club-ticker { border-color: #d8b260; color: #f8e5b4; background: #2f1b12; box-shadow: 3px 3px 0 #1f110b; }
+html[data-rider-theme='male'] .y2k-badge { border-color: #f0d18a; color: #4d2c1b; background: linear-gradient(90deg, #f4dfaa, #c9954b 52%, #e8ca87); }
+html[data-rider-theme='male'] .specimen-label { border: 2px solid #d5aa51; color: #fff0c3; background: #492719; }
+html[data-rider-theme='male'] .hero-actions { border-color: #d8b05f; background: linear-gradient(135deg, rgba(232,189,88,.18), rgba(103,52,28,.4)); box-shadow: 4px 4px 0 #29170f, inset 0 0 0 3px rgba(240,210,138,.12); }
+html[data-rider-theme='male'] .hero-actions .primary-button,
+html[data-rider-theme='male'] .hero-actions .secondary-button { font-family: Rockwell, 'Roboto Slab', Georgia, serif; box-shadow: inset 0 3px 0 rgba(255,255,255,.28), 5px 6px 0 #28160e; }
+
+html[data-rider-theme='male'] .primary-button {
+  border-color: #f0d28a;
+  color: #fff3ce;
+  background: linear-gradient(#bd6734, #8b3d22 48%, #5b2818 52%, #963f22);
+  box-shadow: 4px 4px 0 #28160e, inset 1px 1px rgba(255,255,255,.2);
+  text-shadow: 1px 1px #36180f;
+}
+html[data-rider-theme='male'] .secondary-button,
+html[data-rider-theme='male'] .quiz-launch {
+  border-color: #dbb86c;
+  color: #4a2c1c;
+  background: linear-gradient(#fff0c6, #dfbd78 47%, #bd8b48 51%, #e4c382);
+  box-shadow: 4px 4px 0 #321d13;
+  text-shadow: none;
+}
+html[data-rider-theme='male'] .quiz-launch small { color: #765943; }
+html[data-rider-theme='male'] .quiz-launch__icon { color: #7c351e; background: rgba(135,71,36,.14); }
+html[data-rider-theme='male'] .quiz-launch__meta { color: #77341e; }
+
+html[data-rider-theme='male'] .how-strip,
+html[data-rider-theme='male'] .daily-quote,
+html[data-rider-theme='male'] .leaderboard,
+html[data-rider-theme='male'] .home-footer,
+html[data-rider-theme='male'] .summary-card,
+html[data-rider-theme='male'] .guide-heading,
+html[data-rider-theme='male'] .guide-toolbar,
+html[data-rider-theme='male'] .atlas-section,
+html[data-rider-theme='male'] .practice-picker-board,
+html[data-rider-theme='male'] .profile-breed-shelf,
+html[data-rider-theme='male'] .admin-login-card,
+html[data-rider-theme='male'] .admin-account-heading,
+html[data-rider-theme='male'] .account-modal {
+  border-color: #f0d38a;
+  outline-color: #6c321f;
+  color: #442b1c;
+  background: repeating-linear-gradient(0deg, #f7e8c7 0 28px, #efd9ae 29px);
+  box-shadow: 7px 7px 0 rgba(39,22,14,.58);
+}
+html[data-rider-theme='male'] .how-strip { border-block: 5px ridge #e7c273; }
+html[data-rider-theme='male'] .home-footer__links button,
+html[data-rider-theme='male'] .practice-region-card,
+html[data-rider-theme='male'] .guide-card,
+html[data-rider-theme='male'] .profile-score-grid article,
+html[data-rider-theme='male'] .profile-breed-grid article,
+html[data-rider-theme='male'] .account-invitation {
+  border-color: #f1d590;
+  outline-color: #7b3920;
+  color: #462b1c;
+  background: linear-gradient(145deg, #fff1ca, #e1bd7b);
+  box-shadow: 4px 4px 0 rgba(48,27,17,.58);
+}
+
+html[data-rider-theme='male'] .game-screen { color: #3d281b; }
+html[data-rider-theme='male'] .breed-panel,
+html[data-rider-theme='male'] .photo-result-pane,
+html[data-rider-theme='male'] .photo-profile { color: #3d281b; background: #f6e5c0; }
+html[data-rider-theme='male'] .question-copy h2,
+html[data-rider-theme='male'] .quiz-answer__title strong,
+html[data-rider-theme='male'] .breed-bio b { color: #3c271a; }
+html[data-rider-theme='male'] .question-copy p,
+html[data-rider-theme='male'] .breed-bio { color: #705641; }
+html[data-rider-theme='male'] .mode-pill { color: #7b351e; background: #ead09f; }
+html[data-rider-theme='male'] .hint-card,
+html[data-rider-theme='male'] .quiz-option { border-color: #b98d55; color: #432a1b; background: #f5e3be; }
+html[data-rider-theme='male'] .hint-card--open,
+html[data-rider-theme='male'] .quiz-option:not(:disabled):hover { background: #fff0c9; }
+html[data-rider-theme='male'] .tag-row span { color: #4d3829; background: #dec396; }
+html[data-rider-theme='male'] .progress-track i { background: #cbb287; }
+html[data-rider-theme='male'] .progress-track i.active { background: #b75529; }
+html[data-rider-theme='male'] .map-label { border-color: #9d7140; color: #3b271a; background: rgba(250,232,195,.96); }
+
+html[data-rider-theme='male'] .shareable-result-section { border-color: #b37d45; color: #4a2d1d; background: #ecd3a5; }
+html[data-rider-theme='male'] .shareable-result-card { outline-color: #74351f; color: #3d271a; background: radial-gradient(circle at 85% 15%, rgba(255,255,255,.55), transparent 23%), linear-gradient(135deg, #f7e1ad, #cf9a54 45%, #8b4a2a 100%); box-shadow: 5px 6px 0 #4a291a; }
+html[data-rider-theme='male'] .shareable-result-card__mast,
+html[data-rider-theme='male'] .shareable-result-card__footer { color: #fff0c2; background: #4d2c1c; }
+html[data-rider-theme='male'] .shareable-result-card__brand { color: #edc76f; }
+
+html[data-rider-theme='male'] .favorite-heart,
+html[data-rider-theme='male'] .top-favorite-star { color: #734229; background: linear-gradient(#fff0c7, #d8b477); }
+html[data-rider-theme='male'] .favorite-heart:hover,
+html[data-rider-theme='male'] .favorite-heart.is-favorite { color: #fff0d0; background: linear-gradient(#b5592d, #74311d); }
+html[data-rider-theme='male'] .passport-earned-medal { color: #7c4a1e; }
+html[data-rider-theme='male'] .cookie-notice { border-color: #e8c777; color: #452b1c; background: #f3dba9; box-shadow: 5px 5px 0 #3c2216; }
+
+html[data-rider-theme='male'] .profile-hero { border-color: #f2d58d; outline-color: #71331e; color: #fff0cb; background: linear-gradient(135deg, #3f2b22, #8d4728 67%, #c48a42); box-shadow: 8px 8px 0 rgba(35,20,13,.6); }
+html[data-rider-theme='male'] .profile-avatar { background: linear-gradient(#f5dda1, #c99543); box-shadow: 4px 4px 0 #382117; }
+html[data-rider-theme='male'] .admin-account-table { color: #432a1b; background: #f7e6c0; box-shadow: 6px 6px 0 rgba(42,23,15,.55); }
+html[data-rider-theme='male'] .admin-account-row--header { color: #fff0c8; background: #4d2d1f; }
+html[data-rider-theme='male'] .account-modal__kicker,
+html[data-rider-theme='male'] .account-modal label > span,
+html[data-rider-theme='male'] .profile-score-grid span { color: #863b21; }
+
+@media (max-width: 760px), (pointer: coarse) and (max-width: 950px) {
+  .rider-theme-toggle { min-height: 40px; padding: 3px; }
+  .rider-theme-toggle button { width: 30px; min-width: 30px; height: 30px; min-height: 30px; padding: 0; }
+  .rider-theme-toggle button span { display: none; }
+  .game-header-controls { grid-column: 3; grid-row: 1; gap: 4px; }
+  .game-header-controls .magnification-toggle { grid-column: auto; grid-row: auto; }
+  html[data-rider-theme='male'] body,
+  html[data-rider-theme='male'] .home-screen,
+  html[data-rider-theme='male'] .summary-screen,
+  html[data-rider-theme='male'] .guide-screen,
+  html[data-rider-theme='male'] .game-screen,
+  html[data-rider-theme='male'] .practice-picker-screen { background-attachment: scroll; }
+}
+
+@media (max-width: 480px) {
+  .home-nav .brand > span:last-child,
+  .summary-nav .brand > span:last-child { display: none; }
+  .home-nav .rider-theme-toggle button { width: 27px; min-width: 27px; }
+  .game-header-controls .rider-theme-toggle button { width: 26px; min-width: 26px; }
 }

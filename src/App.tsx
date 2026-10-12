@@ -268,6 +268,10 @@ function ResizableStage({ className = '', storageKey, defaultPercent, children }
 type MagnificationContextValue = { enabled: boolean; setEnabled: (enabled: boolean) => void }
 const MagnificationContext = createContext<MagnificationContextValue>({ enabled: true, setEnabled: () => {} })
 
+type RiderTheme = 'female' | 'male'
+type ThemeContextValue = { theme: RiderTheme; setTheme: (theme: RiderTheme) => void }
+const ThemeContext = createContext<ThemeContextValue>({ theme: 'female', setTheme: () => {} })
+
 type FavoritesContextValue = { favoriteIds: string[]; topFavoriteIds: string[]; toggleFavorite: (breedId: string) => void; toggleTopFavorite: (breedId: string) => void }
 const FavoritesContext = createContext<FavoritesContextValue>({ favoriteIds: [], topFavoriteIds: [], toggleFavorite: () => {}, toggleTopFavorite: () => {} })
 
@@ -425,6 +429,24 @@ function MagnificationToggle() {
     <button className={`magnification-toggle ${enabled ? 'is-on' : ''}`} onClick={toggle} aria-pressed={enabled} title="Turn the full-photo viewer on or off">
       <Maximize2 size={15} /><span>Full view</span><i aria-hidden="true" />
     </button>
+  )
+}
+
+function RiderThemeToggle() {
+  const { theme, setTheme } = useContext(ThemeContext)
+  const chooseTheme = (nextTheme: RiderTheme) => {
+    localStorage.setItem('horseguessr-rider-theme', nextTheme)
+    setTheme(nextTheme)
+  }
+  return (
+    <div className="rider-theme-toggle" role="group" aria-label="Choose site style">
+      <button type="button" className={theme === 'female' ? 'is-active' : ''} onClick={() => chooseTheme('female')} aria-pressed={theme === 'female'} title="Classic horse girl style">
+        <b aria-hidden="true">♀</b><span>Classic</span>
+      </button>
+      <button type="button" className={theme === 'male' ? 'is-active' : ''} onClick={() => chooseTheme('male')} aria-pressed={theme === 'male'} title="Western cowboy style">
+        <b aria-hidden="true">♂</b><span>Western</span>
+      </button>
+    </div>
   )
 }
 
@@ -776,6 +798,7 @@ function Home({ dailyKey, dailyLocked, resetIn, onStart, onPractice, onBreedQuiz
       <nav className="home-nav">
         <Brand inverse />
         <div className="home-nav-actions">
+          <RiderThemeToggle />
           <MagnificationToggle />
           <button className="text-button" onClick={onPassport}><Award size={17} /> Passport</button>
           <button className="text-button" onClick={onFavorites}><BookHeart size={17} /> Favorites</button>
@@ -867,7 +890,7 @@ function PracticePicker({ onChoose, onBack }: { onChoose: (region: PracticeRegio
   const regions = Object.entries(practiceRegions) as [PracticeRegionId, typeof practiceRegions[PracticeRegionId]][]
   return (
     <main className="practice-picker-screen">
-      <nav className="summary-nav"><Brand inverse /><button className="text-button" onClick={onBack}><ChevronLeft size={17} /> Back home</button></nav>
+      <nav className="summary-nav"><Brand inverse /><div className="summary-nav-actions"><RiderThemeToggle /><button className="text-button" onClick={onBack}><ChevronLeft size={17} /> Back home</button></div></nav>
       <section className="practice-picker-board">
         <span className="practice-picker-kicker">✦ CHOOSE YOUR TRAIL ✦</span>
         <h1>Where shall we ride?</h1>
@@ -898,7 +921,7 @@ function QuizHeader({ round, correct }: { round: number; correct: number }) {
         </div>
       </div>
       <div className="score-box"><span>Correct</span><strong>{correct}</strong><small>/ {MAX_ROUNDS}</small></div>
-      <MagnificationToggle />
+      <div className="game-header-controls"><RiderThemeToggle /><MagnificationToggle /></div>
     </header>
   )
 }
@@ -914,7 +937,7 @@ function GameHeader({ round, total, trail }: { round: number; total: number; tra
         </div>
       </div>
       <div className="score-box"><span>Score</span><strong>{formatNumber(total)}</strong><small>/ 40,000</small></div>
-      <MagnificationToggle />
+      <div className="game-header-controls"><RiderThemeToggle /><MagnificationToggle /></div>
     </header>
   )
 }
@@ -1366,7 +1389,7 @@ function Summary({ results, mode, practiceRegion, dayKey, onReplay, onHome }: { 
   const label = mode === 'daily' ? 'Today’s Ride' : `${practiceRegions[practiceRegion].label} Practice`
   return (
     <main className="summary-screen">
-      <nav className="summary-nav"><Brand inverse /><div className="summary-nav-actions"><MagnificationToggle /><button className="text-button" onClick={onHome}>Back home</button></div></nav>
+      <nav className="summary-nav"><Brand inverse /><div className="summary-nav-actions"><RiderThemeToggle /><MagnificationToggle /><button className="text-button" onClick={onHome}>Back home</button></div></nav>
       <section className="summary-card">
         <div className="summary-title"><span className="medallion"><Trophy size={30} /></span><p className="eyebrow"><span /> Ride complete</p><h1>{rank}</h1><p>You followed eight bloodlines through their accepted homelands.</p></div>
         <div className="summary-score"><span>Final score</span><strong>{formatNumber(total)}</strong><small>out of 40,000</small><div className="score-ring" style={{ '--score': `${percentage}%` } as React.CSSProperties}><span>{percentage}%</span></div></div>
@@ -1400,7 +1423,7 @@ function QuizSummary({ results, kind, onReplay, onHome }: { results: QuizResult[
   const rank = correct === MAX_ROUNDS ? 'Perfect pedigree' : correct >= 6 ? 'Breed connoisseur' : correct >= 4 ? 'Keen horse spotter' : 'Promising stablehand'
   return (
     <main className="summary-screen">
-      <nav className="summary-nav"><Brand inverse /><div className="summary-nav-actions"><MagnificationToggle /><button className="text-button" onClick={onHome}>Back home</button></div></nav>
+      <nav className="summary-nav"><Brand inverse /><div className="summary-nav-actions"><RiderThemeToggle /><MagnificationToggle /><button className="text-button" onClick={onHome}>Back home</button></div></nav>
       <section className="summary-card quiz-summary-card">
         <div className="summary-title"><span className="medallion">{kind === 'photo' ? <Images size={29} /> : <ListChecks size={29} />}</span><p className="eyebrow"><span /> {kind === 'photo' ? 'Photo match complete' : 'Breed quiz complete'}</p><h1>{rank}</h1><p>{kind === 'photo' ? 'You matched breed names to photographs' : 'You identified horses'} from a collection of {breeds.length} breeds.</p></div>
         <div className="summary-score"><span>Correct answers</span><strong>{correct} / {MAX_ROUNDS}</strong><small>Personal best: {best}</small><div className="score-ring" style={{ '--score': `${percentage}%` } as React.CSSProperties}><span>{percentage}%</span></div></div>
@@ -1582,6 +1605,7 @@ function CollectionNavigation({ current, onHome, onGuide, onFavorites, onPasspor
     <nav className="summary-nav collection-nav">
       <Brand inverse />
       <div className="summary-nav-actions">
+        <RiderThemeToggle />
         <MagnificationToggle />
         <button className={`text-button ${current === 'passport' ? 'is-current' : ''}`} onClick={onPassport} aria-current={current === 'passport' ? 'page' : undefined}><Award size={17} /> Passport</button>
         <button className={`text-button ${current === 'favorites' ? 'is-current' : ''}`} onClick={onFavorites} aria-current={current === 'favorites' ? 'page' : undefined}><BookHeart size={17} /> Favorites</button>
@@ -1751,7 +1775,7 @@ function PlayerProfilePage({ uid, onBack }: { uid: string; onBack: () => void })
   const identifiedBreeds = profile ? breeds.filter(breed => profile.passport.includes(breed.id)) : []
   return (
     <main className="guide-screen player-profile-screen">
-      <nav className="summary-nav"><Brand inverse /><div className="summary-nav-actions"><button className="text-button" onClick={onBack}><ChevronLeft size={17} /> Home</button></div></nav>
+      <nav className="summary-nav"><Brand inverse /><div className="summary-nav-actions"><RiderThemeToggle /><button className="text-button" onClick={onBack}><ChevronLeft size={17} /> Home</button></div></nav>
       {loading && <p className="profile-status">Loading rider stable…</p>}
       {!loading && error && <section className="profile-status profile-status--error"><h1>Lost on the trail</h1><p>{error}</p><button className="primary-button" onClick={onBack}>Return home</button></section>}
       {!loading && profile && (
@@ -1830,7 +1854,7 @@ function AccountAdminDashboard() {
   }
   return (
     <main className="guide-screen account-admin-screen">
-      <nav className="summary-nav"><Brand inverse /><span className="admin-private-label"><ShieldCheck size={16} /> PRIVATE STABLE OFFICE</span></nav>
+      <nav className="summary-nav"><Brand inverse /><div className="summary-nav-actions"><RiderThemeToggle /><span className="admin-private-label"><ShieldCheck size={16} /> PRIVATE STABLE OFFICE</span></div></nav>
       {!session ? (
         <section className="admin-login-card">
           <LockKeyhole size={42} /><p className="eyebrow"><span /> Unlisted administrator page</p><h1>Account stable office</h1><p>Enter the dedicated Stable Office password. Player passwords are managed by Firebase and can never be viewed here.</p>
@@ -1892,7 +1916,7 @@ function PhotoReportDashboard() {
 
   return (
     <main className="guide-screen report-dashboard">
-      <nav className="summary-nav"><Brand inverse /><button type="button" className="secondary-button" onClick={() => void loadReports()} disabled={loading}><RotateCcw size={16} /> Refresh reports</button></nav>
+      <nav className="summary-nav"><Brand inverse /><div className="summary-nav-actions"><RiderThemeToggle /><button type="button" className="secondary-button" onClick={() => void loadReports()} disabled={loading}><RotateCcw size={16} /> Refresh reports</button></div></nav>
       <section className="guide-heading report-dashboard__heading">
         <p className="eyebrow"><span /> Stable office</p>
         <h1>Photo quality reports</h1>
@@ -1938,6 +1962,7 @@ export default function App() {
   const [results, setResults] = useState<RoundResult[]>([])
   const [quizResults, setQuizResults] = useState<QuizResult[]>([])
   const [magnificationEnabled, setMagnificationEnabled] = useState(() => localStorage.getItem('horseguessr-photo-viewer') !== 'off')
+  const [riderTheme, setRiderTheme] = useState<RiderTheme>(() => localStorage.getItem('horseguessr-rider-theme') === 'male' ? 'male' : 'female')
   const [favoriteIds, setFavoriteIds] = useState(readFavoriteIds)
   const [topFavoriteIds, setTopFavoriteIds] = useState(readTopFavoriteIds)
   const [passportIds, setPassportIds] = useState(readPassportIds)
@@ -1950,6 +1975,10 @@ export default function App() {
   const reportDashboard = new URLSearchParams(window.location.search).get('stable-view') === 'photo-reports'
   const accountDashboard = new URLSearchParams(window.location.search).get('stable-view') === 'accounts'
   useEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'auto' }) }, [screen])
+  useEffect(() => {
+    document.documentElement.dataset.riderTheme = riderTheme
+    localStorage.setItem('horseguessr-rider-theme', riderTheme)
+  }, [riderTheme])
   const accountSnapshot = (overrides: Partial<AccountSnapshot> = {}): AccountSnapshot => ({
     favorites: favoriteIds,
     topFavorites: topFavoriteIds,
@@ -2096,17 +2125,19 @@ export default function App() {
   else if (screen === 'passport') page = <BreedPassport onHome={() => setScreen('home')} onGuide={() => setScreen('guide')} onFavorites={() => setScreen('favorites')} onPassport={() => setScreen('passport')} />
   else page = <Home dailyKey={centralClock.key} dailyLocked={dailyLocked} resetIn={centralClock.resetIn} onStart={() => start('daily')} onPractice={() => setScreen('practice-picker')} onBreedQuiz={() => { setQuizResults([]); setScreen('breed-quiz') }} onPhotoQuiz={() => { setQuizResults([]); setScreen('photo-quiz') }} onGuide={() => setScreen('guide')} onFavorites={() => setScreen('favorites')} onPassport={() => setScreen('passport')} />
   return (
-    <MagnificationContext.Provider value={{ enabled: magnificationEnabled, setEnabled: setMagnificationEnabled }}>
-      <AccountContext.Provider value={{ account, openAuth: setAuthMode, signOut, openProfile }}>
-        <FavoritesContext.Provider value={{ favoriteIds, topFavoriteIds, toggleFavorite, toggleTopFavorite }}>
-          <PassportContext.Provider value={{ passportIds, awardPassportMedal }}>
-            {page}
-            {!reportDashboard && !accountDashboard && <CookieNotice />}
-            {authMode && <AccountModal mode={authMode} snapshot={accountSnapshot()} onClose={() => setAuthMode(null)} onSuccess={applyAccount} />}
-            {accountNotice && <AccountStatusNotice message={accountNotice} onClose={() => setAccountNotice('')} />}
-          </PassportContext.Provider>
-        </FavoritesContext.Provider>
-      </AccountContext.Provider>
-    </MagnificationContext.Provider>
+    <ThemeContext.Provider value={{ theme: riderTheme, setTheme: setRiderTheme }}>
+      <MagnificationContext.Provider value={{ enabled: magnificationEnabled, setEnabled: setMagnificationEnabled }}>
+        <AccountContext.Provider value={{ account, openAuth: setAuthMode, signOut, openProfile }}>
+          <FavoritesContext.Provider value={{ favoriteIds, topFavoriteIds, toggleFavorite, toggleTopFavorite }}>
+            <PassportContext.Provider value={{ passportIds, awardPassportMedal }}>
+              {page}
+              {!reportDashboard && !accountDashboard && <CookieNotice />}
+              {authMode && <AccountModal mode={authMode} snapshot={accountSnapshot()} onClose={() => setAuthMode(null)} onSuccess={applyAccount} />}
+              {accountNotice && <AccountStatusNotice message={accountNotice} onClose={() => setAccountNotice('')} />}
+            </PassportContext.Provider>
+          </FavoritesContext.Provider>
+        </AccountContext.Provider>
+      </MagnificationContext.Provider>
+    </ThemeContext.Provider>
   )
 }
