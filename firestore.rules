@@ -12,6 +12,13 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/privateAccounts/$(uid)).data.get('banned', false) == true;
     }
 
+    function canDeleteOwnData(uid) {
+      return request.auth != null && request.auth.uid == uid
+        && request.auth.token.firebase.sign_in_provider == 'password'
+        && request.time.toMillis() - request.auth.token.auth_time * 1000 < 300000
+        && !isBanned(uid);
+    }
+
     function validPublicProfile(uid) {
       return request.auth != null
         && request.auth.uid == uid
@@ -79,13 +86,13 @@ service cloud.firestore {
         && request.resource.data.dayKey.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
         && request.resource.data.playedAt is timestamp;
       allow update: if false;
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() || canDeleteOwnData(resource.data.uid);
     }
 
-    // One immutable document per anonymous browser account and breed. These stay
-    // private until a future server-side top-horses aggregate is added.
+    // One document per browser account and breed; owners may remove it during
+    // reauthenticated account deletion. Other players cannot read these records.
     match /breedHearts/{heartId} {
-      allow read: if false;
+      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
       allow create: if request.auth != null
         && request.resource.data.keys().hasOnly(['breedId', 'uid', 'heartedAt'])
         && request.resource.data.uid == request.auth.uid
@@ -93,13 +100,14 @@ service cloud.firestore {
         && request.resource.data.breedId.matches('^[a-z0-9-]{2,80}$')
         && heartId == request.resource.data.breedId + '_' + request.auth.uid
         && request.resource.data.heartedAt is timestamp;
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if canDeleteOwnData(resource.data.uid);
     }
 
     // Quality reports contain only public photo metadata and the selected reason;
-    // no player identifier is stored. Reads still require Firebase authentication.
+    // no player identifier is stored. Only the administrator can read reports.
     match /photoReports/{reportId} {
-      allow read: if request.auth != null;
+      allow read: if isAdmin();
       allow create: if request.auth != null
         && request.resource.data.keys().hasOnly(['photoId', 'breedId', 'photoUrl', 'reason', 'reportedAt'])
         && reportId.matches('^[0-9a-f-]{36}$')
@@ -121,7 +129,7 @@ service cloud.firestore {
       allow create: if validPublicProfile(uid);
       allow update: if validPublicProfile(uid)
         && request.resource.data.createdAt == resource.data.createdAt;
-      allow delete: if false;
+      allow delete: if canDeleteOwnData(uid);
     }
 
     // Email is stored separately because Firestore reads are document-level:
@@ -130,17 +138,18 @@ service cloud.firestore {
       allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
       allow create: if validPrivateAccount(uid);
       allow update: if (validPrivateAccount(uid)
-          && request.resource.data.createdAt == resource.data.createdAt)
+          && !isBanned(uid)
+          && request.resource.data.createdAt == resource.data.createdAt
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['banned', 'moderatedAt']))
         || (isAdmin()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['banned', 'moderatedAt'])
           && request.resource.data.banned is bool
           && request.resource.data.moderatedAt is timestamp);
-      allow delete: if false;
+      allow delete: if canDeleteOwnData(uid);
     }
 
     // Lowercase document IDs reserve usernames atomically at the database
-    // layer. Reservations are immutable so another account cannot take over a
-    // shared profile URL or leaderboard identity later.
+    // layer. Reservations cannot be reassigned, but account deletion releases them.
     match /usernames/{username} {
       allow read: if request.auth != null;
       allow create: if request.auth != null
@@ -149,7 +158,8 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['uid', 'createdAt'])
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.createdAt is timestamp;
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if canDeleteOwnData(resource.data.uid);
     }
   }
 }

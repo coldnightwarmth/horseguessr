@@ -5,13 +5,14 @@ import L, { LatLngBoundsExpression } from 'leaflet'
 import type { GeoJsonObject } from 'geojson'
 import { ArrowRight, Award, Ban, BookHeart, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, Compass, Flag, Heart, Images, Lightbulb, ListChecks, LocateFixed, LockKeyhole, LogIn, LogOut, MapPin, Maximize2, RotateCcw, Search, Share2, ShieldCheck, Sparkles, Star, Trophy, UserRound, UserRoundPlus, X, XCircle } from 'lucide-react'
 import { AccountSnapshot, adminLogin, BANNED_ACCOUNT_MESSAGE, checkAccountBanned, fetchAdminAccounts, fetchPublicProfile, isBannedAccountError, loginAccount, logoutAccount, PlayerAccount, PublicProfile, registerAccount, restoreAccount, saveAccountProgress, setAdminAccountBanned, validateUsername } from './accounts'
+import { deleteRiderAccount, requestPasswordReset } from './accounts'
 import { Breed, breeds } from './data'
 import { AtlasPlace, lookupAtlasPlace, nearestBreedOrigins, NearbyBreed } from './atlas'
 import { expansionBreedIds } from './breedExpansion'
 import { fetchLeaderboard, fetchPhotoQualityReports, FirebaseSession, LeaderboardResult, PhotoQualityReport, PhotoReportReason, recordBreedFavorite, recordPhotoQualityReport, submitLeaderboardScore } from './firebase'
 import { normalizeGuideText, suggestBreedName } from './guideSearch'
 import { horseQuotes } from './horseQuotes'
-import { BreedPhoto, photosForBreed } from './media'
+import { BreedPhoto, defaultPhotoForBreed, photosForBreed } from './media'
 import { distanceToOriginZone, OriginZone, originZoneBounds, originZones } from './originRegions'
 import { breedsForPracticeRegion, pointsForOriginGuess, practiceRegions, PracticeRegionId } from './practiceRegions'
 import { cookieNames, readCookie, readFavoriteIds, readPassportIds, readPersonalBest, readTopFavoriteIds, sanitizeInitials, updatePersonalBest, writeCookie, writeFavoriteIds, writePassportIds, writeTopFavoriteIds } from './preferences'
@@ -23,6 +24,17 @@ type QuizResult = { breed: Breed; choice: Breed; correct: boolean; photo: BreedP
 type ReviewResult = RoundResult | QuizResult
 
 const MAX_ROUNDS = 8
+
+const DAILY_RIDE_KEY = 'horseguessr-daily-ride-v1'
+type DailyRide = { day: string; breedIds: string[]; round: number; guess: Point | null; results: RoundResult[]; hintOpen: boolean }
+function readDailyRide(day: string): DailyRide | null {
+  try {
+    const ride = JSON.parse(localStorage.getItem(DAILY_RIDE_KEY) || 'null') as DailyRide | null
+    if (!ride || ride.day !== day || !Array.isArray(ride.breedIds) || ride.breedIds.length !== MAX_ROUNDS || !ride.breedIds.every(id => breeds.some(breed => breed.id === id)) || !Number.isInteger(ride.round) || ride.round < 0 || ride.round >= MAX_ROUNDS || !Array.isArray(ride.results) || ride.results.length < ride.round || ride.results.length > ride.round + 1) return null
+    if (!ride.results.every((result, index) => result.breed?.id === ride.breedIds[index] && Number.isFinite(result.points) && result.guess && result.photo && result.nearest)) return null
+    return ride
+  } catch { return null }
+}
 
 // Keep the already-published September 19 daily puzzle (and featured horse)
 // unchanged for players on either side of the new Mexican breed deployment.
@@ -275,9 +287,10 @@ const FavoritesContext = createContext<FavoritesContextValue>({ favoriteIds: [],
 type PassportContextValue = { passportIds: string[]; awardPassportMedal: (breedId: string) => void }
 const PassportContext = createContext<PassportContextValue>({ passportIds: [], awardPassportMedal: () => {} })
 
+type AuthMode = 'login' | 'signup' | 'reset' | 'delete'
 type AccountContextValue = {
   account: PlayerAccount | null
-  openAuth: (mode: 'login' | 'signup') => void
+  openAuth: (mode: AuthMode) => void
   signOut: () => void
   openProfile: (uid: string) => void
 }
@@ -291,27 +304,42 @@ function AccountButtons() {
   return <div className="account-nav-buttons"><button className="text-button account-login-button" onClick={() => openAuth('login')}><LogIn size={17} /> Log in</button><button className="text-button account-signup-button" onClick={() => openAuth('signup')}><UserRoundPlus size={17} /> Sign up</button></div>
 }
 
-function AccountModal({ mode: initialMode, snapshot, onClose, onSuccess }: { mode: 'login' | 'signup'; snapshot: AccountSnapshot; onClose: () => void; onSuccess: (account: PlayerAccount) => void }) {
+function AccountModal({ mode: initialMode, snapshot, onClose, onSuccess, onDeleted }: { mode: AuthMode; snapshot: AccountSnapshot; onClose: () => void; onSuccess: (account: PlayerAccount) => void; onDeleted: () => void }) {
   const [mode, setMode] = useState(initialMode)
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [deleteConfirmation, setDeleteConfirmation] = useState('')
+  const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   useEffect(() => {
-    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape' && !saving) onClose() }
     window.addEventListener('keydown', close)
     return () => window.removeEventListener('keydown', close)
-  }, [onClose])
+  }, [onClose, saving])
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
     if (mode === 'signup') {
       const usernameError = validateUsername(username)
       if (usernameError) { setError(usernameError); return }
+      if (password !== confirmPassword) { setError('Passwords do not match. Please type the same password twice.'); return }
     }
+    if (mode === 'delete' && deleteConfirmation !== 'DELETE') { setError('Type DELETE to confirm permanent account deletion.'); return }
     setSaving(true)
     setError('')
     try {
+      if (mode === 'reset') {
+        await requestPasswordReset(email)
+        setNotice('If an account exists for that email, a password-reset link has been sent. Check your inbox and spam folder.')
+        return
+      }
+      if (mode === 'delete') {
+        await deleteRiderAccount(email, password)
+        onDeleted()
+        return
+      }
       const account = mode === 'signup'
         ? await registerAccount(username, email, password, snapshot)
         : await loginAccount(email, password, snapshot)
@@ -323,21 +351,25 @@ function AccountModal({ mode: initialMode, snapshot, onClose, onSuccess }: { mod
     }
   }
   return createPortal(
-    <div className="modal-backdrop account-modal-backdrop" role="presentation" onMouseDown={onClose}>
+    <div className="modal-backdrop account-modal-backdrop" role="presentation" onMouseDown={() => { if (!saving) onClose() }}>
       <section className="account-modal" role="dialog" aria-modal="true" aria-labelledby="account-modal-title" onMouseDown={event => event.stopPropagation()}>
-        <button className="account-modal__close" onClick={onClose} aria-label="Close account window"><X size={20} /></button>
+        <button className="account-modal__close" disabled={saving} onClick={onClose} aria-label="Close account window"><X size={20} /></button>
         <div className="account-modal__crest"><span>★</span><UserRound size={34} /><span>★</span></div>
         <p className="account-modal__kicker">HORSEGUESSR RIDER CLUB</p>
-        <h2 id="account-modal-title">{mode === 'signup' ? 'Create your rider account' : 'Welcome back, rider!'}</h2>
-        <p>{mode === 'signup' ? 'Your current favorites, medals, and best scores will come with you.' : 'Log in to bring your saved stable and records onto this browser.'}</p>
+        <h2 id="account-modal-title">{mode === 'reset' ? 'Reset your password' : mode === 'delete' ? 'Delete your rider account' : mode === 'signup' ? 'Create your rider account' : 'Welcome back, rider!'}</h2>
+        <p>{mode === 'reset' ? 'Enter your account email to receive a password-reset link.' : mode === 'delete' ? 'Permanently remove your login, public profile, favorites, stamps, heart records, and leaderboard scores. This cannot be undone. Anonymous photo reports are retained. Re-enter your email and password, then type DELETE.' : mode === 'signup' ? 'Your current favorites, stamps, and best scores will come with you.' : 'Log in to bring your saved stable and records onto this browser.'}</p>
         <form onSubmit={submit}>
           {mode === 'signup' && <label htmlFor="account-username"><span>Username</span><input id="account-username" value={username} onChange={event => setUsername(event.target.value.toLowerCase())} minLength={3} maxLength={20} autoComplete="username" placeholder="pony_pal" required /><small>3–20 lowercase letters, numbers, or underscores. Keep it horse-club friendly.</small></label>}
           <label htmlFor="account-email"><span>Email</span><input id="account-email" type="email" value={email} onChange={event => setEmail(event.target.value)} autoComplete="email" placeholder="rider@example.com" required /></label>
-          <label htmlFor="account-password"><span>Password</span><input id="account-password" type="password" value={password} onChange={event => setPassword(event.target.value)} minLength={8} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} placeholder="At least 8 characters" required /></label>
+          {mode !== 'reset' && <label htmlFor="account-password"><span>Password</span><input id="account-password" type="password" value={password} onChange={event => setPassword(event.target.value)} minLength={mode === 'signup' ? 8 : undefined} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} required /></label>}
+          {mode === 'signup' && <label htmlFor="account-confirm-password"><span>Confirm password</span><input id="account-confirm-password" type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} minLength={8} autoComplete="new-password" required /></label>}
+          {mode === 'delete' && <label htmlFor="account-delete-confirmation"><span>Type DELETE to confirm</span><input id="account-delete-confirmation" value={deleteConfirmation} onChange={event => setDeleteConfirmation(event.target.value)} autoComplete="off" required /></label>}
           {error && <p className="account-form-error" role="alert">{error}</p>}
-          <button className="primary-button" disabled={saving}>{saving ? 'Opening the stable…' : mode === 'signup' ? 'Create account' : 'Log in'} <ArrowRight size={18} /></button>
+          {notice && <p role="status">{notice}</p>}
+          <button className="primary-button" disabled={saving}>{saving ? 'Please wait…' : mode === 'delete' ? 'Permanently delete account' : mode === 'reset' ? 'Send reset link' : mode === 'signup' ? 'Create account' : 'Log in'} <ArrowRight size={18} /></button>
         </form>
-        <button className="account-mode-switch" onClick={() => { setMode(mode === 'signup' ? 'login' : 'signup'); setError('') }}>{mode === 'signup' ? 'Already a member? Log in' : 'New rider? Sign up'}</button>
+        <button className="account-mode-switch" disabled={saving} onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); setNotice(''); setPassword(''); setConfirmPassword('') }}>{mode === 'login' ? 'New rider? Sign up' : 'Back to log in'}</button>
+        {mode === 'login' && <><button className="account-mode-switch" disabled={saving} onClick={() => { setMode('reset'); setError(''); setNotice('') }}>Forgot password?</button><button className="account-mode-switch" disabled={saving} onClick={() => { setMode('delete'); setError(''); setPassword('') }}>Delete an account</button></>}
         <small className="account-privacy-note"><LockKeyhole size={13} /> Email stays private. Passwords are handled by Firebase Authentication and are never readable by HorseGuessr.</small>
       </section>
     </div>, document.body,
@@ -365,7 +397,7 @@ function AccountInvitation() {
   return (
     <section className="account-invitation">
       <span className="account-invitation__icon"><UserRoundPlus size={27} /></span>
-      <div><small>KEEP THIS RIDE</small><h2>Save your stable and scores</h2><p>Create an optional account to carry favorites, medals, and records between browsers.</p></div>
+      <div><small>KEEP THIS RIDE</small><h2>Save your stable and scores</h2><p>Create an optional account to carry favorites, stamps, and records between browsers.</p></div>
       <div><button className="primary-button" onClick={() => openAuth('signup')}>Sign up</button><button className="secondary-button" onClick={() => openAuth('login')}>Log in</button></div>
     </section>
   )
@@ -412,7 +444,7 @@ function BreedName({ breed, showTopFavorite = false }: { breed: Breed; showTopFa
 function PassportMedal({ breed }: { breed: Breed }) {
   const { passportIds } = useContext(PassportContext)
   if (!passportIds.includes(breed.id)) return null
-  return <span className="passport-earned-medal" title="Correctly identified · Passport medal earned" aria-label="Passport medal earned"><Award size={19} /></span>
+  return <span className="passport-earned-medal" title="Correctly identified · Passport stamp collected" aria-label="Passport stamp collected"><Award size={19} /></span>
 }
 
 function RiderThemeToggle() {
@@ -498,7 +530,7 @@ function PhotoViewer({ photos, startSrc, alt, breedId, onClose }: { photos: Bree
         <div className="photo-gallery-bar">
           <strong>{alt}</strong>
           <span>{photoIndex + 1} / {uniquePhotos.length}</span>
-          {current.source && <a href={current.source} target="_blank" rel="noreferrer">Photo source ↗</a>}
+          {current.source && <a href={current.source} target="_blank" rel="noreferrer">{current.credit || 'Photo source'} ↗</a>}
           {breedId && (
             <div className="photo-report-wrap">
               <button type="button" className="photo-report-button" onClick={() => { setReportOpen(value => !value); setReportStatus('') }} aria-expanded={reportOpen}><Flag size={12} /> Report photo</button>
@@ -523,7 +555,9 @@ function MagnifiableImage({ src, alt, breedId, loading = 'eager', fallbacks = []
   const [expanded, setExpanded] = useState(false)
   const [candidateIndex, setCandidateIndex] = useState(0)
   const [loaded, setLoaded] = useState(false)
-  const candidates = useMemo(() => [...new Set([src, ...photos.map(photo => photo.src), ...fallbacks, `${import.meta.env.BASE_URL}horses/akhal-teke.jpg`])], [src, fallbacks, photos])
+  const [exhausted, setExhausted] = useState(false)
+  const candidates = useMemo(() => [...new Set([src, ...photos.map(photo => photo.src), ...fallbacks])], [src, fallbacks, photos])
+  useEffect(() => { setCandidateIndex(0); setLoaded(false); setExhausted(false) }, [src, breedId])
   const activeSrc = candidates[Math.min(candidateIndex, candidates.length - 1)]
   const gallery = useMemo(() => {
     const supplied = photos.length ? photos : candidates.map(candidate => ({ src: candidate, source: '' }))
@@ -531,6 +565,7 @@ function MagnifiableImage({ src, alt, breedId, loading = 'eager', fallbacks = []
   }, [photos, candidates])
   const tryNextPhoto = () => {
     setLoaded(false)
+    if (candidateIndex >= candidates.length - 1) { setExhausted(true); return }
     setCandidateIndex(index => Math.min(index + 1, candidates.length - 1))
   }
   const openFullView = () => setExpanded(true)
@@ -539,9 +574,8 @@ function MagnifiableImage({ src, alt, breedId, loading = 'eager', fallbacks = []
       className={`magnifiable-image ${loaded ? 'is-loaded' : 'is-loading'} ${clickToExpand ? 'magnifiable-image--clickable' : ''}`}
       {...(clickToExpand ? { role: 'button', tabIndex: 0, 'aria-label': `Open full view of ${alt}`, onClick: () => { if (!expanded) openFullView() }, onKeyDown: (event: React.KeyboardEvent) => { if (!expanded && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openFullView() } } } : {})}
     >
-      {!loaded && <span className="photo-loading" aria-hidden="true"><i>♥</i><small>loading horse...</small></span>}
-      <img src={activeSrc} alt={alt} loading={loading} onLoad={() => setLoaded(true)} onError={tryNextPhoto} />
-      {showFullViewButton && <button type="button" className="magnify-hint" onClick={event => { event.preventDefault(); event.stopPropagation(); openFullView() }}><Maximize2 size={13} /> Full view</button>}
+      {exhausted ? <span className="photo-unavailable" role="status"><span>This breed’s photos could not load.</span><button type="button" onClick={event => { event.stopPropagation(); setCandidateIndex(0); setExhausted(false) }}>Retry photos</button></span> : <>{!loaded && <span className="photo-loading" aria-hidden="true"><i>♥</i><small>loading horse...</small></span>}<img src={activeSrc} alt={alt} loading={loading} onLoad={() => setLoaded(true)} onError={tryNextPhoto} /></>}
+      {showFullViewButton && !exhausted && <button type="button" className="magnify-hint" onClick={event => { event.preventDefault(); event.stopPropagation(); openFullView() }}><Maximize2 size={13} /> Full view</button>}
       {expanded && <PhotoViewer photos={gallery} startSrc={activeSrc} alt={alt} breedId={breedId} onClose={() => setExpanded(false)} />}
     </span>
   )
@@ -575,10 +609,10 @@ function SuccessSparkles({ show }: { show: boolean }) {
   )
 }
 
-function Brand({ inverse = false }: { inverse?: boolean }) {
+function Brand({ inverse = false, onHome }: { inverse?: boolean; onHome?: () => void }) {
   return (
-    <button className={`brand ${inverse ? 'brand--inverse' : ''}`} onClick={() => window.location.reload()} aria-label="HorseGuessr home">
-      <span className="brand-mark" aria-hidden="true"><img src={`${import.meta.env.BASE_URL}horse-head-logo.png`} alt="" /></span>
+    <button className={`brand ${inverse ? 'brand--inverse' : ''}`} onClick={onHome || (() => window.location.assign(import.meta.env.BASE_URL))} aria-label="HorseGuessr home">
+      <span className="brand-mark" aria-hidden="true"><img src={`${import.meta.env.BASE_URL}horse-head-logo.png`} alt="" /><b className="brand-question">?</b></span>
       <span>Horse<span>Guessr</span></span>
     </button>
   )
@@ -771,13 +805,13 @@ function CookieNotice() {
   const dismiss = () => { writeCookie(cookieNames.cookieNotice, 'ok'); setVisible(false) }
   return (
     <aside className="cookie-notice">
-      <span>🍪</span><p><b>Stable cookies!</b> HorseGuessr saves your initials, records, passport medals, and favorite breeds on this device. An optional account can sync them.</p>
+      <span>🍪</span><p><b>Stable cookies!</b> HorseGuessr saves your initials, records, passport stamps, and favorite breeds on this device. An optional account can sync them.</p>
       <button onClick={dismiss}>Okay!</button>
     </aside>
   )
 }
 
-function Home({ dailyKey, dailyLocked, resetIn, onStart, onPractice, onBreedQuiz, onPhotoQuiz, onGuide, onFavorites, onPassport }: { dailyKey: string; dailyLocked: boolean; resetIn: string; onStart: () => void; onPractice: () => void; onBreedQuiz: () => void; onPhotoQuiz: () => void; onGuide: () => void; onFavorites: () => void; onPassport: () => void }) {
+function Home({ dailyKey, dailyLocked, dailyResume, resetIn, onStart, onPractice, onBreedQuiz, onPhotoQuiz, onGuide, onFavorites, onPassport }: { dailyKey: string; dailyLocked: boolean; dailyResume: boolean; resetIn: string; onStart: () => void; onPractice: () => void; onBreedQuiz: () => void; onPhotoQuiz: () => void; onGuide: () => void; onFavorites: () => void; onPassport: () => void }) {
   const best = readPersonalBest()
   const [horseOpen, setHorseOpen] = useState(false)
   const dailyHorse = useMemo(() => seededShuffle(dailyBreedPool(dailyKey), `horse-of-day-${dailyKey}`)[0], [dailyKey])
@@ -815,7 +849,7 @@ function Home({ dailyKey, dailyLocked, resetIn, onStart, onPractice, onBreedQuiz
           <p className="ride-launch-label">✦ THE MAIN RIDES ✦</p>
           <div className="hero-actions">
             <button className="primary-button primary-button--large" onClick={onStart} disabled={dailyLocked}>
-              {dailyLocked ? 'Today’s ride completed' : 'Play today’s ride'} {dailyLocked ? <CheckCircle2 size={20} /> : <ArrowRight size={20} />}
+              {dailyLocked ? 'Today’s ride completed' : dailyResume ? 'Continue today’s ride' : 'Play today’s ride'} {dailyLocked ? <CheckCircle2 size={20} /> : <ArrowRight size={20} />}
             </button>
             <button className="secondary-button secondary-button--large" onClick={onPractice}>
               Practice mode <ArrowRight size={20} />
@@ -868,7 +902,7 @@ function Home({ dailyKey, dailyLocked, resetIn, onStart, onPractice, onBreedQuiz
       <footer className="home-footer">
         <div className="home-footer__intro"><span>✦ HORSE CLUB DIRECTORY ✦</span><h2>Keep exploring the stable</h2></div>
         <nav className="home-footer__links" aria-label="Explore HorseGuessr">
-          <button onClick={onPassport}><Award size={27} /><span><strong>Passport</strong><small>See the breeds you’ve identified and your medals.</small></span><ArrowRight size={20} /></button>
+          <button onClick={onPassport}><Award size={27} /><span><strong>Passport</strong><small>See the breeds you’ve identified and your stamps.</small></span><ArrowRight size={20} /></button>
           <button onClick={onFavorites}><BookHeart size={27} /><span><strong>Favorites</strong><small>Revisit the horses you’ve saved with a heart.</small></span><ArrowRight size={20} /></button>
           <button onClick={onGuide}><BookOpen size={27} /><span><strong>Field guide</strong><small>Browse every breed, photo, bio, and homeland.</small></span><ArrowRight size={20} /></button>
         </nav>
@@ -941,19 +975,25 @@ function PracticeMapFocus({ region }: { region: PracticeRegionId }) {
   useEffect(() => {
     const bounds = practiceRegions[region].mapBounds
     if (bounds) map.fitBounds(bounds, { padding: [25, 25], animate: false })
+    else map.setView([24, 6], 2, { animate: false })
   }, [map, region])
   return null
 }
 
-function Game({ mode, practiceRegion, onFinish, onExit }: { mode: 'daily' | 'practice'; practiceRegion: PracticeRegionId; onFinish: (results: RoundResult[]) => void; onExit: () => void }) {
+function Game({ mode, practiceRegion, dayKey, onFinish, onExit }: { mode: 'daily' | 'practice'; practiceRegion: PracticeRegionId; dayKey: string; onFinish: (results: RoundResult[]) => void; onExit: () => void }) {
   const activeRegion = mode === 'daily' ? 'world' : practiceRegion
-  const [gameSeed] = useState(() => mode === 'daily' ? dateKey() : `${Date.now()}-${Math.random()}`)
-  const roundBreeds = useMemo(() => seededShuffle(mode === 'daily' ? dailyBreedPool(gameSeed) : breedsForPracticeRegion(activeRegion, breeds), gameSeed).slice(0, MAX_ROUNDS), [activeRegion, gameSeed, mode])
-  const [round, setRound] = useState(0)
-  const [guess, setGuess] = useState<Point | null>(null)
-  const [result, setResult] = useState<RoundResult | null>(null)
-  const [results, setResults] = useState<RoundResult[]>([])
-  const [hintOpen, setHintOpen] = useState(false)
+  const [savedRide] = useState(() => mode === 'daily' ? readDailyRide(dayKey) : null)
+  const [gameSeed] = useState(() => mode === 'daily' ? dayKey : `${Date.now()}-${Math.random()}`)
+  const roundBreeds = useMemo(() => savedRide ? savedRide.breedIds.map(id => breeds.find(breed => breed.id === id)!) : seededShuffle(mode === 'daily' ? dailyBreedPool(gameSeed) : breedsForPracticeRegion(activeRegion, breeds), gameSeed).slice(0, MAX_ROUNDS), [activeRegion, gameSeed, mode, savedRide])
+  const [round, setRound] = useState(savedRide?.round ?? 0)
+  const [guess, setGuess] = useState<Point | null>(savedRide?.guess ?? null)
+  const [result, setResult] = useState<RoundResult | null>(savedRide?.results[savedRide.round] ?? null)
+  const [results, setResults] = useState<RoundResult[]>(savedRide?.results ?? [])
+  const [hintOpen, setHintOpen] = useState(savedRide?.hintOpen ?? false)
+  useEffect(() => {
+    if (mode !== 'daily') return
+    try { localStorage.setItem(DAILY_RIDE_KEY, JSON.stringify({ day: gameSeed, breedIds: roundBreeds.map(breed => breed.id), round, guess, results, hintOpen } satisfies DailyRide)) } catch { /* Play remains available if device storage is full. */ }
+  }, [mode, gameSeed, roundBreeds, round, guess, results, hintOpen])
   const breed = roundBreeds[round]
   const originZone = originZones[breed.id]
   const photoPool = photosForBreed(breed)
@@ -1038,7 +1078,7 @@ function Game({ mode, practiceRegion, onFinish, onExit }: { mode: 'daily' | 'pra
         </section>
 
         <section className="map-wrap" aria-label="World map">
-          <MapContainer center={[24, 6]} zoom={2} minZoom={2} maxZoom={7} maxBounds={[[-80, -190], [85, 190]]} zoomControl={true} attributionControl={true} worldCopyJump className="map">
+          <MapContainer key={round} center={[24, 6]} zoom={2} minZoom={2} maxZoom={7} maxBounds={[[-80, -190], [85, 190]]} zoomControl={true} attributionControl={true} worldCopyJump className="map">
             <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
             <MapResizeSync />
             {!result && <PracticeMapFocus region={activeRegion} />}
@@ -1166,7 +1206,7 @@ function BreedQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
         </section>
 
         <section className="map-wrap quiz-map-wrap" aria-label="Breed origin map">
-          <MapContainer center={[24, 6]} zoom={2} minZoom={2} maxZoom={7} maxBounds={[[-80, -190], [85, 190]]} zoomControl attributionControl worldCopyJump className="map">
+          <MapContainer key={round} center={[24, 6]} zoom={2} minZoom={2} maxZoom={7} maxBounds={[[-80, -190], [85, 190]]} zoomControl attributionControl worldCopyJump className="map">
             <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
             <MapResizeSync />
             {choice && (
@@ -1297,7 +1337,7 @@ function PhotoQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
 
         <section className={`photo-result-pane ${choice ? 'photo-result-pane--revealed' : ''}`} aria-label="Photo match result">
           <div className="map-wrap photo-map-wrap" aria-label="Breed origin map">
-            <MapContainer center={[24, 6]} zoom={2} minZoom={2} maxZoom={7} maxBounds={[[-80, -190], [85, 190]]} zoomControl attributionControl worldCopyJump className="map">
+            <MapContainer key={round} center={[24, 6]} zoom={2} minZoom={2} maxZoom={7} maxBounds={[[-80, -190], [85, 190]]} zoomControl attributionControl worldCopyJump className="map">
               <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
               <MapResizeSync />
               {choice && (
@@ -1554,7 +1594,7 @@ function BreedAtlas({ items }: { items: Breed[] }) {
         <aside className="atlas-panel" ref={panelRef} aria-live="polite">
           {selectedBreed && (
             <article className="atlas-breed-card">
-              <div className="atlas-breed-photo"><MagnifiableImage src={selectedBreed.image} photos={photosForBreed(selectedBreed)} fallbacks={photosForBreed(selectedBreed).map(photo => photo.src)} alt={selectedBreed.name} breedId={selectedBreed.id} /></div>
+              <div className="atlas-breed-photo"><MagnifiableImage src={defaultPhotoForBreed(selectedBreed).src} photos={photosForBreed(selectedBreed)} fallbacks={photosForBreed(selectedBreed).map(photo => photo.src)} alt={selectedBreed.name} breedId={selectedBreed.id} /></div>
               <div className="atlas-breed-copy">
                 <span className="atlas-card-label">BREED NO. {String(items.indexOf(selectedBreed) + 1).padStart(3, '0')} · {selectedBreed.flag} {selectedBreed.country}</span>
                 <h3><BreedName breed={selectedBreed} /><PassportMedal breed={selectedBreed} /></h3>
@@ -1656,14 +1696,14 @@ function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, showAtlas = f
   return (
     <main className="guide-screen">
       <CollectionNavigation {...navigation} />
-      <section className="guide-heading"><p className="eyebrow"><span /> {eyebrow}</p><h1>{title}</h1><p>{shownBreeds.length ? `Meet ${shownBreeds.length} breeds across ${photoCount} photographs—and follow their stories home.` : emptyCopy}</p></section>
+      <section className="guide-heading"><p className="eyebrow"><span /> {eyebrow}</p><h1>{title}</h1><p>{shownBreeds.length ? `Meet ${shownBreeds.length} breeds across ${photoCount} photographs and follow their stories home.` : emptyCopy}</p></section>
       {showAtlas && <BreedAtlas items={shownBreeds} />}
       {shownBreeds.length > 0 && (
         <section className="guide-tools" aria-label="Search and filter breeds">
           <label className="guide-search"><Search size={18} /><span>Search breeds</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Name, region, coat, or trait…" /></label>
           <label><span>Country</span><select value={country} onChange={event => setCountry(event.target.value)}><option value="">All countries</option>{countries.map(item => <option key={item.name} value={item.name}>{item.flag} {item.name}</option>)}</select></label>
           <label><span>Type</span><select value={tag} onChange={event => setTag(event.target.value)}><option value="">All breed types</option>{tags.map(item => <option key={item}>{item}</option>)}</select></label>
-          <label><span>Passport</span><select value={passportFilter} onChange={event => setPassportFilter(event.target.value)}><option value="all">All breeds</option><option value="earned">Medal earned</option><option value="unearned">Not identified yet</option></select></label>
+          <label><span>Passport</span><select value={passportFilter} onChange={event => setPassportFilter(event.target.value)}><option value="all">All breeds</option><option value="earned">Stamp collected</option><option value="unearned">Not identified yet</option></select></label>
           <div className="guide-filter-result"><strong>{filteredBreeds.length}</strong><span>breeds shown</span><button type="button" onClick={resetFilters}>Reset</button></div>
         </section>
       )}
@@ -1678,20 +1718,20 @@ function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, showAtlas = f
         {showTopFavorites && <div className="favorite-section-heading favorite-section-heading--top"><Star size={21} fill="currentColor" /><div><span>PINNED TO THE TOP</span><h2>Top favorites</h2><p>{topFilteredBreeds.length ? 'Your most-loved horses, collected first.' : 'Tap the star beside any favorite breed to pin it here.'}</p></div></div>}
         {topFilteredBreeds.map(breed => (
           <article className={`guide-card ${passportIds.includes(breed.id) ? 'guide-card--passport-earned' : ''}`} key={breed.id}>
-            <MagnifiableImage src={breed.image} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} breedId={breed.id} loading="lazy" showFullViewButton={false} clickToExpand />
+            <MagnifiableImage src={defaultPhotoForBreed(breed).src} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} breedId={breed.id} loading="lazy" showFullViewButton={false} clickToExpand />
             <div><span>{breed.country} · <button type="button" className="guide-photo-count" onClick={() => setGalleryBreed(breed)}>{photosForBreed(breed).length} photos <Images size={13} /></button></span><h2><BreedName breed={breed} showTopFavorite /><PassportMedal breed={breed} /></h2><BreedBio breed={breed} /><a href={breed.source} target="_blank" rel="noreferrer">Open breed profile <ArrowRight size={15} /></a></div>
           </article>
         ))}
         {showTopFavorites && filteredBreeds.length > 0 && <div className="favorite-section-heading"><Heart size={21} fill="currentColor" /><div><span>YOUR HEARTED HORSES</span><h2>{topFilteredBreeds.length ? 'More favorites' : 'All favorites'}</h2></div></div>}
         {otherFilteredBreeds.map(breed => (
           <article className={`guide-card ${passportIds.includes(breed.id) ? 'guide-card--passport-earned' : ''}`} key={breed.id}>
-            <MagnifiableImage src={breed.image} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} breedId={breed.id} loading="lazy" showFullViewButton={false} clickToExpand />
+            <MagnifiableImage src={defaultPhotoForBreed(breed).src} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} breedId={breed.id} loading="lazy" showFullViewButton={false} clickToExpand />
             <div><span>{breed.country} · <button type="button" className="guide-photo-count" onClick={() => setGalleryBreed(breed)}>{photosForBreed(breed).length} photos <Images size={13} /></button></span><h2><BreedName breed={breed} showTopFavorite={showTopFavorites} /><PassportMedal breed={breed} /></h2><BreedBio breed={breed} /><a href={breed.source} target="_blank" rel="noreferrer">Open breed profile <ArrowRight size={15} /></a></div>
           </article>
         ))}
         {shownBreeds.length > 0 && filteredBreeds.length === 0 && <p className="guide-empty">No breeds match this stable search. Try clearing one of the filters.</p>}
       </section>
-      {galleryBreed && <PhotoViewer photos={photosForBreed(galleryBreed)} startSrc={galleryBreed.image} alt={galleryBreed.name} breedId={galleryBreed.id} onClose={() => setGalleryBreed(null)} />}
+      {galleryBreed && <PhotoViewer photos={photosForBreed(galleryBreed)} startSrc={defaultPhotoForBreed(galleryBreed).src} alt={galleryBreed.name} breedId={galleryBreed.id} onClose={() => setGalleryBreed(null)} />}
     </main>
   )
 }
@@ -1715,9 +1755,9 @@ function BreedPassport(props: Omit<CollectionNavigationProps, 'current'>) {
       <CollectionNavigation {...props} current="passport" />
       <section className="guide-heading passport-heading">
         <p className="eyebrow"><span /> Your breed passport</p>
-        <h1>Stable sticker book</h1>
-        <p>Correctly identify a breed in either identification quiz to earn its glossy passport medal.</p>
-        <div className="passport-progress"><div><strong>{earned}</strong><span>of {breeds.length} breeds earned</span><b>{percentage}%</b></div><i><span style={{ width: `${percentage}%` }} /></i></div>
+        <h1>Stable stamp book</h1>
+        <p>Correctly identify a breed in either identification quiz to collect its passport stamp.</p>
+        <div className="passport-progress"><div><strong>{earned}</strong><span>of {breeds.length} breeds collected</span><b>{percentage}%</b></div><i><span style={{ width: `${percentage}%` }} /></i></div>
       </section>
       <section className="passport-grid">
         {breeds.map(breed => {
@@ -1726,7 +1766,7 @@ function BreedPassport(props: Omit<CollectionNavigationProps, 'current'>) {
             <article className={`passport-sticker ${isEarned ? 'passport-sticker--earned' : 'passport-sticker--locked'}`} key={breed.id}>
               <div className="passport-sticker__photo">
                 {isEarned
-                  ? <MagnifiableImage src={breed.image} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} breedId={breed.id} loading="lazy" />
+                  ? <MagnifiableImage src={defaultPhotoForBreed(breed).src} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} breedId={breed.id} loading="lazy" showFullViewButton={false} clickToExpand />
                   : <div className="passport-sticker__mystery"><img src={`${import.meta.env.BASE_URL}horse-head-logo.png`} alt="" /><span>?</span></div>}
               </div>
               <span className="passport-sticker__medal"><Award size={23} /></span>
@@ -1740,6 +1780,7 @@ function BreedPassport(props: Omit<CollectionNavigationProps, 'current'>) {
 }
 
 function PlayerProfilePage({ uid, onBack }: { uid: string; onBack: () => void }) {
+  const { account, openAuth } = useContext(AccountContext)
   const [profile, setProfile] = useState<PublicProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -1770,7 +1811,7 @@ function PlayerProfilePage({ uid, onBack }: { uid: string; onBack: () => void })
   const identifiedBreeds = profile ? breeds.filter(breed => profile.passport.includes(breed.id)) : []
   return (
     <main className="guide-screen player-profile-screen">
-      <nav className="summary-nav"><Brand inverse /><div className="summary-nav-actions"><RiderThemeToggle /><button className="text-button" onClick={onBack}><ChevronLeft size={17} /> Home</button></div></nav>
+      <nav className="summary-nav"><Brand inverse onHome={onBack} /><div className="summary-nav-actions"><RiderThemeToggle /><button className="text-button" onClick={onBack}><ChevronLeft size={17} /> Home</button></div></nav>
       {loading && <p className="profile-status">Loading rider stable…</p>}
       {!loading && error && <section className="profile-status profile-status--error"><h1>Lost on the trail</h1><p>{error}</p><button className="primary-button" onClick={onBack}>Return home</button></section>}
       {!loading && profile && (
@@ -1788,7 +1829,8 @@ function PlayerProfilePage({ uid, onBack }: { uid: string; onBack: () => void })
             <article><span>Last daily ride</span><strong>{profile.lastDailyDate ? formatNumber(profile.lastDailyScore || 0) : '—'}</strong><small>{profile.lastDailyDate || 'No daily saved yet'}</small></article>
           </section>
           <ProfileBreedShelf title="Favorite breeds" icon={<Heart size={23} fill="currentColor" />} items={favoriteBreeds} empty="No favorite breeds shared yet." />
-          <ProfileBreedShelf title="Correctly identified" icon={<Award size={23} />} items={identifiedBreeds} empty="No passport medals earned yet." />
+          <ProfileBreedShelf title="Correctly identified" icon={<Award size={23} />} items={identifiedBreeds} empty="No passport stamps collected yet." />
+          {account?.uid === uid && <section className="profile-breed-shelf"><h2>Account settings</h2><button className="secondary-button" onClick={() => openAuth('reset')}>Reset password</button> <button className="secondary-button" onClick={() => openAuth('delete')}>Delete my account</button></section>}
         </>
       )}
     </main>
@@ -1799,12 +1841,13 @@ function ProfileBreedShelf({ title, icon, items, empty }: { title: string; icon:
   return (
     <section className="profile-breed-shelf">
       <div className="profile-shelf-heading">{icon}<div><h2>{title}</h2><span>{items.length} {items.length === 1 ? 'breed' : 'breeds'}</span></div></div>
-      {items.length ? <div className="profile-breed-grid">{items.map(breed => <article key={breed.id}><img src={breed.image} alt={breed.name} loading="lazy" /><div><span>{breed.flag} {breed.country}</span><strong>{breed.name}</strong></div></article>)}</div> : <p className="profile-shelf-empty">{empty}</p>}
+      {items.length ? <div className="profile-breed-grid">{items.map(breed => <article key={breed.id}><img src={defaultPhotoForBreed(breed).src} alt={breed.name} loading="lazy" /><div><span>{breed.flag} {breed.country}</span><strong>{breed.name}</strong></div></article>)}</div> : <p className="profile-shelf-empty">{empty}</p>}
     </section>
   )
 }
 
-function AccountAdminDashboard() {
+function AccountAdminDashboard({ initialView = 'accounts' }: { initialView?: 'accounts' | 'reports' }) {
+  const [officeView, setOfficeView] = useState(initialView)
   const [password, setPassword] = useState('')
   const [session, setSession] = useState<FirebaseSession | null>(null)
   const [rows, setRows] = useState<Awaited<ReturnType<typeof fetchAdminAccounts>>>([])
@@ -1856,11 +1899,13 @@ function AccountAdminDashboard() {
           <form onSubmit={enter}><label htmlFor="admin-account-password"><span>Administrator password</span><input id="admin-account-password" type="password" value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" required /></label>{error && <p role="alert">{error}</p>}<button className="primary-button" disabled={loading}>{loading ? 'Unlocking…' : 'Open Stable Office'}</button></form>
         </section>
       ) : (
-        <section className="admin-account-list">
+        <section className="admin-account-list" data-office-view={officeView}>
           <div className="admin-account-heading"><div><p className="eyebrow"><span /> Private database</p><h1>Registered riders</h1><p>{rows.length} accounts. Emails are visible only in this authenticated office.</p></div><button className="secondary-button" onClick={() => { setSession(null); setRows([]); setNotice(''); setError('') }}><LogOut size={16} /> Lock office</button></div>
           {notice && <p className="admin-account-notice" role="status">{notice}</p>}
+          <div className="office-tabs"><button className="secondary-button" aria-pressed={officeView === 'accounts'} onClick={() => setOfficeView('accounts')}>Rider accounts</button><button className="secondary-button" aria-pressed={officeView === 'reports'} onClick={() => setOfficeView('reports')}>Photo reports</button></div>
+          {officeView === 'reports' && <PhotoReportDashboard session={session} />}
           {error && <p className="admin-account-notice admin-account-notice--error" role="alert">{error}</p>}
-          <div className="admin-account-table"><div className="admin-account-row admin-account-row--header"><span>Rider</span><span>Email</span><span>Joined</span><span>Collection</span><span>Status</span></div>{rows.map(row => <div className={`admin-account-row${row.banned ? ' admin-account-row--banned' : ''}`} key={row.uid}><span><b>{row.username}</b><small>{row.uid}</small></span><span>{row.email}</span><span>{row.createdAt ? new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(new Date(row.createdAt)) : '—'}</span><span>{row.profile?.favorites.length || 0} favorites · {row.profile?.passport.length || 0} medals</span><span className="admin-account-status"><b>{row.banned ? 'Banned' : 'Active'}</b><button type="button" className={row.banned ? 'admin-unban-button' : 'admin-ban-button'} disabled={Boolean(moderatingUid)} onClick={() => void toggleBan(row)}>{moderatingUid === row.uid ? 'Saving…' : row.banned ? <><RotateCcw size={14} /> Unban</> : <><Ban size={14} /> Ban</>}</button></span></div>)}</div>
+          <div className="admin-account-table"><div className="admin-account-row admin-account-row--header"><span>Rider</span><span>Email</span><span>Joined</span><span>Collection</span><span>Status</span></div>{rows.map(row => <div className={`admin-account-row${row.banned ? ' admin-account-row--banned' : ''}`} key={row.uid}><span><b>{row.username}</b><small>{row.uid}</small></span><span>{row.email}</span><span>{row.createdAt ? new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(new Date(row.createdAt)) : '—'}</span><span>{row.profile?.favorites.length || 0} favorites · {row.profile?.passport.length || 0} stamps</span><span className="admin-account-status"><b>{row.banned ? 'Banned' : 'Active'}</b><button type="button" className={row.banned ? 'admin-unban-button' : 'admin-ban-button'} disabled={Boolean(moderatingUid)} onClick={() => void toggleBan(row)}>{moderatingUid === row.uid ? 'Saving…' : row.banned ? <><RotateCcw size={14} /> Unban</> : <><Ban size={14} /> Ban</>}</button></span></div>)}</div>
           {!rows.length && <p className="admin-account-empty">No player accounts have registered yet.</p>}
         </section>
       )}
@@ -1875,7 +1920,7 @@ type PhotoReportGroup = {
   reports: PhotoQualityReport[]
 }
 
-function PhotoReportDashboard() {
+function PhotoReportDashboard({ session }: { session: FirebaseSession }) {
   const [reports, setReports] = useState<PhotoQualityReport[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -1884,7 +1929,7 @@ function PhotoReportDashboard() {
     setLoading(true)
     setError('')
     try {
-      setReports(await fetchPhotoQualityReports())
+      setReports(await fetchPhotoQualityReports(session))
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'The report list could not be loaded.')
     } finally {
@@ -1910,8 +1955,8 @@ function PhotoReportDashboard() {
   }
 
   return (
-    <main className="guide-screen report-dashboard">
-      <nav className="summary-nav"><Brand inverse /><div className="summary-nav-actions"><RiderThemeToggle /><button type="button" className="secondary-button" onClick={() => void loadReports()} disabled={loading}><RotateCcw size={16} /> Refresh reports</button></div></nav>
+    <section className="report-dashboard">
+      <button type="button" className="secondary-button" onClick={() => void loadReports()} disabled={loading}><RotateCcw size={16} /> Refresh reports</button>
       <section className="guide-heading report-dashboard__heading">
         <p className="eyebrow"><span /> Stable office</p>
         <h1>Photo quality reports</h1>
@@ -1944,7 +1989,7 @@ function PhotoReportDashboard() {
           })}
         </section>
       )}
-    </main>
+    </section>
   )
 }
 
@@ -1961,9 +2006,10 @@ export default function App() {
   const [topFavoriteIds, setTopFavoriteIds] = useState(readTopFavoriteIds)
   const [passportIds, setPassportIds] = useState(readPassportIds)
   const [account, setAccount] = useState<PlayerAccount | null>(null)
-  const [authMode, setAuthMode] = useState<'login' | 'signup' | null>(null)
+  const [authMode, setAuthMode] = useState<AuthMode | null>(null)
   const [accountNotice, setAccountNotice] = useState('')
   const [dailyAttemptKey, setDailyAttemptKey] = useState(() => readCookie(cookieNames.dailyAttempt))
+  const [activeDailyKey, setActiveDailyKey] = useState(dateKey)
   const centralClock = useCentralClock()
   const dailyLocked = dailyAttemptKey === centralClock.key
   const reportDashboard = new URLSearchParams(window.location.search).get('stable-view') === 'photo-reports'
@@ -2042,14 +2088,14 @@ export default function App() {
     }
   }, [accountUid])
   useEffect(() => {
-    if (!account) return
+    if (!account || authMode !== null) return
     const timer = window.setTimeout(() => {
       saveAccountProgress(account, accountSnapshot()).then(profile => setAccount(current => current?.uid === account.uid ? { ...current, profile } : current)).catch(handleAccountError)
     }, 900)
     return () => window.clearTimeout(timer)
     // Score cookies are synchronized explicitly when a challenge finishes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [account?.uid, favoriteIds, passportIds, topFavoriteIds])
+  }, [account?.uid, favoriteIds, passportIds, topFavoriteIds, authMode])
   const saveChallengeToAccount = (overrides: Partial<AccountSnapshot>) => {
     if (!account) return
     saveAccountProgress(account, accountSnapshot(overrides)).then(profile => setAccount(current => current?.uid === account.uid ? { ...current, profile } : current)).catch(handleAccountError)
@@ -2095,8 +2141,7 @@ export default function App() {
   const start = (nextMode: 'daily' | 'practice', region: PracticeRegionId = 'world') => {
     if (nextMode === 'daily') {
       if (dailyLocked) return
-      writeCookie(cookieNames.dailyAttempt, centralClock.key)
-      setDailyAttemptKey(centralClock.key)
+      setActiveDailyKey(centralClock.key)
     }
     setMode(nextMode)
     setPracticeRegion(region)
@@ -2105,10 +2150,10 @@ export default function App() {
   }
   let page
   if (accountDashboard) page = <AccountAdminDashboard />
-  else if (reportDashboard) page = <PhotoReportDashboard />
+  else if (reportDashboard) page = <AccountAdminDashboard initialView="reports" />
   else if (screen === 'profile') page = <PlayerProfilePage uid={profileUid} onBack={returnHome} />
   else if (screen === 'practice-picker') page = <PracticePicker onChoose={region => start('practice', region)} onBack={() => setScreen('home')} />
-  else if (screen === 'game') page = <Game mode={mode} practiceRegion={practiceRegion} onExit={() => setScreen('home')} onFinish={finalResults => { const total = finalResults.reduce((sum, result) => sum + result.points, 0); setResults(finalResults); saveChallengeToAccount({ personalBest: Math.max(readPersonalBest(), total), ...(mode === 'daily' ? { lastDailyScore: total, lastDailyDate: dailyAttemptKey } : {}) }); setScreen('summary') }} />
+  else if (screen === 'game') page = <Game mode={mode} practiceRegion={practiceRegion} dayKey={activeDailyKey} onExit={() => setScreen('home')} onFinish={finalResults => { const total = finalResults.reduce((sum, result) => sum + result.points, 0); if (mode === 'daily') { writeCookie(cookieNames.dailyAttempt, activeDailyKey); setDailyAttemptKey(activeDailyKey); localStorage.removeItem(DAILY_RIDE_KEY) } setResults(finalResults); saveChallengeToAccount({ personalBest: Math.max(readPersonalBest(), total), ...(mode === 'daily' ? { lastDailyScore: total, lastDailyDate: activeDailyKey } : {}) }); setScreen('summary') }} />
   else if (screen === 'summary') page = <Summary results={results} mode={mode} practiceRegion={practiceRegion} dayKey={mode === 'daily' ? dailyAttemptKey : centralClock.key} onReplay={() => mode === 'daily' ? setScreen('practice-picker') : start('practice', practiceRegion)} onHome={() => setScreen('home')} />
   else if (screen === 'breed-quiz') page = <BreedQuiz onExit={() => setScreen('home')} onFinish={finalResults => { const correct = finalResults.filter(result => result.correct); const passport = [...new Set([...passportIds, ...correct.map(result => result.breed.id)])]; setQuizResults(finalResults); saveChallengeToAccount({ nameBreedBest: Math.max(Number(localStorage.getItem('horseguessr-quiz-best') || 0), correct.length), passport }); setScreen('quiz-summary') }} />
   else if (screen === 'quiz-summary') page = <QuizSummary kind="name" results={quizResults} onReplay={() => { setQuizResults([]); setScreen('breed-quiz') }} onHome={() => setScreen('home')} />
@@ -2117,7 +2162,7 @@ export default function App() {
   else if (screen === 'guide') page = <FieldGuide onHome={() => setScreen('home')} onGuide={() => setScreen('guide')} onFavorites={() => setScreen('favorites')} onPassport={() => setScreen('passport')} />
   else if (screen === 'favorites') page = <FavoriteBreeds onHome={() => setScreen('home')} onGuide={() => setScreen('guide')} onFavorites={() => setScreen('favorites')} onPassport={() => setScreen('passport')} />
   else if (screen === 'passport') page = <BreedPassport onHome={() => setScreen('home')} onGuide={() => setScreen('guide')} onFavorites={() => setScreen('favorites')} onPassport={() => setScreen('passport')} />
-  else page = <Home dailyKey={centralClock.key} dailyLocked={dailyLocked} resetIn={centralClock.resetIn} onStart={() => start('daily')} onPractice={() => setScreen('practice-picker')} onBreedQuiz={() => { setQuizResults([]); setScreen('breed-quiz') }} onPhotoQuiz={() => { setQuizResults([]); setScreen('photo-quiz') }} onGuide={() => setScreen('guide')} onFavorites={() => setScreen('favorites')} onPassport={() => setScreen('passport')} />
+  else page = <Home dailyKey={centralClock.key} dailyLocked={dailyLocked} dailyResume={Boolean(readDailyRide(centralClock.key))} resetIn={centralClock.resetIn} onStart={() => start('daily')} onPractice={() => setScreen('practice-picker')} onBreedQuiz={() => { setQuizResults([]); setScreen('breed-quiz') }} onPhotoQuiz={() => { setQuizResults([]); setScreen('photo-quiz') }} onGuide={() => setScreen('guide')} onFavorites={() => setScreen('favorites')} onPassport={() => setScreen('passport')} />
   return (
     <ThemeContext.Provider value={{ theme: riderTheme, setTheme: setRiderTheme }}>
       <AccountContext.Provider value={{ account, openAuth: setAuthMode, signOut, openProfile }}>
@@ -2125,7 +2170,12 @@ export default function App() {
           <PassportContext.Provider value={{ passportIds, awardPassportMedal }}>
             {page}
             {!reportDashboard && !accountDashboard && <CookieNotice />}
-            {authMode && <AccountModal mode={authMode} snapshot={accountSnapshot()} onClose={() => setAuthMode(null)} onSuccess={applyAccount} />}
+            {authMode && <AccountModal mode={authMode} snapshot={accountSnapshot()} onClose={() => setAuthMode(null)} onSuccess={applyAccount} onDeleted={() => {
+              setAccount(null); setAuthMode(null); setFavoriteIds([]); setTopFavoriteIds([]); setPassportIds([])
+              Object.values(cookieNames).filter(name => name !== cookieNames.dailyAttempt && name !== cookieNames.cookieNotice).forEach(name => writeCookie(name, '', 0))
+              ;['horseguessr-quiz-best', 'horseguessr-photo-quiz-best', 'horseguessr-local-leaderboard'].forEach(key => localStorage.removeItem(key))
+              window.location.assign(import.meta.env.BASE_URL)
+            }} />}
             {accountNotice && <AccountStatusNotice message={accountNotice} onClose={() => setAccountNotice('')} />}
           </PassportContext.Provider>
         </FavoritesContext.Provider>

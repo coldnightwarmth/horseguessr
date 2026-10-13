@@ -297,9 +297,9 @@ export type PhotoQualityReport = {
   reportedAt: string
 }
 
-export async function fetchPhotoQualityReports(): Promise<PhotoQualityReport[]> {
+export async function fetchPhotoQualityReports(auth: FirebaseSession): Promise<PhotoQualityReport[]> {
   if (!firebaseConfigured) throw new Error('Firebase is not configured for this build.')
-  const auth = await anonymousToken()
+  if (auth.expiresAt <= Date.now()) throw new Error('Your office session expired. Lock the office and sign in again.')
   const response = await fetch(`https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId!)}/databases/(default)/documents:runQuery?key=${encodeURIComponent(apiKey!)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth.idToken}` },
@@ -310,7 +310,8 @@ export async function fetchPhotoQualityReports(): Promise<PhotoQualityReport[]> 
     } }),
   })
   if (!response.ok) throw new Error(`Photo report list returned ${response.status}`)
-  const rows = await response.json() as Array<{ document?: { name: string; fields?: Record<string, unknown> } }>
+  const rows = await response.json() as Array<{ document?: { name: string; fields?: Record<string, unknown> }; error?: unknown }>
+  if (rows.some(row => row.error)) throw new Error('Photo reports require an active administrator session. Lock the office and sign in again.')
   return rows.flatMap(row => {
     if (!row.document?.fields) return []
     const fields = row.document.fields

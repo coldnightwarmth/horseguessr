@@ -354,6 +354,75 @@ export function logoutAccount() {
   clearFirebaseSession()
 }
 
+export async function requestPasswordReset(emailValue: string) {
+  if (!firebaseConfigured) throw new Error('Account services are unavailable.')
+  const email = emailValue.trim().toLowerCase()
+  if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error('Enter a valid email address.')
+  const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${encodeURIComponent(apiKey!)}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requestType: 'PASSWORD_RESET', email }),
+  })
+  if (!response.ok) {
+    const body = await response.clone().json().catch(() => ({}))
+    if (body.error?.message === 'EMAIL_NOT_FOUND') return
+    await authError(response, 'The reset email could not be sent. Please try again later.')
+  }
+}
+
+// Reauthenticate independently so deleting an account never merges browser progress.
+// This route also works after a partially completed deletion, without a public profile.
+export async function deleteRiderAccount(emailValue: string, password: string) {
+  if (!firebaseConfigured) throw new Error('Account services are unavailable.')
+  const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(apiKey!)}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: emailValue.trim().toLowerCase(), password, returnSecureToken: true }),
+  })
+  if (!response.ok) await authError(response, 'Please check your email and password.')
+  const auth = await response.json() as { idToken: string; localId: string }
+  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${auth.idToken}` }
+  const base = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId!)}/databases/(default)/documents`
+  const privateResponse = await fetch(documentUrl('privateAccounts', auth.localId), { headers })
+  if (!privateResponse.ok && privateResponse.status !== 404) await authError(privateResponse, 'Could not check account status.')
+  const privateDocument = privateResponse.ok ? await privateResponse.json() as FirestoreDocument : null
+  if (booleanValue(privateDocument?.fields?.banned)) throw new Error('This account is banned. Please contact the site administrator to request account deletion.')
+
+  const remove = async (names: string[]) => {
+    if (!names.length) return
+    const result = await fetch(`${base}:commit?key=${encodeURIComponent(apiKey!)}`, {
+      method: 'POST', headers, body: JSON.stringify({ writes: names.map(name => ({ delete: name })) }),
+    })
+    if (!result.ok) await authError(result, 'Account deletion was interrupted. Please retry to finish removing your data.')
+  }
+  for (const collection of ['leaderboard', 'breedHearts', 'usernames']) {
+    while (true) {
+      const result = await fetch(`${base}:runQuery?key=${encodeURIComponent(apiKey!)}`, {
+        method: 'POST', headers, body: JSON.stringify({ structuredQuery: {
+          from: [{ collectionId: collection }],
+          where: { fieldFilter: { field: { fieldPath: 'uid' }, op: 'EQUAL', value: { stringValue: auth.localId } } }, limit: 100,
+        } }),
+      })
+      if (!result.ok) await authError(result, 'Could not locate account data for deletion.')
+      const rows = await result.json() as Array<{ document?: FirestoreDocument; error?: unknown }>
+      if (rows.some(row => row.error)) throw new Error('Could not locate account data for deletion. Please retry; your login has not been deleted.')
+      const names = rows.flatMap(row => row.document ? [row.document.name] : [])
+      if (!names.length) break
+      await remove(names)
+    }
+  }
+  const names: string[] = []
+  for (const collection of ['publicProfiles', 'privateAccounts']) {
+    const result = await fetch(documentUrl(collection, auth.localId), { headers })
+    if (result.ok) names.push((await result.json() as FirestoreDocument).name)
+    else if (result.status !== 404) await authError(result, 'Could not finish account deletion.')
+  }
+  await remove(names)
+  const deleted = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${encodeURIComponent(apiKey!)}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken: auth.idToken }),
+  })
+  if (!deleted.ok) await authError(deleted, 'Your saved data was removed. Retry account deletion to finish removing the login.')
+  clearFirebaseSession()
+}
+
 export async function adminLogin(password: string) {
   const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(apiKey!)}`, {
     method: 'POST',
@@ -362,13 +431,13 @@ export async function adminLogin(password: string) {
   })
   if (!response.ok) await authError(response, 'The stable-office password is not correct.')
   const result = await response.json() as { idToken: string; localId: string; refreshToken: string; expiresIn: string; email: string }
-  return saveFirebaseSession({
+  return {
     idToken: result.idToken,
     localId: result.localId,
     refreshToken: result.refreshToken,
     expiresAt: Date.now() + Math.max(60, Number(result.expiresIn) - 60) * 1000,
     email: result.email,
-  })
+  }
 }
 
 export async function fetchAdminAccounts(session: FirebaseSession): Promise<AdminAccountRow[]> {
@@ -382,7 +451,8 @@ export async function fetchAdminAccounts(session: FirebaseSession): Promise<Admi
     } }),
   })
   if (!response.ok) await authError(response, 'This account does not have stable-office access.')
-  const rows = await response.json() as Array<{ document?: FirestoreDocument }>
+  const rows = await response.json() as Array<{ document?: FirestoreDocument; error?: unknown }>
+  if (rows.some(row => row.error)) throw new Error('This account does not have stable-office access, or its session expired.')
   return Promise.all(rows.flatMap(row => {
     if (!row.document?.fields) return []
     const uid = row.document.name.split('/').pop() || ''

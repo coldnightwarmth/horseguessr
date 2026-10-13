@@ -2,9 +2,29 @@ import type { Breed } from './data'
 import { extraPhotos } from './extraMedia'
 import { expansionAlternatePhotos } from './breedExpansionMedia'
 
-export type BreedPhoto = { src: string; source: string }
+export type BreedPhoto = { src: string; source: string; credit?: string }
 
 const commons = (file: string) => `https://commons.wikimedia.org/wiki/File:${file}`
+
+// Reviewed landscape replacements. Originals remain available in each gallery.
+const landscapeAdditions: Record<string, BreedPhoto> = {
+  morgan: { src: '/horses/landscape/morgan.jpg', source: commons('BayMorgan.jpg'), credit: 'Selena N · CC BY 2.0' },
+  senner: { src: '/horses/landscape/senner.jpg', source: commons('Stukenbrock_-_2016-05-01_-_Senner_Pferde_Moosheide_(047).jpg'), credit: 'Tsungam · CC BY-SA 4.0' },
+}
+const preferredLandscapeFiles: Record<string, string> = {
+  andalusian: '/horses/andalusian-3.jpg',
+  appaloosa: '/horses/appaloosa-2.jpg',
+  'australian-stock': '/horses/australian-stock-2.jpg',
+  kathiawari: '/horses/kathiawari-3.jpg',
+  maremmano: '/horses/maremmano-2.jpg',
+  frederiksborg: '/horses/expansion/frederiksborg-2.jpg',
+}
+
+export function defaultPhotoForBreed(breed: Breed): BreedPhoto {
+  const pool = photosForBreed(breed)
+  const preferred = landscapeAdditions[breed.id]?.src || preferredLandscapeFiles[breed.id]
+  return pool.find(photo => preferred && photo.src === resolvePhotoPath(preferred)) || pool[0]
+}
 
 // These otherwise valid archive images are intentionally kept out of the game pool:
 // monochrome/sepia references and landscape shots where the horse is too small to study.
@@ -166,7 +186,7 @@ export function resolvePhotoPath(path: string) {
 }
 
 export function photosForBreed(breed: Breed): BreedPhoto[] {
-  return [{ src: breed.image, source: breed.imageSource }, ...(alternatePhotos[breed.id] ?? [])]
+  return [{ src: breed.image, source: breed.imageSource }, ...(alternatePhotos[breed.id] ?? []), ...(landscapeAdditions[breed.id] ? [landscapeAdditions[breed.id]] : [])]
     .map(photo => ({ ...photo, src: resolvePhotoPath(photo.src) }))
     .filter(isPlayablePhoto)
 }

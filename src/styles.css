@@ -33,6 +33,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(184, 72, 46, .35
 .brand--inverse { color: #fffdf5; }
 .brand-mark { width: 37px; height: 37px; display: grid; place-items: center; color: var(--cream); background: var(--terra); border-radius: 50% 50% 45% 45%; box-shadow: inset 0 0 0 1px rgba(255,255,255,.3); overflow: hidden; }
 .brand-mark img { width: 31px; height: 31px; display: block; object-fit: contain; }
+.brand-mark { position: relative; }
+.brand-question { position: absolute; left: 43%; top: 35%; color: #523023; font: 900 18px/1 Georgia, serif; pointer-events: none; }
 .home-nav-actions { display: flex; align-items: center; gap: 20px; }
 .text-button, .quiet-button { border: 0; background: transparent; color: inherit; cursor: pointer; display: flex; align-items: center; gap: 8px; }
 .text-button { color: rgba(255,255,255,.75); }
@@ -203,6 +205,12 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(184, 72, 46, .35
 .photo-quiz-copy { margin: 12px 0 13px; }
 .photo-choice-grid { position: relative; min-height: 0; flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 10px; }
 .quiz-advance { width: 100%; min-height: 48px; margin: 14px 0; flex-shrink: 0; touch-action: manipulation; }
+.photo-unavailable { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; color: var(--ink); background: var(--paper); text-align: center; }
+.photo-unavailable button { min-height: 44px; padding: 8px 14px; cursor: pointer; }
+.office-tabs { display: flex; flex-wrap: wrap; gap: 12px; margin: 18px 0; }
+.office-tabs [aria-pressed='true'] { outline: 3px solid var(--gold); }
+.admin-account-list[data-office-view='reports'] > .admin-account-table,
+.admin-account-list[data-office-view='reports'] > .admin-account-empty { display: none; }
 .photo-choice { position: relative; min-height: 190px; padding: 0; overflow: hidden; border: 3px solid transparent; border-radius: 5px; background: #d9d4c8; cursor: pointer; transition: transform .18s, border-color .18s, opacity .18s; }
 .photo-choice:not(:disabled):hover { border-color: var(--gold); }
 .photo-choice:disabled { cursor: default; }
