@@ -30,6 +30,15 @@ type ReviewResult = RoundResult | QuizResult
 const MAX_ROUNDS = 8
 
 const DAILY_RIDE_KEY = 'horseguessr-daily-ride-v1'
+const DAILY_RESULTS_KEY = 'horseguessr-daily-results-v1'
+function readCompletedDaily(day: string): RoundResult[] {
+  try {
+    const saved = JSON.parse(localStorage.getItem(DAILY_RESULTS_KEY) || 'null')
+    if (saved?.day !== day || !Array.isArray(saved.results) || saved.results.length !== MAX_ROUNDS) return []
+    if (!saved.results.every((r: RoundResult) => breeds.some(b => b.id === r.breed?.id) && Number.isFinite(r.points) && r.guess && r.nearest && r.photo)) return []
+    return saved.results.map((r: RoundResult) => ({ ...r, breed: breeds.find(b => b.id === r.breed.id)! }))
+  } catch { return [] }
+}
 type DailyRide = { day: string; breedIds: string[]; round: number; guess: Point | null; results: RoundResult[]; hintOpen?: boolean; hintCount?: number }
 function readDailyRide(day: string): DailyRide | null {
   try {
@@ -143,9 +152,10 @@ function RegionResultBounds({ guess, zone }: { guess: Point; zone: OriginZone })
 }
 
 function OriginZoneLayer({ zone }: { zone: OriginZone }) {
-  const pathOptions = { color: '#d83291', weight: 3, fillColor: '#f8a8d0', fillOpacity: 0.3, dashArray: '8 7' }
-  if (zone.kind === 'circle') return <Circle center={[zone.center.lat, zone.center.lng]} radius={zone.radiusKm * 1000} pathOptions={pathOptions} />
-  return <GeoJSON data={zone.geometry as GeoJsonObject} style={() => pathOptions} />
+  const { theme } = useContext(ThemeContext)
+  const pathOptions = { color: theme === 'male' ? '#97621e' : '#d83291', weight: 3, fillColor: theme === 'male' ? '#e9c277' : '#f8a8d0', fillOpacity: 0.3, dashArray: '8 7' }
+  if (zone.kind === 'circle') return <Circle interactive={false} center={[zone.center.lat, zone.center.lng]} radius={zone.radiusKm * 1000} pathOptions={pathOptions} />
+  return <GeoJSON interactive={false} data={zone.geometry as GeoJsonObject} style={() => pathOptions} />
 }
 
 function OriginZoneFocus({ zone }: { zone: OriginZone }) {
@@ -857,7 +867,7 @@ function Home({ dailyKey, dailyLocked, dailyResume, resetIn, onStart, onPractice
           <p className="hero-description">Study the horse. Read the clues in its coat, build, and history. Then pin the breed’s birthplace on the map.</p>
           <p className="ride-launch-label">✦ THE MAIN RIDES ✦</p>
           <div className="hero-actions">
-            <button className="primary-button primary-button--large" onClick={onStart} disabled={dailyLocked}>
+            <button className="primary-button primary-button--large" onClick={onStart}>
               {dailyLocked ? 'Today’s ride completed' : dailyResume ? 'Continue today’s ride' : 'Play today’s ride'} {dailyLocked ? <CheckCircle2 size={20} /> : <ArrowRight size={20} />}
             </button>
             <button className="secondary-button secondary-button--large" onClick={onPractice}>
@@ -1406,7 +1416,7 @@ function ShareableResultCard({ date, label, rank, score, maximum, rounds, placem
   }
   return (
     <section className="shareable-result-section" aria-label="Shareable results">
-      <div className="shareable-result-intro"><div><span>✦ YOUR SHAREABLE RIBBON ✦</span><h2>A little brag.</h2></div><p>Screenshot the card below to share your ride.</p></div>
+      <div className="shareable-result-intro"><div><span>✦ YOUR SHAREABLE RIBBON ✦</span><h2>A little brag.</h2></div></div>
       <div className="shareable-result-card">
         <div className="shareable-result-card__mast"><span className="shareable-result-card__brand">♞ HORSEGUESSR</span><span>★ HORSE CLUB RESULTS ★</span></div>
         <div className="shareable-result-card__headline"><span>{label} · {prettyDate}</span><h3>{rank}</h3><p>Eight horses. One excellent ride. ✦</p></div>
@@ -1415,7 +1425,7 @@ function ShareableResultCard({ date, label, rank, score, maximum, rounds, placem
           {rounds.map((round, index) => <div key={index} className="shareable-result-card__round"><span>{String(index + 1).padStart(2, '0')}</span><i style={{ '--round-fill': `${Math.round(round.fraction * 100)}%` } as React.CSSProperties} /><b>{round.value}</b></div>)}
         </div>
         {(placement || newBest) && <div className="shareable-result-card__ribbons">{newBest && <span>✧ NEW PERSONAL BEST ✧</span>}{placement && <span>🏆 NEW #{placement.rank} {placement.backend === 'firebase' ? 'WORLDWIDE' : 'DEVICE'} RANK · {placement.initials}</span>}</div>}
-        <div className="shareable-result-card__footer"><span>RIDE RESULTS · READY TO SHARE</span><span>horseguessr ★</span></div>
+        <div className="shareable-result-card__footer"><span>RIDE RESULTS</span><span>horseguessr ★</span></div>
       </div>
       <div className="shareable-result-controls"><span>Tip: screenshot this card to share your ribbon as an image.</span><button className="secondary-button share-result-button" onClick={() => void shareResult()}><Share2 size={18} /> Copy / share text</button></div>
       {shareStatus && <p className="share-status" role="status">{shareStatus}</p>}
@@ -1507,7 +1517,10 @@ function AtlasMapFocus({ place, nearby, selectedBreed }: { place: AtlasPlace | n
     map.fitBounds(points, { padding: [55, 55], maxZoom: 5, animate: true })
   }, [map, nearby, place])
   useEffect(() => {
-    if (selectedBreed) map.flyTo([selectedBreed.lat, selectedBreed.lng], Math.max(map.getZoom(), 4), { animate: true })
+    if (selectedBreed) {
+      const bounds = originZoneBounds(originZones[selectedBreed.id])
+      map.fitBounds(bounds.map(p => [p.lat, p.lng]) as LatLngBoundsExpression, { padding: [35, 35], maxZoom: 8, animate: true })
+    }
   }, [map, selectedBreed])
   return null
 }
@@ -1584,6 +1597,7 @@ function BreedAtlas({ items }: { items: Breed[] }) {
             <MapResizeSync />
             <AtlasPickPlace onPick={choosePlace} />
             <AtlasMapFocus place={place} nearby={nearby} selectedBreed={selectedBreed} />
+            {selectedBreed && <OriginZoneLayer key={selectedBreed.id} zone={originZones[selectedBreed.id]} />}
             {items.map((breed, index) => (
               <CircleMarker
                 key={breed.id}
@@ -1598,7 +1612,7 @@ function BreedAtlas({ items }: { items: Breed[] }) {
             ))}
             {place && <Marker position={[place.lat, place.lng]} icon={guessIcon}><Tooltip direction="top" permanent={false}>{place.label}</Tooltip></Marker>}
           </MapContainer>
-          <div className="atlas-map-note"><MapPin size={14} /> Tap a pin for a breed card · tap empty map to search from that spot</div>
+          <div className="atlas-map-note"><MapPin size={14} /> {selectedBreed ? `${originZones[selectedBreed.id].label} · shaded area earns full credit in quizzes` : 'Tap a pin for a breed card and its quiz region · tap empty map to search from that spot'}</div>
         </div>
         <aside className="atlas-panel" ref={panelRef} aria-live="polite">
           {selectedBreed && (
@@ -1716,13 +1730,13 @@ function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, showAtlas = f
   return (
     <main className="guide-screen">
       <CollectionNavigation {...navigation} />
-      <section className="guide-heading"><p className="eyebrow"><span /> {eyebrow}</p><h1>{title}</h1><p>{shownBreeds.length ? `Meet ${shownBreeds.length} breeds across ${photoCount} photographs and follow their stories home.` : emptyCopy}</p></section>
+      <section className="guide-heading"><p className="eyebrow"><span /> {eyebrow}</p><h1>{title}</h1><p>{shownBreeds.length ? `Meet ${shownBreeds.length} breeds across ${photoCount} photographs, and follow their stories home.` : emptyCopy}</p></section>
       {showAtlas && <BreedAtlas items={shownBreeds} />}
       {shownBreeds.length > 0 && (
         <section className="guide-tools" aria-label="Search and filter breeds">
           <label className="guide-search"><Search size={18} /><span>Search breeds</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Name, region, coat, or trait…" /></label>
           <label><span>Country</span><select value={country} onChange={event => setCountry(event.target.value)}><option value="">All countries</option>{countries.map(item => <option key={item.name} value={item.name}>{item.flag} {item.name}</option>)}</select></label>
-          <label><span>Recorded height</span><select value={heightFilter} onChange={event => setHeightFilter(event.target.value)}><option value="">Any height</option><option value="small">Under 120 cm</option><option value="medium">120–147 cm</option><option value="large">148–164 cm</option><option value="tall">165 cm and over</option><option value="unknown">Not recorded</option></select></label>
+          <label><span>Height</span><select value={heightFilter} onChange={event => setHeightFilter(event.target.value)}><option value="">Any height</option><option value="small">Under 120 cm</option><option value="medium">120–147 cm</option><option value="large">148–164 cm</option><option value="tall">165 cm and over</option><option value="unknown">Not recorded</option></select></label>
           <label><span>Passport</span><select value={passportFilter} onChange={event => setPassportFilter(event.target.value)}><option value="all">All breeds</option><option value="earned">Stamp collected</option><option value="unearned">Not identified yet</option></select></label>
           <div className="guide-filter-result"><strong>{filteredBreeds.length}</strong><span>breeds shown</span><button type="button" onClick={resetFilters}>Reset</button></div>
           <details className="guide-trait-filters"><summary>Filter by traits, use & environment {Object.values(traitFilters).filter(Boolean).length > 0 && `(${Object.values(traitFilters).filter(Boolean).length} active)`}</summary>
@@ -1741,7 +1755,7 @@ function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, showAtlas = f
       <section className="guide-grid">
         {crownedBreed && <>
           <div className="favorite-section-heading favorite-section-heading--crown"><Crown size={24} /><div><span>THE ONE ABOVE ALL</span><h2>Favorite of all</h2></div></div>
-          <article className="guide-card guide-card--crowned">
+          <article className="guide-card guide-card--crowned favorite-of-all-card">
             <MagnifiableImage src={defaultPhotoForBreed(crownedBreed).src} photos={photosForBreed(crownedBreed)} fallbacks={photosForBreed(crownedBreed).map(photo => photo.src)} alt={crownedBreed.name} breedId={crownedBreed.id} showFullViewButton={false} clickToExpand />
             <div><h2><BreedName breed={crownedBreed} showTopFavorite /><PassportMedal breed={crownedBreed} /></h2><BreedBio breed={crownedBreed} /></div>
           </article>
@@ -1779,6 +1793,12 @@ function FavoriteBreeds(props: Omit<CollectionNavigationProps, 'current'>) {
 
 function BreedPassport(props: Omit<CollectionNavigationProps, 'current'>) {
   const { passportIds, stampOrder, arrangeStamps } = useContext(PassportContext)
+  const [activeStamp, setActiveStamp] = useState<string | null>(null)
+  const hold = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const holdStart = useRef({ x: 0, y: 0 })
+  const held = useRef(false)
+  const cancelHold = () => { if (hold.current) clearTimeout(hold.current); hold.current = null }
+  useEffect(() => () => { if (hold.current) clearTimeout(hold.current) }, [])
   const sorted = orderedStamps(breeds, passportIds, stampOrder)
   const collectedOrder = sorted.filter(breed => passportIds.includes(breed.id)).map(breed => breed.id)
   const earned = breeds.filter(breed => passportIds.includes(breed.id)).length
@@ -1789,16 +1809,23 @@ function BreedPassport(props: Omit<CollectionNavigationProps, 'current'>) {
       <section className="guide-heading passport-heading">
         <p className="eyebrow"><span /> Your breed passport</p>
         <h1>Stable stamp book</h1>
-        <p>Correctly identify a breed in either identification quiz to collect its passport stamp. A full 5,000-point answer without hints in Daily Ride or Practice also collects a stamp.</p>
-        <p className="stamp-instructions">Collected stamps come first, alphabetically by default. Hover over a stamp (or focus it with your keyboard) to show its arrows: ↑ moves it to the front, ← and → swap it with its neighbor. On touchscreens the arrows are always visible.</p>
-        {stampOrder.length > 0 && <button className="secondary-button" onClick={() => arrangeStamps([])}>Restore alphabetical order</button>}
+        <p>Correctly identify a breed in either identification quiz to collect its passport stamp. A full 5,000-point answer without hints in Daily Ride or Practice also collects a stamp. Collected stamps come first, alphabetically by default. Hover over a stamp or focus it with your keyboard to show its arrows; on touchscreens, press and hold a collected stamp. ↑ moves it to the front, while ← and → swap it with its neighbor. Hold another stamp to arrange that one instead.</p>
         <div className="passport-progress"><div><strong>{earned}</strong><span>of {breeds.length} breeds collected</span><b>{percentage}%</b></div><i><span style={{ width: `${percentage}%` }} /></i></div>
       </section>
       <section className="passport-grid">
         {sorted.map(breed => {
           const isEarned = passportIds.includes(breed.id)
           return (
-            <article className={`passport-sticker ${isEarned ? 'passport-sticker--earned' : 'passport-sticker--locked'}`} key={breed.id}>
+            <article className={`passport-sticker ${isEarned ? 'passport-sticker--earned' : 'passport-sticker--locked'} ${activeStamp === breed.id ? 'is-arranging' : ''}`} key={breed.id}
+              onPointerDown={event => {
+                if (event.pointerType === 'mouse' || !isEarned || (event.target as HTMLElement).closest('.stamp-order-controls')) return
+                cancelHold(); held.current = false; holdStart.current = { x: event.clientX, y: event.clientY }
+                hold.current = setTimeout(() => { setActiveStamp(breed.id); held.current = true; hold.current = null }, 500)
+              }}
+              onPointerMove={event => { if (Math.hypot(event.clientX - holdStart.current.x, event.clientY - holdStart.current.y) > 10) cancelHold() }}
+              onPointerUp={cancelHold} onPointerCancel={cancelHold}
+              onContextMenu={event => { if (isEarned && window.matchMedia('(pointer: coarse)').matches) event.preventDefault() }}
+              onClickCapture={event => { if (held.current && !(event.target as HTMLElement).closest('.stamp-order-controls')) { event.preventDefault(); event.stopPropagation(); held.current = false } }}>
               {isEarned && <div className="stamp-order-controls" aria-label={`Arrange ${breed.name}`}>
                 <button aria-label={`Move ${breed.name} left`} disabled={collectedOrder[0] === breed.id} onClick={() => arrangeStamps(moveStamp(collectedOrder, breed.id, 'left'))}><ArrowLeft size={16} /></button>
                 <button aria-label={`Move ${breed.name} to first`} disabled={collectedOrder[0] === breed.id} onClick={() => arrangeStamps(moveStamp(collectedOrder, breed.id, 'first'))}><ArrowUp size={16} /></button>
@@ -1868,7 +1895,7 @@ function PlayerProfilePage({ uid, onBack }: { uid: string; onBack: () => void })
             <article><span>Pick the Photo</span><strong>{profile.photoQuizBest || '—'}</strong><small>out of 8</small></article>
             <article><span>Last daily ride</span><strong>{profile.lastDailyDate ? formatNumber(profile.lastDailyScore || 0) : '—'}</strong><small>{profile.lastDailyDate || 'No daily saved yet'}</small></article>
           </section>
-          {profile.favoriteOfAll && favoriteBreeds.some(breed => breed.id === profile.favoriteOfAll) && <ProfileBreedShelf title="Favorite of all" icon={<Crown size={23} />} items={favoriteBreeds.filter(breed => breed.id === profile.favoriteOfAll)} empty="" />}
+          {profile.favoriteOfAll && favoriteBreeds.filter(breed => breed.id === profile.favoriteOfAll).map(breed => <section className="profile-breed-shelf" key={breed.id}><div className="profile-shelf-heading"><Crown size={23} /><h2>Favorite of all</h2></div><article className="favorite-of-all-card"><MagnifiableImage src={defaultPhotoForBreed(breed).src} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} breedId={breed.id} showFullViewButton={false} clickToExpand /><div><h2>{breed.name}</h2><BreedBio breed={breed} /></div></article></section>)}
           <ProfileBreedShelf title="Favorite breeds" icon={<Heart size={23} fill="currentColor" />} items={favoriteBreeds.filter(breed => breed.id !== profile.favoriteOfAll)} empty="No other favorite breeds shared yet." />
           <ProfileBreedShelf title="Correctly identified" icon={<Award size={23} />} items={identifiedBreeds} empty="No passport stamps collected yet." />
           {account?.uid === uid && <section className="profile-breed-shelf"><h2>Account settings</h2><button className="secondary-button" onClick={() => openAuth('reset')}>Reset password</button> <button className="secondary-button" onClick={() => openAuth('delete')}>Delete my account</button></section>}
@@ -2197,7 +2224,12 @@ export default function App() {
   const arrangeStamps = (ids: string[]) => { setStampOrder(ids); writeStampOrder(ids) }
   const start = (nextMode: 'daily' | 'practice', region: PracticeRegionId = 'world') => {
     if (nextMode === 'daily') {
-      if (dailyLocked) return
+      if (dailyLocked) {
+        const saved = readCompletedDaily(centralClock.key)
+        setResults(saved.length ? saved : mode === 'daily' && activeDailyKey === centralClock.key ? results : [])
+        setMode('daily'); setActiveDailyKey(centralClock.key); setScreen('summary')
+        return
+      }
       setActiveDailyKey(centralClock.key)
     }
     setMode(nextMode)
@@ -2210,7 +2242,8 @@ export default function App() {
   else if (reportDashboard) page = <AccountAdminDashboard initialView="reports" />
   else if (screen === 'profile') page = <PlayerProfilePage uid={profileUid} onBack={returnHome} />
   else if (screen === 'practice-picker') page = <PracticePicker onChoose={region => start('practice', region)} onBack={() => setScreen('home')} />
-  else if (screen === 'game') page = <Game mode={mode} practiceRegion={practiceRegion} dayKey={activeDailyKey} onExit={() => setScreen('home')} onFinish={finalResults => { const total = finalResults.reduce((sum, result) => sum + result.points, 0); if (mode === 'daily') { writeCookie(cookieNames.dailyAttempt, activeDailyKey); setDailyAttemptKey(activeDailyKey); localStorage.removeItem(DAILY_RIDE_KEY) } setResults(finalResults); saveChallengeToAccount({ personalBest: Math.max(readPersonalBest(), total), ...(mode === 'daily' ? { lastDailyScore: total, lastDailyDate: activeDailyKey } : {}) }); setScreen('summary') }} />
+  else if (screen === 'game') page = <Game mode={mode} practiceRegion={practiceRegion} dayKey={activeDailyKey} onExit={() => setScreen('home')} onFinish={finalResults => { const total = finalResults.reduce((sum, result) => sum + result.points, 0); if (mode === 'daily') { writeCookie(cookieNames.dailyAttempt, activeDailyKey); setDailyAttemptKey(activeDailyKey); try { localStorage.setItem(DAILY_RESULTS_KEY, JSON.stringify({ day: activeDailyKey, results: finalResults })); localStorage.removeItem(DAILY_RIDE_KEY) } catch { /* The current result remains available in this session. */ } } setResults(finalResults); saveChallengeToAccount({ personalBest: Math.max(readPersonalBest(), total), ...(mode === 'daily' ? { lastDailyScore: total, lastDailyDate: activeDailyKey } : {}) }); setScreen('summary') }} />
+  else if (screen === 'summary' && mode === 'daily' && !results.length) page = <main className="summary-screen"><Brand onHome={returnHome} /><section className="summary-title"><h1>Today’s ride completed</h1><p>{centralClock.key}</p>{account?.profile.lastDailyDate === centralClock.key && <h2>{account.profile.lastDailyScore?.toLocaleString()} / 40,000</h2>}<p>The round-by-round results for this earlier ride were not saved on this browser. Newly completed rides now keep their full results here.</p><button className="primary-button" onClick={returnHome}>Back home</button></section></main>
   else if (screen === 'summary') page = <Summary results={results} mode={mode} practiceRegion={practiceRegion} dayKey={mode === 'daily' ? dailyAttemptKey : centralClock.key} onReplay={() => mode === 'daily' ? setScreen('practice-picker') : start('practice', practiceRegion)} onHome={() => setScreen('home')} />
   else if (screen === 'breed-quiz') page = <BreedQuiz onExit={() => setScreen('home')} onFinish={finalResults => { const correct = finalResults.filter(result => result.correct); const passport = [...new Set([...passportIds, ...correct.map(result => result.breed.id)])]; setQuizResults(finalResults); saveChallengeToAccount({ nameBreedBest: Math.max(Number(localStorage.getItem('horseguessr-quiz-best') || 0), correct.length), passport }); setScreen('quiz-summary') }} />
   else if (screen === 'quiz-summary') page = <QuizSummary kind="name" results={quizResults} onReplay={() => { setQuizResults([]); setScreen('breed-quiz') }} onHome={() => setScreen('home')} />
@@ -2229,6 +2262,7 @@ export default function App() {
             {!reportDashboard && !accountDashboard && <CookieNotice />}
             {authMode && <AccountModal mode={authMode} snapshot={accountSnapshot()} onClose={() => setAuthMode(null)} onSuccess={applyAccount} onDeleted={() => {
               setAccount(null); setAuthMode(null); setFavoriteIds([]); setTopFavoriteIds([]); setPassportIds([]); setFavoriteOfAll(''); setStampOrder([])
+              localStorage.removeItem(DAILY_RESULTS_KEY)
               Object.values(cookieNames).filter(name => name !== cookieNames.dailyAttempt && name !== cookieNames.cookieNotice).forEach(name => writeCookie(name, '', 0))
               ;['horseguessr-quiz-best', 'horseguessr-photo-quiz-best', 'horseguessr-local-leaderboard', 'horseguessr-stamp-order', 'horseguessr-passport', 'horseguessr-favorites', 'horseguessr-top-favorites'].forEach(key => localStorage.removeItem(key))
               window.location.assign(import.meta.env.BASE_URL)

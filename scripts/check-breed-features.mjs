@@ -1,5 +1,35 @@
 import { build } from 'esbuild'
 import assert from 'node:assert/strict'
+import { readFileSync, existsSync } from 'node:fs'
+import { transform } from 'esbuild'
+
+const mediaBuild = await build({ stdin: { contents: `export * from './src/media'; export { breeds } from './src/data';`, resolveDir: process.cwd() }, define: { 'import.meta.env.BASE_URL': '"/"' }, bundle: true, write: false, platform: 'node', format: 'esm' })
+const media = await import(`data:text/javascript;base64,${Buffer.from(mediaBuild.outputFiles[0].text).toString('base64')}`)
+for (const b of media.breeds) {
+  const pool = media.photosForBreed(b)
+  assert.ok(pool.length, `${b.id}: empty photo pool`)
+  for (const p of pool) if (p.src.startsWith('/')) assert.ok(existsSync(`public${p.src}`), `${b.id}: missing local photo`)
+}
+for (const id of ['barb', 'new-forest-pony', 'jaca-navarra', 'carolina-marsh-tacky', 'karabair']) {
+  const pool = media.photosForBreed(media.breeds.find(b => b.id === id))
+  assert.ok(pool.every(p => !/Kif-kif|Agriflanders|Premios|Marsh_Tacky2|Lowcountry|karabair-1|carolina-marsh-tacky-1/.test(p.src + p.source)), `${id}: reported photo returned`)
+}
+
+// Exercise the actual saved-result reader with normal, old-day and corrupt data.
+const appSource = readFileSync('src/App.tsx', 'utf8')
+const readerSource = appSource.slice(appSource.indexOf('function readCompletedDaily('), appSource.indexOf('type DailyRide ='))
+const readerJs = await transform(readerSource, { loader: 'ts' })
+let stored = null
+const readDaily = new Function('localStorage', 'breeds', 'MAX_ROUNDS', 'DAILY_RESULTS_KEY', `${readerJs.code}; return readCompletedDaily` )({ getItem: () => stored }, media.breeds, 8, 'daily')
+const rounds = media.breeds.slice(0, 8).map(breed => ({ breed, points: 5000, guess: {lat: 1,lng: 2}, nearest: {lat: 1,lng: 2}, photo: media.defaultPhotoForBreed(breed) }))
+stored = JSON.stringify({ day: '2026-10-14', results: rounds })
+assert.equal(readDaily('2026-10-14').length, 8)
+assert.equal(readDaily('2026-10-15').length, 0)
+stored = '{bad json'
+assert.equal(readDaily('2026-10-14').length, 0)
+stored = JSON.stringify({day: '2026-10-14', results: rounds.slice(0, 7)})
+assert.equal(readDaily('2026-10-14').length, 0)
+console.log('Passed: photo pools, reported-photo exclusions and saved daily results.')
 
 const { outputFiles } = await build({ stdin: { contents: `export { breeds } from './src/data'; export * from './src/breedTraits'; export * from './src/originRegions'; export * from './src/practiceRegions'; export * from './src/stampOrder';`, resolveDir: process.cwd() }, define: { 'import.meta.env.BASE_URL': '"/"' }, bundle: true, write: false, platform: 'node', format: 'esm' })
 const m = await import(`data:text/javascript;base64,${Buffer.from(outputFiles[0].text).toString('base64')}`)

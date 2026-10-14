@@ -14,7 +14,15 @@ Boundary generator inputs: Natural Earth `ne_50m_admin_0_countries.geojson` and 
 
 Every breed uses the same schema, but missing evidence is explicitly displayed as “not recorded,” never inferred as absence. Controlled vocabulary is extracted from the existing sourced catalog, with individually sourced refinements for selected breeds. This is a first comparison dataset, not a claim that all breed standards have been exhaustively researched.
 
-Current coverage across 201 breeds: 199 coat palettes, 161 traditional-use records, 107 types, 91 builds, 73 proportions, 72 coat patterns, 68 terrain records, 52 gait/action records, and 30 height records. Head, ear, mane, feathering, and climate fields remain more sparsely documented. Height entries retain whether they describe a range, average, or minimum. Physical traits and uses can vary within a breed.
+Current coverage across 201 breeds: 199 coat palettes, 164 traditional-use records, 107 types, 95 builds, 77 proportions, 72 coat patterns, 69 terrain records, 55 gait/action records, and 32 height records. Head, ear, mane, feathering, and climate fields remain more sparsely documented. Height entries retain whether they describe a range, average, or minimum. Physical traits and uses can vary within a breed.
+
+October 14 refinements add documented Connemara, Shetland, Exmoor, Marsh Tacky and Haflinger traits, using the British Connemara Pony Society, Oklahoma State University breed directory, Carolina Marsh Tacky Association standard and South Tyrol Haflinger breeders' federation. Exact source links are attached to the trait cards.
+
+## October 14 photo report review
+
+Eight reports covered seven files across five breeds. The explicit reviewed pools in `src/media.ts` remove the monochrome Barb archive, Karabair illustration, Jaca Navarra award ceremony with no horse, New Forest breed-sign photo, and three poor/spoiling Marsh Tacky examples. Replacements are locally served with original Commons source links. Jaca Navarra reuses its remaining suitable photograph. Marsh Tacky and Karabair replacements still contain riders; available licensed alternatives were limited. Karabair identification follows Commons structured data/category and the French breed article's use of the image, not individual registration papers. These rare breeds would benefit from breeder-supplied, documented horse-only portraits. Reports remain preserved for admin review.
+
+Completed daily rides now save their round results on the current browser for reopening. Earlier completed rides cannot recover unsaved individual guesses; they show an explanatory result screen instead.
 
 Wrong-answer comparisons only contrast fields documented for both breeds. Shared foundation breeds are shown only from explicit sourced relationships, not from look-alike or related-breed lists. The geographic quizzes generate hints only from controlled trait labels, not from biographies or ancestry, avoiding geographic and ethnic names.
 

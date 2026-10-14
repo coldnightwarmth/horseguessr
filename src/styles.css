@@ -3117,7 +3117,7 @@ html[data-rider-theme='male'] .practice-region-card__copy em { background: #f2d5
 .guide-card--crowned { outline: 3px solid #c39335; }
 .favorite-section-heading--crown { color: #805217; }
 .passport-sticker { position: relative; }
-.stamp-order-controls { position: absolute; z-index: 4; inset: 4px 4px auto; display: flex; justify-content: space-between; gap: 2px; opacity: 0; pointer-events: none; }
+.stamp-order-controls { position: absolute; z-index: 4; inset: auto 4px 5px; display: flex; justify-content: space-between; gap: 2px; opacity: 0; pointer-events: none; background: #fff5cf; border-radius: 5px; }
 .passport-sticker:hover .stamp-order-controls, .passport-sticker:focus-within .stamp-order-controls { opacity: 1; pointer-events: auto; }
 .stamp-order-controls button { display: grid; place-items: center; padding: 0; min-width: 28px; height: 28px; border: 1px solid #806629; border-radius: 5px; background: #fff5cf; color: #583b21; box-shadow: 1px 1px 0 #806629; }
 .stamp-order-controls button:disabled { opacity: .45; }
@@ -3149,7 +3149,23 @@ html[data-rider-theme='male'] .practice-region-card__copy em { background: #f2d5
 html[data-rider-theme='male'] .breed-comparison { background: #f8e9c7; border-color: #876039; color: #48331e; }
 html[data-rider-theme='male'] .favorite-crown { color: #624019; background: #e8ce8f; border-color: #795028; }
 html[data-rider-theme='male'] .favorite-crown.is-favorite-of-all { background: linear-gradient(#fff1b1, #b78b35); }
-@media (hover: none), (pointer: coarse), (max-width: 600px) {
-  .stamp-order-controls { opacity: 1; pointer-events: auto; position: static; margin-bottom: 6px; }
+@media (hover: none), (pointer: coarse) {
+  .passport-sticker:hover .stamp-order-controls, .passport-sticker:focus-within .stamp-order-controls { opacity: 0; pointer-events: none; }
+  .passport-sticker.is-arranging .stamp-order-controls { opacity: 1; pointer-events: auto; }
+  .passport-sticker { -webkit-touch-callout: none; user-select: none; }
   .stamp-order-controls button { min-width: 30px; min-height: 36px; flex: 1; }
+}
+.favorite-of-all-card { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); grid-template-rows: auto; min-height: 0; width: 100%; overflow: hidden; border: 3px solid #c39335; background: #fff8e2; color: #593723; }
+.favorite-of-all-card > .magnifiable-image { height: 100%; min-height: 350px; }
+.favorite-of-all-card > div:last-child { padding: 24px; min-width: 0; }
+.favorite-of-all-card img { width: 100%; height: 100%; object-fit: cover; }
+.brand .brand-question { left: 50%; top: 50%; transform: translate(-50%, -50%); color: #fff; }
+html[data-rider-theme='male'] .brand .brand-question { color: #f5d990; }
+html[data-rider-theme='male'] .hero-copy h1 { font-size: clamp(2rem, 4.3vw, 3.5rem); }
+@media (max-width: 760px) {
+  .favorite-of-all-card { grid-template-columns: minmax(0, 1fr); }
+  .favorite-of-all-card > .magnifiable-image { min-height: 0; aspect-ratio: 4 / 3; }
+  .home-nav-actions .text-button, .collection-nav .text-button, .summary-nav-actions .text-button { display: inline-flex; align-items: center; justify-content: center; }
+  .home-nav-actions .text-button svg, .collection-nav .text-button svg, .summary-nav-actions .text-button svg { display: block; margin: 0; flex-shrink: 0; transform: none; }
+  html[data-rider-theme='male'] .hero-copy h1 { font-size: clamp(1.8rem, 9.5vw, 2.7rem); }
 }

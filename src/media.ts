@@ -6,6 +6,16 @@ export type BreedPhoto = { src: string; source: string; credit?: string }
 
 const commons = (file: string) => `https://commons.wikimedia.org/wiki/File:${file}`
 
+// Reviewed after player reports. Explicit pools also remove unsafe archive
+// aliases, so an excluded illustration cannot return as a loading fallback.
+const reviewedPhotoPools: Record<string, BreedPhoto[]> = {
+  barb: [{ src: '/horses/reviewed/barb.jpg', source: commons('Jument_Barbe_Tunis.jpg'), credit: 'Issam Barhoumi · CC BY-SA 4.0' }],
+  'new-forest-pony': [{ src: '/horses/reviewed/new-forest.jpg', source: commons('BrownNFStallion.jpg'), credit: 'ThatPeskyCommoner · CC BY 3.0' }],
+  'jaca-navarra': [{ src: '/horses/expansion/jaca-navarra-1.jpg', source: commons('Nafar_behoka_zaldia1.JPG'), credit: 'Lankide Gorritxiki · CC BY-SA 3.0' }],
+  'carolina-marsh-tacky': [{ src: '/horses/reviewed/marsh-tacky.jpg', source: commons('Carolina_Marsh_Tackies.jpg'), credit: 'Anthony Surbeck · CC BY 2.0' }],
+  karabair: [{ src: '/horses/reviewed/karabair.jpg', source: commons('Kokpar,_Central_asian_national_game.jpg'), credit: 'Rustam Uzbekov · CC BY-SA 4.0' }],
+}
+
 // Reviewed landscape replacements. Originals remain available in each gallery.
 const landscapeAdditions: Record<string, BreedPhoto> = {
   morgan: { src: '/horses/landscape/morgan.jpg', source: commons('BayMorgan.jpg'), credit: 'Selena N · CC BY 2.0' },
@@ -186,7 +196,7 @@ export function resolvePhotoPath(path: string) {
 }
 
 export function photosForBreed(breed: Breed): BreedPhoto[] {
-  return [{ src: breed.image, source: breed.imageSource }, ...(alternatePhotos[breed.id] ?? []), ...(landscapeAdditions[breed.id] ? [landscapeAdditions[breed.id]] : [])]
+  return (reviewedPhotoPools[breed.id] ?? [{ src: breed.image, source: breed.imageSource }, ...(alternatePhotos[breed.id] ?? []), ...(landscapeAdditions[breed.id] ? [landscapeAdditions[breed.id]] : [])])
     .map(photo => ({ ...photo, src: resolvePhotoPath(photo.src) }))
     .filter(isPlayablePhoto)
 }
