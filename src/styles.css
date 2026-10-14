@@ -3109,3 +3109,47 @@ html[data-rider-theme='male'] .practice-region-card__copy em { background: #f2d5
   .home-nav .rider-theme-toggle button { width: 27px; min-width: 27px; }
   .game-header-controls .rider-theme-toggle button { width: 26px; min-width: 26px; }
 }
+/* Shared trait cards, personal crowns, and accessible stamp arrangement. */
+.brand .brand-question { text-shadow: none !important; filter: none !important; box-shadow: none !important; }
+.favorite-crown { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 30px; height: 30px; padding: 3px; border: 1px solid #b58a35; border-radius: 7px; color: #846018; background: #fff5d8; vertical-align: middle; cursor: pointer; }
+.favorite-crown.is-favorite-of-all { color: #704710; background: linear-gradient(#fff1ac, #e6ba45); box-shadow: inset 0 1px white; }
+.favorite-crown:focus-visible, .stamp-order-controls button:focus-visible { outline: 3px solid #2286ad; outline-offset: 2px; }
+.guide-card--crowned { outline: 3px solid #c39335; }
+.favorite-section-heading--crown { color: #805217; }
+.passport-sticker { position: relative; }
+.stamp-order-controls { position: absolute; z-index: 4; inset: 4px 4px auto; display: flex; justify-content: space-between; gap: 2px; opacity: 0; pointer-events: none; }
+.passport-sticker:hover .stamp-order-controls, .passport-sticker:focus-within .stamp-order-controls { opacity: 1; pointer-events: auto; }
+.stamp-order-controls button { display: grid; place-items: center; padding: 0; min-width: 28px; height: 28px; border: 1px solid #806629; border-radius: 5px; background: #fff5cf; color: #583b21; box-shadow: 1px 1px 0 #806629; }
+.stamp-order-controls button:disabled { opacity: .45; }
+.passport-sticker__medal { pointer-events: none; }
+.stamp-instructions { max-width: 760px; margin-inline: auto; }
+.breed-comparison { padding: 14px; margin-block: 16px; border: 2px solid currentColor; border-radius: 10px; background: #fffaf1; color: #59432e; }
+.breed-comparison h3 { margin: 0 0 12px; font-size: 1.1rem; }
+.comparison-headings, .comparison-row > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.comparison-headings strong { overflow-wrap: anywhere; font-size: .95rem; }
+.comparison-headings small { display: block; font-size: .65rem; font-weight: normal; }
+.comparison-row { margin-top: 10px; border-top: 1px dotted #c7b397; padding-top: 8px; }
+.comparison-row b { display: block; font-size: .7rem; text-transform: uppercase; margin-bottom: 4px; }
+.comparison-row span { font-size: .83rem; overflow-wrap: anywhere; }
+.breed-comparison > small, .breed-trait-details small { display: block; margin-top: 12px; font-size: .7rem; line-height: 1.5; }
+.comparison-sources { display: flex; flex-wrap: wrap; gap: 10px; font-size: .7rem; margin-top: 10px; }
+.breed-trait-details { border-block: 1px dotted currentColor; padding: 10px 0; margin-block: 10px; font-size: .8rem; }
+.breed-trait-details summary, .guide-trait-filters summary { cursor: pointer; font-weight: bold; }
+.breed-trait-details dl { margin: 10px 0; }
+.breed-trait-details dt { font-size: .7rem; font-weight: bold; margin-top: 7px; }
+.breed-trait-details dd { margin: 2px 0; }
+.guide-trait-filters { grid-column: 1 / -1; width: 100%; }
+.guide-trait-filters fieldset { margin: 14px 0; padding: 12px; border: 1px solid currentColor; min-width: 0; }
+.guide-trait-filters fieldset > div { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 175px), 1fr)); gap: 12px; }
+.guide-trait-filters label { min-width: 0; }
+.guide-trait-filters select { width: 100%; max-width: 100%; }
+.guide-trait-filters > small { display: block; font-size: .75rem; }
+.trait-hints > div > p { padding: 10px 12px; margin: 0; font-size: .85rem; }
+.hint-penalty { display: block; padding: 0 12px 10px; font-size: .7rem; }
+html[data-rider-theme='male'] .breed-comparison { background: #f8e9c7; border-color: #876039; color: #48331e; }
+html[data-rider-theme='male'] .favorite-crown { color: #624019; background: #e8ce8f; border-color: #795028; }
+html[data-rider-theme='male'] .favorite-crown.is-favorite-of-all { background: linear-gradient(#fff1b1, #b78b35); }
+@media (hover: none), (pointer: coarse), (max-width: 600px) {
+  .stamp-order-controls { opacity: 1; pointer-events: auto; position: static; margin-bottom: 6px; }
+  .stamp-order-controls button { min-width: 30px; min-height: 36px; flex: 1; }
+}

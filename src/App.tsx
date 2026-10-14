@@ -7,6 +7,10 @@ import { ArrowRight, Award, Ban, BookHeart, BookOpen, CheckCircle2, ChevronLeft,
 import { AccountSnapshot, adminLogin, BANNED_ACCOUNT_MESSAGE, checkAccountBanned, fetchAdminAccounts, fetchPublicProfile, isBannedAccountError, loginAccount, logoutAccount, PlayerAccount, PublicProfile, registerAccount, restoreAccount, saveAccountProgress, setAdminAccountBanned, validateUsername } from './accounts'
 import { deleteRiderAccount, requestPasswordReset } from './accounts'
 import { Breed, breeds } from './data'
+import { ArrowUp, ArrowLeft, Crown } from 'lucide-react'
+import { orderedStamps, moveStamp } from './stampOrder'
+import { readStampOrder, writeStampOrder } from './preferences'
+import { traitsForBreed, hintsForBreed, comparisonRows, sharedFoundations, traitFields, TraitField } from './breedTraits'
 import { AtlasPlace, lookupAtlasPlace, nearestBreedOrigins, NearbyBreed } from './atlas'
 import { expansionBreedIds } from './breedExpansion'
 import { fetchLeaderboard, fetchPhotoQualityReports, FirebaseSession, LeaderboardResult, PhotoQualityReport, PhotoReportReason, recordBreedFavorite, recordPhotoQualityReport, submitLeaderboardScore } from './firebase'
@@ -26,7 +30,7 @@ type ReviewResult = RoundResult | QuizResult
 const MAX_ROUNDS = 8
 
 const DAILY_RIDE_KEY = 'horseguessr-daily-ride-v1'
-type DailyRide = { day: string; breedIds: string[]; round: number; guess: Point | null; results: RoundResult[]; hintOpen: boolean }
+type DailyRide = { day: string; breedIds: string[]; round: number; guess: Point | null; results: RoundResult[]; hintOpen?: boolean; hintCount?: number }
 function readDailyRide(day: string): DailyRide | null {
   try {
     const ride = JSON.parse(localStorage.getItem(DAILY_RIDE_KEY) || 'null') as DailyRide | null
@@ -108,40 +112,6 @@ function usePrefetchImages(urls: string[]) {
   }, [signature])
 }
 
-const nudgeOverrides: Record<string, string> = {
-  'ljutomer-trotter': 'Look for a balanced light-harness build, clean legs, and an efficient, even trotting action.',
-  'cape-boerperd': 'A tough, comfortable riding horse selected for stamina, sure-footedness, and an even temperament.',
-  nonius: 'Usually dark, substantial, and Roman-nosed, with the power and bone of a traditional harness horse.',
-  gidran: 'Traditionally chestnut, refined but strong, with a recognizable cavalry and Anglo-Arabian stamp.',
-  'furioso-north-star': 'A sturdy, athletic warmblood with strong Thoroughbred influence and a versatile riding-horse frame.',
-  'kisber-felver': 'An elegant, light-framed half-bred with long athletic lines and a strong Thoroughbred influence.',
-  hucul: 'A compact mountain horse with primitive markings, hard feet, and remarkable sure-footedness.',
-  konik: 'A small mouse-dun horse with a dark dorsal stripe and a hardy, primitive appearance.',
-  yakutian: 'A compact horse with an extraordinarily dense winter coat and extreme tolerance for cold.',
-  caspian: 'Tiny but horse-proportioned, with refined limbs and head rather than the heavy build of a pony.',
-  kathiawari: 'A desert-adapted riding horse whose inward-curving ears may meet at the tips.',
-  sorraia: 'Typically dun or grullo, with a dorsal stripe, dark points, and a narrow primitive frame.',
-  'dales-pony': 'A powerful pack pony, usually black, with abundant mane, tail, and lower-leg feather.',
-  bardigiano: 'A compact, dark-coated mountain horse with a sturdy body and notably strong feet.',
-  maremmano: 'A rugged stock horse with a substantial frame, tough feet, and a practical working build.',
-  nordlandshest: 'A small, versatile horse with a compact body, abundant mane, and hardy all-purpose type.',
-  'gotland-russ': 'A small forest pony with a lean, hardy frame and a talent for both riding and harness.',
-  noriker: 'A sure-footed heavy horse that can appear in dramatic leopard-spotted as well as solid coats.',
-  'cleveland-bay': 'Always bay, substantial but active, with clean legs and the frame of a traditional coach horse.',
-  giara: 'A small, hardy horse with a coarse mane, strong feet, and a compact semi-feral type.',
-  garrano: 'A small, dark, sure-footed mountain horse with a thick mane and primitive, hardy build.',
-  'kerry-bog-pony': 'A compact pony bred to carry loads across soft ground, with strong bone and a calm nature.',
-  camargue: 'A compact gray horse, born dark, with a sturdy body and the agility of a working cattle mount.',
-  poitevin: 'A large, shaggy draft horse with heavy bone, abundant hair, and a notably calm expression.',
-  morgan: 'A compact breed with an expressive head, arched neck, deep body, and famously consistent type.',
-  finnhorse: 'A hardy all-rounder combining trotting ability, pulling strength, and a dependable temperament.',
-  knabstrupper: 'A baroque riding horse best known for dramatic leopard-spotted coats and visible mottling.',
-  'black-forest': 'A compact draft horse with a dark chestnut body and a striking flaxen mane and tail.',
-}
-
-function nudgeForBreed(breed: Breed) {
-  return nudgeOverrides[breed.id] ?? breed.hint
-}
 
 const guessIcon = L.divIcon({
   className: 'guess-marker-shell',
@@ -281,11 +251,11 @@ type RiderTheme = 'female' | 'male'
 type ThemeContextValue = { theme: RiderTheme; setTheme: (theme: RiderTheme) => void }
 const ThemeContext = createContext<ThemeContextValue>({ theme: 'female', setTheme: () => {} })
 
-type FavoritesContextValue = { favoriteIds: string[]; topFavoriteIds: string[]; toggleFavorite: (breedId: string) => void; toggleTopFavorite: (breedId: string) => void }
-const FavoritesContext = createContext<FavoritesContextValue>({ favoriteIds: [], topFavoriteIds: [], toggleFavorite: () => {}, toggleTopFavorite: () => {} })
+type FavoritesContextValue = { favoriteIds: string[]; topFavoriteIds: string[]; favoriteOfAll: string; toggleFavoriteOfAll: (id: string) => void; toggleFavorite: (breedId: string) => void; toggleTopFavorite: (breedId: string) => void }
+const FavoritesContext = createContext<FavoritesContextValue>({ favoriteIds: [], topFavoriteIds: [], favoriteOfAll: '', toggleFavoriteOfAll: () => {}, toggleFavorite: () => {}, toggleTopFavorite: () => {} })
 
-type PassportContextValue = { passportIds: string[]; awardPassportMedal: (breedId: string) => void }
-const PassportContext = createContext<PassportContextValue>({ passportIds: [], awardPassportMedal: () => {} })
+type PassportContextValue = { passportIds: string[]; stampOrder: string[]; arrangeStamps: (ids: string[]) => void; awardPassportMedal: (breedId: string) => void }
+const PassportContext = createContext<PassportContextValue>({ passportIds: [], stampOrder: [], arrangeStamps: () => {}, awardPassportMedal: () => {} })
 
 type AuthMode = 'login' | 'signup' | 'reset' | 'delete'
 type AccountContextValue = {
@@ -437,8 +407,14 @@ function TopFavoriteButton({ breed }: { breed: Breed }) {
   )
 }
 
+function FavoriteOfAllButton({ breed }: { breed: Breed }) {
+  const { favoriteOfAll, toggleFavoriteOfAll } = useContext(FavoritesContext)
+  const selected = favoriteOfAll === breed.id
+  return <button type="button" className={`favorite-crown ${selected ? 'is-favorite-of-all' : ''}`} aria-pressed={selected} aria-label={`${selected ? 'Uncrown' : 'Crown'} ${breed.name} as your favorite of all`} title={selected ? 'Remove favorite of all' : 'Make my one favorite of all'} onClick={event => { event.preventDefault(); event.stopPropagation(); toggleFavoriteOfAll(breed.id) }}><Crown size={18} fill={selected ? 'currentColor' : 'none'} /></button>
+}
+
 function BreedName({ breed, showTopFavorite = false }: { breed: Breed; showTopFavorite?: boolean }) {
-  return <span className="breed-name-with-heart"><span className="breed-name-text">{breed.name}</span><span className="breed-name-actions"><FavoriteButton breed={breed} />{showTopFavorite && <TopFavoriteButton breed={breed} />}</span></span>
+  return <span className="breed-name-with-heart"><span className="breed-name-text">{breed.name}</span><span className="breed-name-actions"><FavoriteButton breed={breed} />{showTopFavorite && <><TopFavoriteButton breed={breed} /><FavoriteOfAllButton breed={breed} /></>}</span></span>
 }
 
 function PassportMedal({ breed }: { breed: Breed }) {
@@ -618,6 +594,38 @@ function Brand({ inverse = false, onHome }: { inverse?: boolean; onHome?: () => 
   )
 }
 
+function TraitHints({ breed, count, onReveal }: { breed: Breed; count: number; onReveal: () => void }) {
+  const hints = hintsForBreed(breed)
+  return <div className={`hint-card trait-hints ${count ? 'hint-card--open' : ''}`}>
+    <div aria-live="polite">{hints.slice(0, count).map((hint, index) => <p key={index}><b>Hint {index + 1}.</b> {hint}</p>)}</div>
+    <button onClick={onReveal} disabled={count >= 2}><Lightbulb size={18} /><span>{count === 0 ? 'Need a nudge?' : count === 1 ? 'Reveal a second hint' : 'Both hints revealed'}</span><small>{count < 2 ? `−10%${count ? ' more' : ''}` : '−20% total'}</small></button>
+    {count > 0 && <small className="hint-penalty">This round keeps {100 - count * 10}% of its score. Full-score stamps require no hints.</small>}
+  </div>
+}
+
+function BreedComparison({ correct, guessed }: { correct: Breed; guessed: Breed }) {
+  const rows = comparisonRows(correct, guessed)
+  const shared = sharedFoundations(correct, guessed)
+  return <section className="breed-comparison" aria-label="How to tell them apart">
+    <h3>How to tell them apart</h3>
+    <div className="comparison-headings"><strong>{correct.name}<small>Correct answer</small></strong><strong>{guessed.name}<small>Your choice</small></strong></div>
+    {rows.length ? rows.map(row => <div className="comparison-row" key={row.label}><b>{row.label}</b><div><span>{row.correct}</span><span>{row.guessed}</span></div></div>) : <p>These breeds overlap in the traits recorded so far. There is no dependable distinguishing trait in this comparison yet; the photograph alone may be difficult to identify.</p>}
+    {shared.ids.length > 0 && <p className="shared-foundation"><b>Shared foundation breeds:</b> {shared.ids.map(id => breeds.find(breed => breed.id === id)?.name || id).join(', ')}. <a href={shared.sources[0]} target="_blank" rel="noreferrer">Ancestry source ↗</a></p>}
+    <small>Typical traits, not a test for an individual horse. Height may be a range, average, or registry minimum; coats and grooming vary. {shared.ids.length === 0 && 'No shared ancestor is verified in this catalog.'}</small>
+    <div className="comparison-sources"><a href={traitsForBreed(correct).height?.source || correct.source} target="_blank" rel="noreferrer">{correct.name} source ↗</a><a href={traitsForBreed(guessed).height?.source || guessed.source} target="_blank" rel="noreferrer">{guessed.name} source ↗</a></div>
+  </section>
+}
+
+function BreedTraitDetails({ breed }: { breed: Breed }) {
+  const traits = traitsForBreed(breed)
+  return <details className="breed-trait-details"><summary>Trait card: build, movement & uses</summary>
+    <dl><dt>Height at withers</dt><dd>{traits.height ? <>{traits.height.text} <a href={traits.height.source} target="_blank" rel="noreferrer">Source ↗</a></> : 'Not yet recorded'}</dd>
+      {(Object.keys(traitFields) as TraitField[]).map(key => <div key={key}><dt>{traitFields[key]}</dt><dd>{traits[key].join(' · ') || 'Not yet recorded'}</dd></div>)}
+    </dl><small>Catalog traits summarize breed tendencies, not every individual. Unrecorded does not mean absent.</small>
+    <div>{traits.sources.map((source, index) => <a key={source} href={source} target="_blank" rel="noreferrer">Trait reference {index + 1} ↗ </a>)}</div>
+  </details>
+}
+
 function BreedBio({ breed }: { breed: Breed }) {
   const related = breed.relatedBreedIds
     .map(id => breeds.find(candidate => candidate.id === id))
@@ -628,6 +636,7 @@ function BreedBio({ breed }: { breed: Breed }) {
       <p><b>Identification.</b> {breed.hint}</p>
       <p><b>Historic homeland.</b> <span className="country-flag" role="img" aria-label={`Primary country flag for ${breed.country}`}>{breed.flag}</span> {breed.location}, {breed.country}.</p>
       <p><b>Common coats.</b> {breed.coatColors}</p>
+      <BreedTraitDetails breed={breed} />
       {related.length > 0 && (
         <div className="related-breeds">
           <b>Related or similar breeds.</b>
@@ -981,6 +990,7 @@ function PracticeMapFocus({ region }: { region: PracticeRegionId }) {
 }
 
 function Game({ mode, practiceRegion, dayKey, onFinish, onExit }: { mode: 'daily' | 'practice'; practiceRegion: PracticeRegionId; dayKey: string; onFinish: (results: RoundResult[]) => void; onExit: () => void }) {
+  const { awardPassportMedal } = useContext(PassportContext)
   const activeRegion = mode === 'daily' ? 'world' : practiceRegion
   const [savedRide] = useState(() => mode === 'daily' ? readDailyRide(dayKey) : null)
   const [gameSeed] = useState(() => mode === 'daily' ? dayKey : `${Date.now()}-${Math.random()}`)
@@ -989,11 +999,11 @@ function Game({ mode, practiceRegion, dayKey, onFinish, onExit }: { mode: 'daily
   const [guess, setGuess] = useState<Point | null>(savedRide?.guess ?? null)
   const [result, setResult] = useState<RoundResult | null>(savedRide?.results[savedRide.round] ?? null)
   const [results, setResults] = useState<RoundResult[]>(savedRide?.results ?? [])
-  const [hintOpen, setHintOpen] = useState(savedRide?.hintOpen ?? false)
+  const [hintCount, setHintCount] = useState(Math.max(0, Math.min(2, savedRide?.hintCount ?? (savedRide?.hintOpen ? 1 : 0))))
   useEffect(() => {
     if (mode !== 'daily') return
-    try { localStorage.setItem(DAILY_RIDE_KEY, JSON.stringify({ day: gameSeed, breedIds: roundBreeds.map(breed => breed.id), round, guess, results, hintOpen } satisfies DailyRide)) } catch { /* Play remains available if device storage is full. */ }
-  }, [mode, gameSeed, roundBreeds, round, guess, results, hintOpen])
+    try { localStorage.setItem(DAILY_RIDE_KEY, JSON.stringify({ day: gameSeed, breedIds: roundBreeds.map(breed => breed.id), round, guess, results, hintCount } satisfies DailyRide)) } catch { /* Play remains available if device storage is full. */ }
+  }, [mode, gameSeed, roundBreeds, round, guess, results, hintCount])
   const breed = roundBreeds[round]
   const originZone = originZones[breed.id]
   const photoPool = photosForBreed(breed)
@@ -1009,11 +1019,12 @@ function Game({ mode, practiceRegion, dayKey, onFinish, onExit }: { mode: 'daily
   useEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'auto' }) }, [round])
 
   const submitGuess = () => {
-    if (!guess) return
+    if (!guess || result) return
     const zoneResult = distanceToOriginZone(guess, originZone)
     const distance = Math.round(zoneResult.distance)
-    const points = pointsForOriginGuess(distance, activeRegion, hintOpen)
-    const nextResult = { breed, distance, points, guess, usedHint: hintOpen, photo: currentPhoto, insideRegion: zoneResult.inside, nearest: zoneResult.nearest }
+    const points = pointsForOriginGuess(zoneResult.distance, activeRegion, hintCount)
+    const nextResult = { breed, distance, points, guess, usedHint: hintCount > 0, photo: currentPhoto, insideRegion: zoneResult.inside, nearest: zoneResult.nearest }
+    if (points === 5000 && zoneResult.inside) awardPassportMedal(breed.id)
     setResult(nextResult)
     setResults(current => [...current, nextResult])
   }
@@ -1026,7 +1037,7 @@ function Game({ mode, practiceRegion, dayKey, onFinish, onExit }: { mode: 'daily
     setRound(value => value + 1)
     setGuess(null)
     setResult(null)
-    setHintOpen(false)
+    setHintCount(0)
   }
 
   return (
@@ -1055,11 +1066,7 @@ function Game({ mode, practiceRegion, dayKey, onFinish, onExit }: { mode: 'daily
 
           {!result ? (
             <>
-              <div className={`hint-card ${hintOpen ? 'hint-card--open' : ''}`}>
-                <button onClick={() => setHintOpen(true)} disabled={hintOpen}>
-                  <Lightbulb size={18} /><span>{hintOpen ? nudgeForBreed(breed) : 'Need a nudge?'}</span><small>{hintOpen ? '−25% score' : 'Reveal hint · −25%'}</small>
-                </button>
-              </div>
+              <TraitHints breed={breed} count={hintCount} onReveal={() => setHintCount(count => Math.min(2, count + 1))} />
               <button className="primary-button submit-button" disabled={!guess} onClick={submitGuess}>
                 {guess ? <><LocateFixed size={19} /> Lock in this location</> : <><MapPin size={19} /> Place a pin to continue</>}
               </button>
@@ -1196,6 +1203,7 @@ function BreedQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
                 {answeredCorrectly ? <CheckCircle2 size={21} /> : <XCircle size={21} />}
                 <div><span>{answeredCorrectly ? 'You got it' : 'Correct answer'}</span><strong><BreedName breed={breed} /></strong></div>
               </div>
+              {!answeredCorrectly && <BreedComparison correct={breed} guessed={choice} />}
               <BreedBio breed={breed} />
               <div className="tag-row">{breed.tags.map(tag => <span key={tag}>{tag}</span>)}</div>
               <div className="reveal-actions">
@@ -1363,6 +1371,7 @@ function PhotoQuiz({ onFinish, onExit }: { onFinish: (results: QuizResult[]) => 
                 {answeredCorrectly ? <CheckCircle2 size={22} /> : <XCircle size={22} />}
                 <div><span>{answeredCorrectly ? 'Correct photograph' : 'Correct photograph revealed'}</span><h3><BreedName breed={breed} /></h3></div>
               </div>
+              {!answeredCorrectly && <BreedComparison correct={breed} guessed={choice} />}
               <BreedBio breed={breed} />
               <div className="tag-row">{breed.tags.map(tag => <span key={tag}>{tag}</span>)}</div>
               <div className="photo-profile__actions">
@@ -1662,35 +1671,46 @@ type BreedCollectionProps = CollectionNavigationProps & {
 
 function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, showAtlas = false, showTopFavorites = false, ...navigation }: BreedCollectionProps) {
   const { passportIds } = useContext(PassportContext)
-  const { topFavoriteIds } = useContext(FavoritesContext)
+  const { topFavoriteIds, favoriteOfAll } = useContext(FavoritesContext)
   const photoCount = shownBreeds.reduce((total, breed) => total + photosForBreed(breed).length, 0)
   const [galleryBreed, setGalleryBreed] = useState<Breed | null>(null)
   const [query, setQuery] = useState('')
   const [country, setCountry] = useState('')
-  const [tag, setTag] = useState('')
+  const [traitFilters, setTraitFilters] = useState<Partial<Record<TraitField, string>>>({})
+  const [heightFilter, setHeightFilter] = useState('')
   const [passportFilter, setPassportFilter] = useState('all')
   const countries = useMemo(() => [...new Set(shownBreeds.map(breed => breed.country))].sort((a, b) => a.localeCompare(b)).map(name => ({ name, flag: shownBreeds.find(breed => breed.country === name)?.flag || '🌐' })), [shownBreeds])
-  const tags = useMemo(() => [...new Set(shownBreeds.flatMap(breed => breed.tags))].sort((a, b) => a.localeCompare(b)), [shownBreeds])
+  const filterGroups: { label: string; keys: TraitField[] }[] = [
+    { label: 'Body & appearance', keys: ['type', 'proportions', 'build', 'headProfile', 'ears', 'mane', 'feathering', 'coats', 'patterns'] },
+    { label: 'Movement & work', keys: ['gaits', 'uses'] },
+    { label: 'Environment', keys: ['climate', 'terrain'] },
+  ]
+  const filterOptions = useMemo(() => Object.fromEntries((Object.keys(traitFields) as TraitField[]).map(key => [key, [...new Set(shownBreeds.flatMap(breed => traitsForBreed(breed)[key]))].sort()])) as Record<TraitField, string[]>, [shownBreeds])
   const filteredBreeds = useMemo(() => {
     const needle = normalizeGuideText(query)
     return shownBreeds.filter(breed => {
-      const matchesSearch = !needle || normalizeGuideText([breed.name, breed.country, breed.location, breed.fact, breed.hint, breed.coatColors, ...breed.tags].join(' ')).includes(needle)
+      const traits = traitsForBreed(breed)
+      const matchesSearch = !needle || normalizeGuideText([breed.name, breed.country, breed.location, breed.fact, breed.hint, breed.coatColors, ...breed.tags, ...(Object.keys(traitFields) as TraitField[]).flatMap(key => traits[key])].join(' ')).includes(needle)
       const matchesCountry = !country || breed.country === country
-      const matchesTag = !tag || breed.tags.includes(tag)
+      const matchesTraits = (Object.entries(traitFilters) as [TraitField, string][]).every(([key, value]) => !value || (value === '__unknown' ? traits[key].length === 0 : traits[key].includes(value)))
+      const bounds = heightFilter === 'small' ? [0, 120] : heightFilter === 'medium' ? [120, 148] : heightFilter === 'large' ? [148, 165] : [165, 300]
+      const matchesHeight = !heightFilter || (heightFilter === 'unknown' ? !traits.height : traits.height && traits.height.cm[0] < bounds[1] && traits.height.cm[1] >= bounds[0])
       const earned = passportIds.includes(breed.id)
       const matchesPassport = passportFilter === 'all' || (passportFilter === 'earned' ? earned : !earned)
-      return matchesSearch && matchesCountry && matchesTag && matchesPassport
+      return matchesSearch && matchesCountry && matchesTraits && matchesHeight && matchesPassport
     })
-  }, [country, passportFilter, passportIds, query, shownBreeds, tag])
+  }, [country, passportFilter, passportIds, query, shownBreeds, traitFilters, heightFilter])
   const suggestedBreed = useMemo(() => filteredBreeds.length ? null : suggestBreedName(query, shownBreeds), [filteredBreeds.length, query, shownBreeds])
-  const topFilteredBreeds = showTopFavorites ? filteredBreeds.filter(breed => topFavoriteIds.includes(breed.id)) : []
-  const otherFilteredBreeds = showTopFavorites ? filteredBreeds.filter(breed => !topFavoriteIds.includes(breed.id)) : filteredBreeds
-  const resetFilters = () => { setQuery(''); setCountry(''); setTag(''); setPassportFilter('all') }
+  const crownedBreed = showTopFavorites ? filteredBreeds.find(breed => breed.id === favoriteOfAll) : undefined
+  const topFilteredBreeds = showTopFavorites ? filteredBreeds.filter(breed => topFavoriteIds.includes(breed.id) && breed.id !== favoriteOfAll) : []
+  const otherFilteredBreeds = showTopFavorites ? filteredBreeds.filter(breed => !topFavoriteIds.includes(breed.id) && breed.id !== favoriteOfAll) : filteredBreeds
+  const resetFilters = () => { setQuery(''); setCountry(''); setTraitFilters({}); setHeightFilter(''); setPassportFilter('all') }
   const useSuggestion = () => {
     if (!suggestedBreed) return
     setQuery(suggestedBreed.name)
     setCountry('')
-    setTag('')
+    setTraitFilters({})
+    setHeightFilter('')
     setPassportFilter('all')
   }
   return (
@@ -1702,9 +1722,13 @@ function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, showAtlas = f
         <section className="guide-tools" aria-label="Search and filter breeds">
           <label className="guide-search"><Search size={18} /><span>Search breeds</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Name, region, coat, or trait…" /></label>
           <label><span>Country</span><select value={country} onChange={event => setCountry(event.target.value)}><option value="">All countries</option>{countries.map(item => <option key={item.name} value={item.name}>{item.flag} {item.name}</option>)}</select></label>
-          <label><span>Type</span><select value={tag} onChange={event => setTag(event.target.value)}><option value="">All breed types</option>{tags.map(item => <option key={item}>{item}</option>)}</select></label>
+          <label><span>Recorded height</span><select value={heightFilter} onChange={event => setHeightFilter(event.target.value)}><option value="">Any height</option><option value="small">Under 120 cm</option><option value="medium">120–147 cm</option><option value="large">148–164 cm</option><option value="tall">165 cm and over</option><option value="unknown">Not recorded</option></select></label>
           <label><span>Passport</span><select value={passportFilter} onChange={event => setPassportFilter(event.target.value)}><option value="all">All breeds</option><option value="earned">Stamp collected</option><option value="unearned">Not identified yet</option></select></label>
           <div className="guide-filter-result"><strong>{filteredBreeds.length}</strong><span>breeds shown</span><button type="button" onClick={resetFilters}>Reset</button></div>
+          <details className="guide-trait-filters"><summary>Filter by traits, use & environment {Object.values(traitFilters).filter(Boolean).length > 0 && `(${Object.values(traitFilters).filter(Boolean).length} active)`}</summary>
+            {filterGroups.map(group => <fieldset key={group.label}><legend>{group.label}</legend><div>{group.keys.map(key => <label key={key}><span>{traitFields[key]}</span><select value={traitFilters[key] || ''} onChange={event => setTraitFilters(current => ({ ...current, [key]: event.target.value }))}><option value="">Any {traitFields[key].toLowerCase()}</option>{filterOptions[key].map(value => <option key={value}>{value}</option>)}<option value="__unknown">Not recorded</option></select></label>)}</div></fieldset>)}
+            <small>Filters combine. Height matches overlapping recorded measurements; averages and registry limits are labelled on each trait card. A missing trait is not evidence that the breed lacks it.</small>
+          </details>
         </section>
       )}
       {suggestedBreed && (
@@ -1715,6 +1739,13 @@ function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, showAtlas = f
         </div>
       )}
       <section className="guide-grid">
+        {crownedBreed && <>
+          <div className="favorite-section-heading favorite-section-heading--crown"><Crown size={24} /><div><span>THE ONE ABOVE ALL</span><h2>Favorite of all</h2></div></div>
+          <article className="guide-card guide-card--crowned">
+            <MagnifiableImage src={defaultPhotoForBreed(crownedBreed).src} photos={photosForBreed(crownedBreed)} fallbacks={photosForBreed(crownedBreed).map(photo => photo.src)} alt={crownedBreed.name} breedId={crownedBreed.id} showFullViewButton={false} clickToExpand />
+            <div><h2><BreedName breed={crownedBreed} showTopFavorite /><PassportMedal breed={crownedBreed} /></h2><BreedBio breed={crownedBreed} /></div>
+          </article>
+        </>}
         {showTopFavorites && <div className="favorite-section-heading favorite-section-heading--top"><Star size={21} fill="currentColor" /><div><span>PINNED TO THE TOP</span><h2>Top favorites</h2><p>{topFilteredBreeds.length ? 'Your most-loved horses, collected first.' : 'Tap the star beside any favorite breed to pin it here.'}</p></div></div>}
         {topFilteredBreeds.map(breed => (
           <article className={`guide-card ${passportIds.includes(breed.id) ? 'guide-card--passport-earned' : ''}`} key={breed.id}>
@@ -1747,7 +1778,9 @@ function FavoriteBreeds(props: Omit<CollectionNavigationProps, 'current'>) {
 }
 
 function BreedPassport(props: Omit<CollectionNavigationProps, 'current'>) {
-  const { passportIds } = useContext(PassportContext)
+  const { passportIds, stampOrder, arrangeStamps } = useContext(PassportContext)
+  const sorted = orderedStamps(breeds, passportIds, stampOrder)
+  const collectedOrder = sorted.filter(breed => passportIds.includes(breed.id)).map(breed => breed.id)
   const earned = breeds.filter(breed => passportIds.includes(breed.id)).length
   const percentage = Math.round(earned / breeds.length * 100)
   return (
@@ -1756,14 +1789,21 @@ function BreedPassport(props: Omit<CollectionNavigationProps, 'current'>) {
       <section className="guide-heading passport-heading">
         <p className="eyebrow"><span /> Your breed passport</p>
         <h1>Stable stamp book</h1>
-        <p>Correctly identify a breed in either identification quiz to collect its passport stamp.</p>
+        <p>Correctly identify a breed in either identification quiz to collect its passport stamp. A full 5,000-point answer without hints in Daily Ride or Practice also collects a stamp.</p>
+        <p className="stamp-instructions">Collected stamps come first, alphabetically by default. Hover over a stamp (or focus it with your keyboard) to show its arrows: ↑ moves it to the front, ← and → swap it with its neighbor. On touchscreens the arrows are always visible.</p>
+        {stampOrder.length > 0 && <button className="secondary-button" onClick={() => arrangeStamps([])}>Restore alphabetical order</button>}
         <div className="passport-progress"><div><strong>{earned}</strong><span>of {breeds.length} breeds collected</span><b>{percentage}%</b></div><i><span style={{ width: `${percentage}%` }} /></i></div>
       </section>
       <section className="passport-grid">
-        {breeds.map(breed => {
+        {sorted.map(breed => {
           const isEarned = passportIds.includes(breed.id)
           return (
             <article className={`passport-sticker ${isEarned ? 'passport-sticker--earned' : 'passport-sticker--locked'}`} key={breed.id}>
+              {isEarned && <div className="stamp-order-controls" aria-label={`Arrange ${breed.name}`}>
+                <button aria-label={`Move ${breed.name} left`} disabled={collectedOrder[0] === breed.id} onClick={() => arrangeStamps(moveStamp(collectedOrder, breed.id, 'left'))}><ArrowLeft size={16} /></button>
+                <button aria-label={`Move ${breed.name} to first`} disabled={collectedOrder[0] === breed.id} onClick={() => arrangeStamps(moveStamp(collectedOrder, breed.id, 'first'))}><ArrowUp size={16} /></button>
+                <button aria-label={`Move ${breed.name} right`} disabled={collectedOrder[collectedOrder.length - 1] === breed.id} onClick={() => arrangeStamps(moveStamp(collectedOrder, breed.id, 'right'))}><ArrowRight size={16} /></button>
+              </div>}
               <div className="passport-sticker__photo">
                 {isEarned
                   ? <MagnifiableImage src={defaultPhotoForBreed(breed).src} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} breedId={breed.id} loading="lazy" showFullViewButton={false} clickToExpand />
@@ -1794,7 +1834,7 @@ function PlayerProfilePage({ uid, onBack }: { uid: string; onBack: () => void })
       if (!result) setError('This rider profile could not be found.')
     }).catch(() => { if (active) setError('This rider profile is unavailable right now.') }).finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [uid])
+  }, [uid, account?.profile.updatedAt])
   const share = async () => {
     if (!profile) return
     const url = `${window.location.origin}${import.meta.env.BASE_URL}?profile=${encodeURIComponent(profile.uid)}`
@@ -1828,7 +1868,8 @@ function PlayerProfilePage({ uid, onBack }: { uid: string; onBack: () => void })
             <article><span>Pick the Photo</span><strong>{profile.photoQuizBest || '—'}</strong><small>out of 8</small></article>
             <article><span>Last daily ride</span><strong>{profile.lastDailyDate ? formatNumber(profile.lastDailyScore || 0) : '—'}</strong><small>{profile.lastDailyDate || 'No daily saved yet'}</small></article>
           </section>
-          <ProfileBreedShelf title="Favorite breeds" icon={<Heart size={23} fill="currentColor" />} items={favoriteBreeds} empty="No favorite breeds shared yet." />
+          {profile.favoriteOfAll && favoriteBreeds.some(breed => breed.id === profile.favoriteOfAll) && <ProfileBreedShelf title="Favorite of all" icon={<Crown size={23} />} items={favoriteBreeds.filter(breed => breed.id === profile.favoriteOfAll)} empty="" />}
+          <ProfileBreedShelf title="Favorite breeds" icon={<Heart size={23} fill="currentColor" />} items={favoriteBreeds.filter(breed => breed.id !== profile.favoriteOfAll)} empty="No other favorite breeds shared yet." />
           <ProfileBreedShelf title="Correctly identified" icon={<Award size={23} />} items={identifiedBreeds} empty="No passport stamps collected yet." />
           {account?.uid === uid && <section className="profile-breed-shelf"><h2>Account settings</h2><button className="secondary-button" onClick={() => openAuth('reset')}>Reset password</button> <button className="secondary-button" onClick={() => openAuth('delete')}>Delete my account</button></section>}
         </>
@@ -2004,6 +2045,8 @@ export default function App() {
   const [riderTheme, setRiderTheme] = useState<RiderTheme>(() => localStorage.getItem('horseguessr-rider-theme') === 'male' ? 'male' : 'female')
   const [favoriteIds, setFavoriteIds] = useState(readFavoriteIds)
   const [topFavoriteIds, setTopFavoriteIds] = useState(readTopFavoriteIds)
+  const [favoriteOfAll, setFavoriteOfAll] = useState(() => readCookie(cookieNames.favoriteOfAll))
+  const [stampOrder, setStampOrder] = useState(readStampOrder)
   const [passportIds, setPassportIds] = useState(readPassportIds)
   const [account, setAccount] = useState<PlayerAccount | null>(null)
   const [authMode, setAuthMode] = useState<AuthMode | null>(null)
@@ -2022,6 +2065,8 @@ export default function App() {
   const accountSnapshot = (overrides: Partial<AccountSnapshot> = {}): AccountSnapshot => ({
     favorites: favoriteIds,
     topFavorites: topFavoriteIds,
+    favoriteOfAll,
+    stampOrder,
     passport: passportIds,
     personalBest: readPersonalBest(),
     nameBreedBest: Number(localStorage.getItem('horseguessr-quiz-best') || 0),
@@ -2033,6 +2078,10 @@ export default function App() {
     setAccount(nextAccount)
     setFavoriteIds(nextAccount.profile.favorites)
     setTopFavoriteIds(nextAccount.profile.topFavorites)
+    setFavoriteOfAll(nextAccount.profile.favoriteOfAll || '')
+    setStampOrder(nextAccount.profile.stampOrder || [])
+    writeCookie(cookieNames.favoriteOfAll, nextAccount.profile.favoriteOfAll || '')
+    writeStampOrder(nextAccount.profile.stampOrder || [])
     setPassportIds(nextAccount.profile.passport)
     writeFavoriteIds(nextAccount.profile.favorites)
     writeTopFavoriteIds(nextAccount.profile.topFavorites)
@@ -2056,7 +2105,7 @@ export default function App() {
     let active = true
     restoreAccount().then(async restored => {
       if (!active || !restored) return
-      const profile = await saveAccountProgress(restored, accountSnapshot())
+      const profile = await saveAccountProgress(restored, accountSnapshot({ favoriteOfAll: favoriteOfAll || restored.profile.favoriteOfAll, stampOrder: stampOrder.length ? stampOrder : restored.profile.stampOrder }), true)
       if (active) applyAccount({ ...restored, profile })
     }).catch(handleAccountError)
     return () => { active = false }
@@ -2095,7 +2144,7 @@ export default function App() {
     return () => window.clearTimeout(timer)
     // Score cookies are synchronized explicitly when a challenge finishes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [account?.uid, favoriteIds, passportIds, topFavoriteIds, authMode])
+  }, [account?.uid, favoriteIds, passportIds, topFavoriteIds, favoriteOfAll, stampOrder, authMode])
   const saveChallengeToAccount = (overrides: Partial<AccountSnapshot>) => {
     if (!account) return
     saveAccountProgress(account, accountSnapshot(overrides)).then(profile => setAccount(current => current?.uid === account.uid ? { ...current, profile } : current)).catch(handleAccountError)
@@ -2119,6 +2168,7 @@ export default function App() {
     const next = isAdding ? [...favoriteIds, breedId] : favoriteIds.filter(id => id !== breedId)
     setFavoriteIds(next)
     writeFavoriteIds(next)
+    if (!isAdding && favoriteOfAll === breedId) { setFavoriteOfAll(''); writeCookie(cookieNames.favoriteOfAll, '') }
     if (!isAdding && topFavoriteIds.includes(breedId)) {
       const nextTopFavorites = topFavoriteIds.filter(id => id !== breedId)
       setTopFavoriteIds(nextTopFavorites)
@@ -2138,6 +2188,13 @@ export default function App() {
     setPassportIds(next)
     writePassportIds(next)
   }
+  const toggleFavoriteOfAll = (breedId: string) => {
+    const next = favoriteOfAll === breedId ? '' : breedId
+    if (next && !favoriteIds.includes(next)) toggleFavorite(next)
+    setFavoriteOfAll(next)
+    writeCookie(cookieNames.favoriteOfAll, next)
+  }
+  const arrangeStamps = (ids: string[]) => { setStampOrder(ids); writeStampOrder(ids) }
   const start = (nextMode: 'daily' | 'practice', region: PracticeRegionId = 'world') => {
     if (nextMode === 'daily') {
       if (dailyLocked) return
@@ -2166,14 +2223,14 @@ export default function App() {
   return (
     <ThemeContext.Provider value={{ theme: riderTheme, setTheme: setRiderTheme }}>
       <AccountContext.Provider value={{ account, openAuth: setAuthMode, signOut, openProfile }}>
-        <FavoritesContext.Provider value={{ favoriteIds, topFavoriteIds, toggleFavorite, toggleTopFavorite }}>
-          <PassportContext.Provider value={{ passportIds, awardPassportMedal }}>
+        <FavoritesContext.Provider value={{ favoriteIds, topFavoriteIds, favoriteOfAll, toggleFavoriteOfAll, toggleFavorite, toggleTopFavorite }}>
+          <PassportContext.Provider value={{ passportIds, stampOrder, arrangeStamps, awardPassportMedal }}>
             {page}
             {!reportDashboard && !accountDashboard && <CookieNotice />}
             {authMode && <AccountModal mode={authMode} snapshot={accountSnapshot()} onClose={() => setAuthMode(null)} onSuccess={applyAccount} onDeleted={() => {
-              setAccount(null); setAuthMode(null); setFavoriteIds([]); setTopFavoriteIds([]); setPassportIds([])
+              setAccount(null); setAuthMode(null); setFavoriteIds([]); setTopFavoriteIds([]); setPassportIds([]); setFavoriteOfAll(''); setStampOrder([])
               Object.values(cookieNames).filter(name => name !== cookieNames.dailyAttempt && name !== cookieNames.cookieNotice).forEach(name => writeCookie(name, '', 0))
-              ;['horseguessr-quiz-best', 'horseguessr-photo-quiz-best', 'horseguessr-local-leaderboard'].forEach(key => localStorage.removeItem(key))
+              ;['horseguessr-quiz-best', 'horseguessr-photo-quiz-best', 'horseguessr-local-leaderboard', 'horseguessr-stamp-order', 'horseguessr-passport', 'horseguessr-favorites', 'horseguessr-top-favorites'].forEach(key => localStorage.removeItem(key))
               window.location.assign(import.meta.env.BASE_URL)
             }} />}
             {accountNotice && <AccountStatusNotice message={accountNotice} onClose={() => setAccountNotice('')} />}

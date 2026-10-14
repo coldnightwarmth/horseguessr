@@ -6,6 +6,7 @@ export const cookieNames = {
   dailyAttempt: 'hg_daily_attempt',
   favorites: 'hg_favorite_breeds',
   topFavorites: 'hg_top_favorite_breeds',
+  favoriteOfAll: 'hg_favorite_of_all',
   passport: 'hg_breed_passport',
   cookieNotice: 'hg_cookie_notice',
 } as const
@@ -25,7 +26,7 @@ export function writeCookie(name: string, value: string, maxAge = ONE_YEAR) {
 
 export function readFavoriteIds() {
   try {
-    const ids = JSON.parse(readCookie(cookieNames.favorites) || '[]')
+    const ids = JSON.parse(localStorage.getItem('horseguessr-favorites') || readCookie(cookieNames.favorites) || '[]')
     return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : []
   } catch {
     return []
@@ -33,12 +34,13 @@ export function readFavoriteIds() {
 }
 
 export function writeFavoriteIds(ids: string[]) {
+  try { localStorage.setItem('horseguessr-favorites', JSON.stringify([...new Set(ids)])) } catch { /* Cookie fallback. */ }
   writeCookie(cookieNames.favorites, JSON.stringify([...new Set(ids)]))
 }
 
 export function readTopFavoriteIds() {
   try {
-    const ids = JSON.parse(readCookie(cookieNames.topFavorites) || '[]')
+    const ids = JSON.parse(localStorage.getItem('horseguessr-top-favorites') || readCookie(cookieNames.topFavorites) || '[]')
     return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : []
   } catch {
     return []
@@ -46,12 +48,13 @@ export function readTopFavoriteIds() {
 }
 
 export function writeTopFavoriteIds(ids: string[]) {
+  try { localStorage.setItem('horseguessr-top-favorites', JSON.stringify([...new Set(ids)])) } catch { /* Cookie fallback. */ }
   writeCookie(cookieNames.topFavorites, JSON.stringify([...new Set(ids)]))
 }
 
 export function readPassportIds() {
   try {
-    const ids = JSON.parse(readCookie(cookieNames.passport) || '[]')
+    const ids = JSON.parse(localStorage.getItem('horseguessr-passport') || readCookie(cookieNames.passport) || '[]')
     return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : []
   } catch {
     return []
@@ -59,7 +62,20 @@ export function readPassportIds() {
 }
 
 export function writePassportIds(ids: string[]) {
+  // A complete stamp book can exceed the browser's 4 KB cookie limit.
+  try { localStorage.setItem('horseguessr-passport', JSON.stringify([...new Set(ids)])) } catch { /* Cookie fallback. */ }
   writeCookie(cookieNames.passport, JSON.stringify([...new Set(ids)]))
+}
+
+export function readStampOrder(): string[] {
+  try {
+    const ids: unknown = JSON.parse(localStorage.getItem('horseguessr-stamp-order') || '[]')
+    return Array.isArray(ids) ? [...new Set(ids.filter((id): id is string => typeof id === 'string'))] : []
+  } catch { return [] }
+}
+
+export function writeStampOrder(ids: string[]) {
+  try { localStorage.setItem('horseguessr-stamp-order', JSON.stringify(ids)) } catch { /* Session ordering still works. */ }
 }
 
 export function readPersonalBest() {

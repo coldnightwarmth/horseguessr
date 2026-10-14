@@ -67,8 +67,8 @@ export function breedsForPracticeRegion(region: PracticeRegionId, allBreeds: Bre
   }
 }
 
-export function pointsForOriginGuess(distanceKm: number, region: PracticeRegionId, usedHint: boolean): number {
+export function pointsForOriginGuess(distanceKm: number, region: PracticeRegionId, hintCount = 0): number {
   const distanceScaleKm = practiceRegions[region].distanceScaleKm
-  const base = distanceKm <= 0 ? 5000 : Math.round(5000 * Math.exp(-distanceKm / distanceScaleKm))
-  return Math.max(0, Math.round(base * (usedHint ? 0.75 : 1)))
+  const base = distanceKm <= 0 ? 5000 : Math.min(4999, Math.round(5000 * Math.exp(-distanceKm / distanceScaleKm)))
+  return Math.max(0, Math.round(base * (1 - Math.max(0, Math.min(2, hintCount)) * 0.1)))
 }

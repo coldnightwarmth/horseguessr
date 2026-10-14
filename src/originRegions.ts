@@ -1,4 +1,6 @@
 import geometryData from './originGeometries.json'
+import auditedBoundaries from './auditedBoundaries.json'
+import boundaryAssignments from './boundaryAssignments.json'
 import { expansionZoneSeeds } from './breedExpansion'
 
 export type MapPoint = { lat: number; lng: number }
@@ -8,7 +10,7 @@ type MultiPolygonGeometry = { type: 'MultiPolygon'; coordinates: Coordinate[][][
 export type RegionGeometry = PolygonGeometry | MultiPolygonGeometry
 
 type BoundaryRecord = { geometry: RegionGeometry; source: string }
-const boundaries = geometryData as unknown as Record<string, BoundaryRecord>
+const boundaries = { ...geometryData, ...auditedBoundaries } as unknown as Record<string, BoundaryRecord>
 
 export type OriginZone = {
   label: string
@@ -157,6 +159,9 @@ export const originZones: Record<string, OriginZone> = {
     radiusKm: zone.radiusKm,
     sources: [zone.source],
   }])),
+  ...Object.fromEntries(Object.entries(boundaryAssignments).map(([id, assignment]) => [id,
+    polygon(assignment.label, assignment.note, ...assignment.keys),
+  ])),
 }
 
 function haversine(a: MapPoint, b: MapPoint) {
@@ -238,7 +243,8 @@ export function distanceToOriginZone(point: MapPoint, zone: OriginZone) {
       if (candidate.distance < best.distance) best = candidate
     }
   }
-  return { inside: false, ...best }
+  // A point exactly on the outline belongs to the accepted region too.
+  return best.distance < 0.000001 ? { inside: true, distance: 0, nearest: point } : { inside: false, ...best }
 }
 
 export function originZoneBounds(zone: OriginZone): [MapPoint, MapPoint] {

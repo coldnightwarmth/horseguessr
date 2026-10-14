@@ -1,6 +1,7 @@
 import { extraBreeds } from './extraData'
 import { breedProfiles } from './breedProfiles'
 import { expansionBreeds, expansionProfiles } from './breedExpansion'
+import { normalizeBreedTags } from './breedTraits'
 
 export type Breed = {
   id: string
@@ -271,5 +272,9 @@ export const breeds: Breed[] = breedData.map(breed => ({
   ...breed,
   ...breedProfiles[breed.id],
   ...expansionProfiles[breed.id],
+  tags: normalizeBreedTags(breed.tags),
+  ...(breed.id === 'mangalarga-marchador' ? { location: 'Cruzília, Minas Gerais', lat: -21.84, lng: -44.81 } : {}),
+  ...(breed.id === 'hackney-horse' ? { location: 'Norfolk (also Yorkshire)', lat: 52.63, lng: 1.29 } : {}),
+  ...(breed.id === 'estonian-native' ? { location: 'Saaremaa and the western islands', lat: 58.35, lng: 22.48 } : {}),
   image: breed.image.startsWith('/') ? `${import.meta.env.BASE_URL}${breed.image.slice(1)}` : breed.image,
 }))

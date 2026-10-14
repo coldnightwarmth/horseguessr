@@ -9,6 +9,8 @@ export const BANNED_ACCOUNT_MESSAGE = 'This HorseGuessr account has been banned.
 export type AccountSnapshot = {
   favorites: string[]
   topFavorites: string[]
+  favoriteOfAll?: string
+  stampOrder?: string[]
   passport: string[]
   personalBest: number
   nameBreedBest: number
@@ -100,6 +102,8 @@ function profileFromDocument(document: FirestoreDocument): PublicProfile {
     username: stringValue(fields.username),
     favorites: arrayStrings(fields.favorites),
     topFavorites: arrayStrings(fields.topFavorites),
+    favoriteOfAll: stringValue(fields.favoriteOfAll),
+    stampOrder: arrayStrings(fields.stampOrder),
     passport: arrayStrings(fields.passport),
     personalBest: numberValue(fields.personalBest),
     nameBreedBest: numberValue(fields.nameBreedBest),
@@ -120,6 +124,8 @@ function profileFields(profile: PublicProfile): Record<string, FirestoreValue> {
     username: { stringValue: profile.username },
     favorites: arrayField(profile.favorites),
     topFavorites: arrayField(profile.topFavorites),
+    favoriteOfAll: { stringValue: profile.favoriteOfAll || '' },
+    stampOrder: arrayField(profile.stampOrder || []),
     passport: arrayField(profile.passport),
     personalBest: { integerValue: String(Math.round(profile.personalBest)) },
     nameBreedBest: { integerValue: String(Math.round(profile.nameBreedBest)) },
@@ -233,15 +239,20 @@ async function createUsername(username: string, session: FirebaseSession) {
   if (!response.ok) await authError(response, 'That username could not be reserved.')
 }
 
-function mergeProfile(uid: string, username: string, existing: PublicProfile | null, snapshot: AccountSnapshot): PublicProfile {
+function mergeProfile(uid: string, username: string, existing: PublicProfile | null, snapshot: AccountSnapshot, migrate = true): PublicProfile {
   const now = new Date().toISOString()
-  const favorites = unique([...(existing?.favorites || []), ...snapshot.favorites])
+  const favorites = unique([...(migrate ? existing?.favorites || [] : []), ...snapshot.favorites])
+  const passport = unique([...(existing?.passport || []), ...snapshot.passport])
+  const favoriteOfAll = (migrate ? snapshot.favoriteOfAll || existing?.favoriteOfAll : snapshot.favoriteOfAll ?? existing?.favoriteOfAll) || ''
+  const stampOrder = migrate && !snapshot.stampOrder?.length ? existing?.stampOrder || [] : snapshot.stampOrder ?? existing?.stampOrder ?? []
   return {
     uid,
     username: existing?.username || username,
     favorites,
-    topFavorites: unique([...(existing?.topFavorites || []), ...snapshot.topFavorites]).filter(id => favorites.includes(id)),
-    passport: unique([...(existing?.passport || []), ...snapshot.passport]),
+    topFavorites: unique([...(migrate ? existing?.topFavorites || [] : []), ...snapshot.topFavorites]).filter(id => favorites.includes(id)),
+    favoriteOfAll: favorites.includes(favoriteOfAll) ? favoriteOfAll : '',
+    stampOrder: unique(stampOrder).filter(id => passport.includes(id)),
+    passport,
     personalBest: Math.max(existing?.personalBest || 0, snapshot.personalBest || 0),
     nameBreedBest: Math.max(existing?.nameBreedBest || 0, snapshot.nameBreedBest || 0),
     photoQuizBest: Math.max(existing?.photoQuizBest || 0, snapshot.photoQuizBest || 0),
@@ -258,12 +269,12 @@ export async function fetchPublicProfile(uid: string) {
   return document ? profileFromDocument(document) : null
 }
 
-export async function saveAccountProgress(account: PlayerAccount, snapshot: AccountSnapshot) {
+export async function saveAccountProgress(account: PlayerAccount, snapshot: AccountSnapshot, migrate = false) {
   const session = await firebaseSession()
   if (session.localId !== account.uid) throw new Error('Please log in again to save your progress.')
   if (await privateAccountIsBanned(account.uid, session)) throw bannedAccountError()
   const current = await fetchPublicProfile(account.uid)
-  const profile = mergeProfile(account.uid, account.username, current, snapshot)
+  const profile = mergeProfile(account.uid, account.username, current, snapshot, migrate)
   await writeDocument('publicProfiles', account.uid, profileFields(profile), session)
   return profile
 }

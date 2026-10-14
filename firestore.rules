@@ -26,7 +26,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly([
           'username', 'favorites', 'topFavorites', 'passport', 'personalBest',
           'nameBreedBest', 'photoQuizBest', 'lastDailyScore', 'lastDailyDate',
-          'createdAt', 'updatedAt'
+          'createdAt', 'updatedAt', 'favoriteOfAll', 'stampOrder'
         ])
         && request.resource.data.username is string
         && request.resource.data.username.matches('^[a-z0-9_]{3,20}$')
@@ -38,6 +38,12 @@ service cloud.firestore {
         && request.resource.data.topFavorites.size() <= 300
         && request.resource.data.passport is list
         && request.resource.data.passport.size() <= 300
+        && request.resource.data.get('favoriteOfAll', '') is string
+        && (request.resource.data.get('favoriteOfAll', '') == ''
+          || request.resource.data.get('favoriteOfAll', '') in request.resource.data.favorites)
+        && request.resource.data.get('stampOrder', []) is list
+        && request.resource.data.get('stampOrder', []).size() <= 300
+        && request.resource.data.passport.hasAll(request.resource.data.get('stampOrder', []))
         && request.resource.data.personalBest is int
         && request.resource.data.personalBest >= 0
         && request.resource.data.personalBest <= 40000
