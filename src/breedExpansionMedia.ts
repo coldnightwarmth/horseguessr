@@ -2,6 +2,7 @@
 import type { BreedPhoto } from './media'
 
 export const expansionPhotoSources: Record<string, string[]> = {
+  "kundudo-horse": ["https://commons.wikimedia.org/wiki/File:Kundudo_mare_with_foal.jpg"],
   "hungarian-sport-horse": ["https://commons.wikimedia.org/wiki/File:Viscount_Starburst_-_Hungarian_Warmblood.jpg"],
   "miyako-horse": ["https://commons.wikimedia.org/wiki/File:Miyako_miyakouma_2014_(cropped).jpg"],
   "american-miniature": [

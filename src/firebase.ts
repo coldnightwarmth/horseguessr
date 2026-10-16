@@ -170,25 +170,50 @@ export async function firebaseSession() {
 
 const anonymousToken = firebaseSession
 
-export async function recordBreedFavorite(breedId: string): Promise<void> {
-  if (!firebaseConfigured) return
-  try {
+export type FavoriteTotals = { hearts: number; top: number; crown: number }
+const totalsValue = (fields: Record<string, unknown> = {}): FavoriteTotals => ({ hearts: integerField(fields.hearts), top: integerField(fields.top), crown: integerField(fields.crown) })
+export const favoriteWeight = (counts?: FavoriteTotals) => counts ? counts.hearts + counts.top + counts.crown : 0
+export async function fetchFavoriteTotals(): Promise<Record<string, FavoriteTotals>> {
+  if (!firebaseConfigured) return {}
+  const response = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runQuery?key=${apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ structuredQuery: { from: [{ collectionId: 'breedPopularity' }] } }) })
+  if (!response.ok) throw new Error('Community favorite counts are temporarily unavailable.')
+  const rows = await response.json() as Array<{document?: {name: string; fields: Record<string, unknown>}}>
+  return Object.fromEntries(rows.flatMap(row => row.document ? [[row.document.name.split('/').pop()!, totalsValue(row.document.fields)]] : []))
+}
+let favoriteQueue: Promise<void> = Promise.resolve()
+export function recordBreedFavorite(breedId: string, level: 'heart' | 'top' | 'crown' = 'heart'): Promise<void> {
+  favoriteQueue = favoriteQueue.then(async () => {
+    if (!firebaseConfigured) return
     const auth = await anonymousToken()
-    const documentId = `${breedId}_${auth.localId}`
-    const response = await fetch(`https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId!)}/databases/(default)/documents/breedHearts?documentId=${encodeURIComponent(documentId)}&key=${encodeURIComponent(apiKey!)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth.idToken}` },
-      body: JSON.stringify({ fields: {
-        breedId: { stringValue: breedId },
-        uid: { stringValue: auth.localId },
-        heartedAt: { timestampValue: new Date().toISOString() },
-      } }),
-    })
-    // A conflict means this browser has already contributed its one heart for the breed.
-    if (!response.ok && response.status !== 409) throw new Error(`Favorite save returned ${response.status}`)
-  } catch (error) {
-    console.warn('HorseGuessr could not record this favorite for the future popularity count.', error)
-  }
+    const root = `projects/${projectId}/databases/(default)/documents`
+    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${auth.idToken}` }
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const heartName = `${root}/breedHearts/${breedId}_${auth.localId}`
+      const statsName = `${root}/breedPopularity/${breedId}`
+      const responses = await Promise.all([heartName, statsName].map(name => fetch(`https://firestore.googleapis.com/v1/${name}?key=${apiKey}`, {headers})))
+      if (responses.some(r => !r.ok && r.status !== 404)) throw new Error('Favorite count could not be loaded')
+      const [heart, stats] = await Promise.all(responses.map(r => r.ok ? r.json() : null))
+      const previousTop = heart?.fields?.top?.booleanValue === true
+      const previousCrown = heart?.fields?.crown?.booleanValue === true
+      const top = previousTop || level === 'top'
+      const crown = previousCrown || level === 'crown'
+      if (heart && top === previousTop && crown === previousCrown) return
+      const counts = totalsValue(stats?.fields)
+      const next = { hearts: counts.hearts + (heart ? 0 : 1), top: counts.top + Number(top) - Number(previousTop), crown: counts.crown + Number(crown) - Number(previousCrown) }
+      const writes = [
+        { update: { name: heartName, fields: { breedId: {stringValue: breedId}, uid: {stringValue: auth.localId}, heartedAt: heart?.fields?.heartedAt || {timestampValue: new Date().toISOString()}, top: {booleanValue: top}, crown: {booleanValue: crown} } }, currentDocument: heart ? {updateTime: heart.updateTime} : {exists: false} },
+        { update: { name: statsName, fields: Object.fromEntries(Object.entries(next).map(([k,v]) => [k,{integerValue:String(v)}])) }, currentDocument: stats ? {updateTime: stats.updateTime} : {exists: false} },
+      ]
+      const saved = await fetch(`https://firestore.googleapis.com/v1/${root}:commit?key=${apiKey}`, {method:'POST',headers,body:JSON.stringify({writes})})
+      if (saved.ok) {
+        window.dispatchEvent(new Event('horseguessr:favorite-counts'))
+        return
+      }
+      if (![409, 412].includes(saved.status)) throw new Error('Favorite count could not be saved')
+    }
+    throw new Error('Favorite count contention; try again later')
+  }).catch(error => { console.warn('HorseGuessr favorite count:', error) })
+  return favoriteQueue
 }
 
 export type PhotoReportReason = 'not-loading' | 'horse-too-small' | 'person-visible' | 'not-color-photo' | 'wrong-breed' | 'other'

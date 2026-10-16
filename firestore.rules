@@ -95,19 +95,71 @@ service cloud.firestore {
       allow delete: if isAdmin() || canDeleteOwnData(resource.data.uid);
     }
 
+    // Atomic, monotonic lifetime votes: one heart and at most one bonus of each
+    // kind per authenticated identity. Public totals never expose voter IDs.
+    function favoriteIncrement(breedId, key) {
+      let path = /databases/$(database)/documents/breedHearts/$(breedId + '_' + request.auth.uid);
+      let before = exists(path) ? get(path).data : {};
+      let after = getAfter(path).data;
+      return key == 'hearts' ? (exists(path) ? 0 : 1)
+        : (after.get(key, false) ? 1 : 0) - (before.get(key, false) ? 1 : 0);
+    }
+    function validPopularity(breedId) {
+      let path = /databases/$(database)/documents/breedPopularity/$(breedId);
+      let before = exists(path) ? get(path).data : {'hearts': 0, 'top': 0, 'crown': 0};
+      let after = getAfter(path).data;
+      return after.keys().hasOnly(['hearts', 'top', 'crown'])
+        && after.hearts is int && after.top is int && after.crown is int
+        && after.hearts == before.hearts + favoriteIncrement(breedId, 'hearts')
+        && after.top == before.top + favoriteIncrement(breedId, 'top')
+        && after.crown == before.crown + favoriteIncrement(breedId, 'crown')
+        && after.hearts + after.top + after.crown > before.hearts + before.top + before.crown;
+    }
+    match /breedPopularity/{breedId} {
+      allow read: if true;
+      allow create, update: if request.auth != null && !isBanned(request.auth.uid)
+        && (validPopularity(breedId) || validPopularityRemoval(breedId));
+      allow delete: if false;
+    }
+    function validPopularityRemoval(breedId) {
+      let votePath = /databases/$(database)/documents/breedHearts/$(breedId + '_' + request.auth.uid);
+      let statsPath = /databases/$(database)/documents/breedPopularity/$(breedId);
+      let vote = get(votePath).data;
+      let before = get(statsPath).data;
+      let after = getAfter(statsPath).data;
+      return canDeleteOwnData(request.auth.uid)
+        && !existsAfter(votePath)
+        && after.keys().hasOnly(['hearts', 'top', 'crown'])
+        && after.hearts is int && after.top is int && after.crown is int
+        && after.hearts >= 0 && after.top >= 0 && after.crown >= 0
+        && after.hearts == before.hearts - 1
+        && after.top == before.top - (vote.get('top', false) ? 1 : 0)
+        && after.crown == before.crown - (vote.get('crown', false) ? 1 : 0);
+    }
     // One document per browser account and breed; owners may remove it during
     // reauthenticated account deletion. Other players cannot read these records.
     match /breedHearts/{heartId} {
-      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow get: if request.auth != null && heartId.matches('^[a-z0-9-]{2,80}_' + request.auth.uid + '$');
+      allow list: if request.auth != null && resource.data.uid == request.auth.uid;
       allow create: if request.auth != null
-        && request.resource.data.keys().hasOnly(['breedId', 'uid', 'heartedAt'])
+        && !isBanned(request.auth.uid)
+        && request.resource.data.keys().hasOnly(['breedId', 'uid', 'heartedAt', 'top', 'crown'])
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.breedId is string
         && request.resource.data.breedId.matches('^[a-z0-9-]{2,80}$')
         && heartId == request.resource.data.breedId + '_' + request.auth.uid
-        && request.resource.data.heartedAt is timestamp;
-      allow update: if false;
-      allow delete: if canDeleteOwnData(resource.data.uid);
+        && request.resource.data.heartedAt is timestamp
+        && request.resource.data.top is bool && request.resource.data.crown is bool
+        && validPopularity(request.resource.data.breedId);
+      allow update: if request.auth != null && !isBanned(request.auth.uid)
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['top', 'crown'])
+        && request.resource.data.top is bool && request.resource.data.crown is bool
+        && (!resource.data.get('top', false) || request.resource.data.top)
+        && (!resource.data.get('crown', false) || request.resource.data.crown)
+        && validPopularity(resource.data.breedId);
+      allow delete: if canDeleteOwnData(resource.data.uid)
+        && validPopularityRemoval(resource.data.breedId);
     }
 
     // Quality reports contain only public photo metadata and the selected reason;

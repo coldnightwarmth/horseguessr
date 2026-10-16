@@ -417,7 +417,35 @@ export async function deleteRiderAccount(emailValue: string, password: string) {
       if (rows.some(row => row.error)) throw new Error('Could not locate account data for deletion. Please retry; your login has not been deleted.')
       const names = rows.flatMap(row => row.document ? [row.document.name] : [])
       if (!names.length) break
-      await remove(names)
+      if (collection === 'breedHearts') {
+        // Delete each vote and its public contribution in one transaction-like
+        // commit. Version preconditions prevent racing another player's vote.
+        for (const row of rows) {
+          if (!row.document) continue
+          const vote = row.document
+          const breedId = stringValue(vote.fields?.breedId)
+          let removed = false
+          for (let attempt = 0; attempt < 4 && !removed; attempt++) {
+            const statsResponse = await fetch(documentUrl('breedPopularity', breedId), { headers })
+            if (!statsResponse.ok) await authError(statsResponse, 'Could not update favorite totals. Please retry account deletion.')
+            const stats = await statsResponse.json() as FirestoreDocument & { updateTime: string }
+            const counts = {
+              hearts: numberValue(stats.fields?.hearts) - 1,
+              top: numberValue(stats.fields?.top) - Number(booleanValue(vote.fields?.top)),
+              crown: numberValue(stats.fields?.crown) - Number(booleanValue(vote.fields?.crown)),
+            }
+            const result = await fetch(`${base}:commit?key=${encodeURIComponent(apiKey!)}`, {
+              method: 'POST', headers, body: JSON.stringify({ writes: [
+                { delete: vote.name },
+                { update: { name: stats.name, fields: Object.fromEntries(Object.entries(counts).map(([key, value]) => [key, { integerValue: String(value) }])) }, currentDocument: { updateTime: stats.updateTime } },
+              ] }),
+            })
+            if (result.ok) removed = true
+            else if (![409, 412].includes(result.status)) await authError(result, 'Could not remove favorite data. Please retry account deletion.')
+          }
+          if (!removed) throw new Error('Favorite totals are busy. Please retry account deletion.')
+        }
+      } else await remove(names)
     }
   }
   const names: string[] = []

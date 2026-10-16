@@ -10,6 +10,7 @@ import { Breed, breeds } from './data'
 import { ArrowUp, ArrowLeft, Crown } from 'lucide-react'
 import { orderedStamps, moveStamp } from './stampOrder'
 import { continentForBreed } from './continents'
+import { fetchFavoriteTotals, favoriteWeight, FavoriteTotals } from './firebase'
 import { readStampOrder, writeStampOrder } from './preferences'
 import { traitsForBreed, hintsForBreed, comparisonRows, sharedFoundations, traitFields, TraitField } from './breedTraits'
 import { AtlasPlace, lookupAtlasPlace, nearestBreedOrigins, NearbyBreed } from './atlas'
@@ -56,6 +57,7 @@ function dailyBreedPool(day: string) {
   if (day < '2026-09-20') return breeds.filter(breed => breed.id !== 'azteca-horse' && !expansionBreedIds.includes(breed.id))
   if (day < '2026-09-25') return breeds.filter(breed => !expansionBreedIds.includes(breed.id))
   if (day < '2026-10-16') return breeds.filter(breed => !octoberBreedIds.includes(breed.id))
+  if (day < '2026-10-17') return breeds.filter(breed => breed.id !== 'kundudo-horse')
   return breeds
 }
 
@@ -1702,6 +1704,15 @@ function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, showAtlas = f
   const [heightFilter, setHeightFilter] = useState('')
   const [passportFilter, setPassportFilter] = useState('all')
   const [sortOrder, setSortOrder] = useState('az')
+  const [popularity, setPopularity] = useState<Record<string, FavoriteTotals>>({})
+  const [popularityStatus, setPopularityStatus] = useState('Loading community totals…')
+  useEffect(() => {
+    let active = true
+    const refresh = () => { void fetchFavoriteTotals().then(counts => { if (active) { setPopularity(counts); setPopularityStatus('Lifetime unique hearts + top-favorite bonuses + favorite-of-all bonuses.') } }).catch(() => { if (active) { setPopularity({}); setPopularityStatus('Community totals unavailable; showing alphabetical order. Please try again later.') } }) }
+    refresh()
+    window.addEventListener('horseguessr:favorite-counts', refresh)
+    return () => { active = false; window.removeEventListener('horseguessr:favorite-counts', refresh) }
+  }, [])
   const countries = useMemo(() => [...new Set(shownBreeds.map(breed => breed.country))].sort((a, b) => a.localeCompare(b)).map(name => ({ name, flag: shownBreeds.find(breed => breed.country === name)?.flag || '🌐' })), [shownBreeds])
   const filterGroups: { label: string; keys: TraitField[] }[] = [
     { label: 'Body & appearance', keys: ['type', 'proportions', 'build', 'headProfile', 'ears', 'mane', 'feathering', 'coats', 'patterns'] },
@@ -1721,8 +1732,8 @@ function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, showAtlas = f
       const earned = passportIds.includes(breed.id)
       const matchesPassport = passportFilter === 'all' || (passportFilter === 'earned' ? earned : !earned)
       return matchesSearch && matchesCountry && matchesTraits && matchesHeight && matchesPassport
-    }).sort((a, b) => (sortOrder === 'za' ? -1 : 1) * a.name.localeCompare(b.name))
-  }, [country, passportFilter, passportIds, query, shownBreeds, traitFilters, heightFilter, sortOrder])
+    }).sort((a, b) => sortOrder === 'popular' ? favoriteWeight(popularity[b.id]) - favoriteWeight(popularity[a.id]) || a.name.localeCompare(b.name) : (sortOrder === 'za' ? -1 : 1) * a.name.localeCompare(b.name))
+  }, [country, passportFilter, passportIds, query, shownBreeds, traitFilters, heightFilter, sortOrder, popularity])
   const suggestedBreed = useMemo(() => filteredBreeds.length ? null : suggestBreedName(query, shownBreeds), [filteredBreeds.length, query, shownBreeds])
   const crownedBreed = showTopFavorites ? filteredBreeds.find(breed => breed.id === favoriteOfAll) : undefined
   const topFilteredBreeds = showTopFavorites ? filteredBreeds.filter(breed => topFavoriteIds.includes(breed.id) && breed.id !== favoriteOfAll) : []
@@ -1747,8 +1758,9 @@ function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, showAtlas = f
           <label><span>Country</span><select value={country} onChange={event => setCountry(event.target.value)}><option value="">All countries</option>{countries.map(item => <option key={item.name} value={item.name}>{item.flag} {item.name}</option>)}</select></label>
           <label><span>Height</span><select value={heightFilter} onChange={event => setHeightFilter(event.target.value)}><option value="">Any height</option><option value="small">Under 120 cm</option><option value="medium">120–147 cm</option><option value="large">148–164 cm</option><option value="tall">165 cm and over</option><option value="unknown">Not recorded</option></select></label>
           <label><span>Passport</span><select value={passportFilter} onChange={event => setPassportFilter(event.target.value)}><option value="all">All breeds</option><option value="earned">Stamp collected</option><option value="unearned">Not identified yet</option></select></label>
-          <label><span>Sort breeds</span><select value={sortOrder} onChange={event => setSortOrder(event.target.value)}><option value="az">Alphabetical A–Z</option><option value="za">Alphabetical Z–A</option></select></label>
+          <label><span>Sort breeds</span><select value={sortOrder} onChange={event => setSortOrder(event.target.value)}><option value="az">Alphabetical A–Z</option><option value="za">Alphabetical Z–A</option><option value="popular">Most favorited</option></select></label>
           <div className="guide-filter-result"><strong>{filteredBreeds.length}</strong><span>breeds shown</span><button type="button" onClick={resetFilters}>Reset</button></div>
+          {sortOrder === 'popular' && <p className="popularity-note" role="status">{popularityStatus}</p>}
           <details className="guide-trait-filters"><summary>Filter by traits, use & environment {Object.values(traitFilters).filter(Boolean).length > 0 && `(${Object.values(traitFilters).filter(Boolean).length} active)`}</summary>
             {filterGroups.map(group => <fieldset key={group.label}><legend>{group.label}</legend><div>{group.keys.map(key => <label key={key}><span>{traitFields[key]}</span><select value={traitFilters[key] || ''} onChange={event => setTraitFilters(current => ({ ...current, [key]: event.target.value }))}><option value="">Any {traitFields[key].toLowerCase()}</option>{filterOptions[key].map(value => <option key={value}>{value}</option>)}<option value="__unknown">Not recorded</option></select></label>)}</div></fieldset>)}
             <small>Filters combine. Height matches overlapping recorded measurements; averages and registry limits are labelled on each trait card. A missing trait is not evidence that the breed lacks it.</small>
@@ -1781,7 +1793,7 @@ function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, showAtlas = f
         {otherFilteredBreeds.map(breed => (
           <article className={`guide-card ${passportIds.includes(breed.id) ? 'guide-card--passport-earned' : ''}`} key={breed.id}>
             <MagnifiableImage src={defaultPhotoForBreed(breed).src} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} breedId={breed.id} loading="lazy" showFullViewButton={false} clickToExpand />
-            <div><span>{breed.country} · <button type="button" className="guide-photo-count" onClick={() => setGalleryBreed(breed)}>{photosForBreed(breed).length} photos <Images size={13} /></button></span><h2><BreedName breed={breed} showTopFavorite={showTopFavorites} /><PassportMedal breed={breed} /></h2><BreedBio breed={breed} /><a href={breed.source} target="_blank" rel="noreferrer">Open breed profile <ArrowRight size={15} /></a></div>
+            <div><span>{breed.country} · <button type="button" className="guide-photo-count" onClick={() => setGalleryBreed(breed)}>{photosForBreed(breed).length} photos <Images size={13} /></button></span><h2><BreedName breed={breed} showTopFavorite={showTopFavorites} /><PassportMedal breed={breed} /></h2>{sortOrder === 'popular' && <p className="community-favorite-score"><strong>{favoriteWeight(popularity[breed.id])} favorite points</strong> · {popularity[breed.id]?.hearts ?? 0} hearts + {popularity[breed.id]?.top ?? 0} top favorites + {popularity[breed.id]?.crown ?? 0} favorites of all</p>}<BreedBio breed={breed} /><a href={breed.source} target="_blank" rel="noreferrer">Open breed profile <ArrowRight size={15} /></a></div>
           </article>
         ))}
         {shownBreeds.length > 0 && filteredBreeds.length === 0 && <p className="guide-empty">No breeds match this stable search. Try clearing one of the filters.</p>}
@@ -2086,6 +2098,7 @@ export default function App() {
   const [stampOrder, setStampOrder] = useState(readStampOrder)
   const [passportIds, setPassportIds] = useState(readPassportIds)
   const [account, setAccount] = useState<PlayerAccount | null>(null)
+  const [accountRestored, setAccountRestored] = useState(false)
   const [authMode, setAuthMode] = useState<AuthMode | null>(null)
   const [accountNotice, setAccountNotice] = useState('')
   const [dailyAttemptKey, setDailyAttemptKey] = useState(() => readCookie(cookieNames.dailyAttempt))
@@ -2144,12 +2157,26 @@ export default function App() {
       if (!active || !restored) return
       const profile = await saveAccountProgress(restored, accountSnapshot({ favoriteOfAll: favoriteOfAll || restored.profile.favoriteOfAll, stampOrder: stampOrder.length ? stampOrder : restored.profile.stampOrder }), true)
       if (active) applyAccount({ ...restored, profile })
-    }).catch(handleAccountError)
+    }).catch(handleAccountError).finally(() => { if (active) setAccountRestored(true) })
     return () => { active = false }
     // The initial browser snapshot is intentionally migrated only once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const accountUid = account?.uid || ''
+  useEffect(() => {
+    if (!accountRestored) return
+    // Recover pre-ranking browser choices. The server makes every replay
+    // idempotent; never treat a local flag as proof that a vote was counted.
+    const timer = window.setTimeout(() => {
+      for (const id of favoriteIds) {
+        void recordBreedFavorite(id, topFavoriteIds.includes(id) ? 'top' : 'heart')
+        if (id === favoriteOfAll) void recordBreedFavorite(id, 'crown')
+      }
+    }, 500)
+    return () => window.clearTimeout(timer)
+    // Replay on initial restore and identity changes, not every local toggle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountRestored, accountUid])
   useEffect(() => {
     if (!accountUid) return
     let active = true
@@ -2215,6 +2242,7 @@ export default function App() {
   }
   const toggleTopFavorite = (breedId: string) => {
     if (!favoriteIds.includes(breedId)) return
+    if (!topFavoriteIds.includes(breedId)) void recordBreedFavorite(breedId, 'top')
     const next = topFavoriteIds.includes(breedId) ? topFavoriteIds.filter(id => id !== breedId) : [...topFavoriteIds, breedId]
     setTopFavoriteIds(next)
     writeTopFavoriteIds(next)
@@ -2227,6 +2255,7 @@ export default function App() {
   }
   const toggleFavoriteOfAll = (breedId: string) => {
     const next = favoriteOfAll === breedId ? '' : breedId
+    if (next) void recordBreedFavorite(next, 'crown')
     if (next && !favoriteIds.includes(next)) toggleFavorite(next)
     setFavoriteOfAll(next)
     writeCookie(cookieNames.favoriteOfAll, next)
