@@ -49,6 +49,7 @@ const northAmericanCountries = new Set(['Canada', 'United States', 'Mexico'])
 // to Europe. Trakehner is excluded from Europe because its founding stud is in
 // present-day Russia, despite its historic East Prussian/German association.
 const turanBreedIds = new Set([
+  'hungarian-sport-horse', 'miyako-horse',
   'akhal-teke', 'mongolian', 'orlov-trotter', 'finnhorse', 'nonius', 'gidran',
   'furioso-north-star', 'kisber-felver', 'shagya-arabian', 'hucul', 'yakutian',
   'caspian', 'karabakh', 'don-horse', 'bashkir-horse', 'jeju-horse', 'noma-horse',
@@ -67,8 +68,8 @@ export function breedsForPracticeRegion(region: PracticeRegionId, allBreeds: Bre
   }
 }
 
-export function pointsForOriginGuess(distanceKm: number, region: PracticeRegionId, hintCount = 0): number {
+export function pointsForOriginGuess(distanceKm: number, region: PracticeRegionId, hintCount = 0, continentHint = false): number {
   const distanceScaleKm = practiceRegions[region].distanceScaleKm
   const base = distanceKm <= 0 ? 5000 : Math.min(4999, Math.round(5000 * Math.exp(-distanceKm / distanceScaleKm)))
-  return Math.max(0, Math.round(base * (1 - Math.max(0, Math.min(2, hintCount)) * 0.1)))
+  return Math.max(0, Math.round(base * (1 - Math.max(0, Math.min(2, hintCount)) * 0.1 - (continentHint ? 0.25 : 0))))
 }

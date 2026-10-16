@@ -9,10 +9,11 @@ import { deleteRiderAccount, requestPasswordReset } from './accounts'
 import { Breed, breeds } from './data'
 import { ArrowUp, ArrowLeft, Crown } from 'lucide-react'
 import { orderedStamps, moveStamp } from './stampOrder'
+import { continentForBreed } from './continents'
 import { readStampOrder, writeStampOrder } from './preferences'
 import { traitsForBreed, hintsForBreed, comparisonRows, sharedFoundations, traitFields, TraitField } from './breedTraits'
 import { AtlasPlace, lookupAtlasPlace, nearestBreedOrigins, NearbyBreed } from './atlas'
-import { expansionBreedIds } from './breedExpansion'
+import { expansionBreedIds, octoberBreedIds } from './breedExpansion'
 import { fetchLeaderboard, fetchPhotoQualityReports, FirebaseSession, LeaderboardResult, PhotoQualityReport, PhotoReportReason, recordBreedFavorite, recordPhotoQualityReport, submitLeaderboardScore } from './firebase'
 import { normalizeGuideText, suggestBreedName } from './guideSearch'
 import { horseQuotes } from './horseQuotes'
@@ -39,7 +40,7 @@ function readCompletedDaily(day: string): RoundResult[] {
     return saved.results.map((r: RoundResult) => ({ ...r, breed: breeds.find(b => b.id === r.breed.id)! }))
   } catch { return [] }
 }
-type DailyRide = { day: string; breedIds: string[]; round: number; guess: Point | null; results: RoundResult[]; hintOpen?: boolean; hintCount?: number }
+type DailyRide = { day: string; breedIds: string[]; round: number; guess: Point | null; results: RoundResult[]; hintOpen?: boolean; hintCount?: number; continentHint?: boolean }
 function readDailyRide(day: string): DailyRide | null {
   try {
     const ride = JSON.parse(localStorage.getItem(DAILY_RIDE_KEY) || 'null') as DailyRide | null
@@ -54,6 +55,7 @@ function readDailyRide(day: string): DailyRide | null {
 function dailyBreedPool(day: string) {
   if (day < '2026-09-20') return breeds.filter(breed => breed.id !== 'azteca-horse' && !expansionBreedIds.includes(breed.id))
   if (day < '2026-09-25') return breeds.filter(breed => !expansionBreedIds.includes(breed.id))
+  if (day < '2026-10-16') return breeds.filter(breed => !octoberBreedIds.includes(breed.id))
   return breeds
 }
 
@@ -1010,10 +1012,11 @@ function Game({ mode, practiceRegion, dayKey, onFinish, onExit }: { mode: 'daily
   const [result, setResult] = useState<RoundResult | null>(savedRide?.results[savedRide.round] ?? null)
   const [results, setResults] = useState<RoundResult[]>(savedRide?.results ?? [])
   const [hintCount, setHintCount] = useState(Math.max(0, Math.min(2, savedRide?.hintCount ?? (savedRide?.hintOpen ? 1 : 0))))
+  const [continentHint, setContinentHint] = useState(savedRide?.continentHint === true)
   useEffect(() => {
     if (mode !== 'daily') return
-    try { localStorage.setItem(DAILY_RIDE_KEY, JSON.stringify({ day: gameSeed, breedIds: roundBreeds.map(breed => breed.id), round, guess, results, hintCount } satisfies DailyRide)) } catch { /* Play remains available if device storage is full. */ }
-  }, [mode, gameSeed, roundBreeds, round, guess, results, hintCount])
+    try { localStorage.setItem(DAILY_RIDE_KEY, JSON.stringify({ day: gameSeed, breedIds: roundBreeds.map(breed => breed.id), round, guess, results, hintCount, continentHint } satisfies DailyRide)) } catch { /* Play remains available if device storage is full. */ }
+  }, [mode, gameSeed, roundBreeds, round, guess, results, hintCount, continentHint])
   const breed = roundBreeds[round]
   const originZone = originZones[breed.id]
   const photoPool = photosForBreed(breed)
@@ -1032,8 +1035,8 @@ function Game({ mode, practiceRegion, dayKey, onFinish, onExit }: { mode: 'daily
     if (!guess || result) return
     const zoneResult = distanceToOriginZone(guess, originZone)
     const distance = Math.round(zoneResult.distance)
-    const points = pointsForOriginGuess(zoneResult.distance, activeRegion, hintCount)
-    const nextResult = { breed, distance, points, guess, usedHint: hintCount > 0, photo: currentPhoto, insideRegion: zoneResult.inside, nearest: zoneResult.nearest }
+    const points = pointsForOriginGuess(zoneResult.distance, activeRegion, hintCount, continentHint)
+    const nextResult = { breed, distance, points, guess, usedHint: hintCount > 0 || continentHint, photo: currentPhoto, insideRegion: zoneResult.inside, nearest: zoneResult.nearest }
     if (points === 5000 && zoneResult.inside) awardPassportMedal(breed.id)
     setResult(nextResult)
     setResults(current => [...current, nextResult])
@@ -1048,6 +1051,7 @@ function Game({ mode, practiceRegion, dayKey, onFinish, onExit }: { mode: 'daily
     setGuess(null)
     setResult(null)
     setHintCount(0)
+    setContinentHint(false)
   }
 
   return (
@@ -1077,6 +1081,10 @@ function Game({ mode, practiceRegion, dayKey, onFinish, onExit }: { mode: 'daily
           {!result ? (
             <>
               <TraitHints breed={breed} count={hintCount} onReveal={() => setHintCount(count => Math.min(2, count + 1))} />
+              <div className="continent-hint">
+                {continentHint ? <p role="status"><Compass size={17} /> Origin continent: <strong>{continentForBreed(breed)}</strong></p> : <button className="secondary-button" onClick={() => setContinentHint(true)}><Compass size={17} /> Reveal continent (−25%)</button>}
+                {(continentHint || hintCount > 0) && <small>Total hint deduction: {hintCount * 10 + (continentHint ? 25 : 0)}% of this round’s score.</small>}
+              </div>
               <button className="primary-button submit-button" disabled={!guess} onClick={submitGuess}>
                 {guess ? <><LocateFixed size={19} /> Lock in this location</> : <><MapPin size={19} /> Place a pin to continue</>}
               </button>
@@ -1693,6 +1701,7 @@ function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, showAtlas = f
   const [traitFilters, setTraitFilters] = useState<Partial<Record<TraitField, string>>>({})
   const [heightFilter, setHeightFilter] = useState('')
   const [passportFilter, setPassportFilter] = useState('all')
+  const [sortOrder, setSortOrder] = useState('az')
   const countries = useMemo(() => [...new Set(shownBreeds.map(breed => breed.country))].sort((a, b) => a.localeCompare(b)).map(name => ({ name, flag: shownBreeds.find(breed => breed.country === name)?.flag || '🌐' })), [shownBreeds])
   const filterGroups: { label: string; keys: TraitField[] }[] = [
     { label: 'Body & appearance', keys: ['type', 'proportions', 'build', 'headProfile', 'ears', 'mane', 'feathering', 'coats', 'patterns'] },
@@ -1712,8 +1721,8 @@ function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, showAtlas = f
       const earned = passportIds.includes(breed.id)
       const matchesPassport = passportFilter === 'all' || (passportFilter === 'earned' ? earned : !earned)
       return matchesSearch && matchesCountry && matchesTraits && matchesHeight && matchesPassport
-    })
-  }, [country, passportFilter, passportIds, query, shownBreeds, traitFilters, heightFilter])
+    }).sort((a, b) => (sortOrder === 'za' ? -1 : 1) * a.name.localeCompare(b.name))
+  }, [country, passportFilter, passportIds, query, shownBreeds, traitFilters, heightFilter, sortOrder])
   const suggestedBreed = useMemo(() => filteredBreeds.length ? null : suggestBreedName(query, shownBreeds), [filteredBreeds.length, query, shownBreeds])
   const crownedBreed = showTopFavorites ? filteredBreeds.find(breed => breed.id === favoriteOfAll) : undefined
   const topFilteredBreeds = showTopFavorites ? filteredBreeds.filter(breed => topFavoriteIds.includes(breed.id) && breed.id !== favoriteOfAll) : []
@@ -1738,6 +1747,7 @@ function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, showAtlas = f
           <label><span>Country</span><select value={country} onChange={event => setCountry(event.target.value)}><option value="">All countries</option>{countries.map(item => <option key={item.name} value={item.name}>{item.flag} {item.name}</option>)}</select></label>
           <label><span>Height</span><select value={heightFilter} onChange={event => setHeightFilter(event.target.value)}><option value="">Any height</option><option value="small">Under 120 cm</option><option value="medium">120–147 cm</option><option value="large">148–164 cm</option><option value="tall">165 cm and over</option><option value="unknown">Not recorded</option></select></label>
           <label><span>Passport</span><select value={passportFilter} onChange={event => setPassportFilter(event.target.value)}><option value="all">All breeds</option><option value="earned">Stamp collected</option><option value="unearned">Not identified yet</option></select></label>
+          <label><span>Sort breeds</span><select value={sortOrder} onChange={event => setSortOrder(event.target.value)}><option value="az">Alphabetical A–Z</option><option value="za">Alphabetical Z–A</option></select></label>
           <div className="guide-filter-result"><strong>{filteredBreeds.length}</strong><span>breeds shown</span><button type="button" onClick={resetFilters}>Reset</button></div>
           <details className="guide-trait-filters"><summary>Filter by traits, use & environment {Object.values(traitFilters).filter(Boolean).length > 0 && `(${Object.values(traitFilters).filter(Boolean).length} active)`}</summary>
             {filterGroups.map(group => <fieldset key={group.label}><legend>{group.label}</legend><div>{group.keys.map(key => <label key={key}><span>{traitFields[key]}</span><select value={traitFilters[key] || ''} onChange={event => setTraitFilters(current => ({ ...current, [key]: event.target.value }))}><option value="">Any {traitFields[key].toLowerCase()}</option>{filterOptions[key].map(value => <option key={value}>{value}</option>)}<option value="__unknown">Not recorded</option></select></label>)}</div></fieldset>)}
@@ -1760,7 +1770,7 @@ function BreedCollection({ shownBreeds, title, eyebrow, emptyCopy, showAtlas = f
             <div><h2><BreedName breed={crownedBreed} showTopFavorite /><PassportMedal breed={crownedBreed} /></h2><BreedBio breed={crownedBreed} /></div>
           </article>
         </>}
-        {showTopFavorites && <div className="favorite-section-heading favorite-section-heading--top"><Star size={21} fill="currentColor" /><div><span>PINNED TO THE TOP</span><h2>Top favorites</h2><p>{topFilteredBreeds.length ? 'Your most-loved horses, collected first.' : 'Tap the star beside any favorite breed to pin it here.'}</p></div></div>}
+        {showTopFavorites && <div className="favorite-section-heading favorite-section-heading--top"><Star size={21} fill="currentColor" /><div><span>PINNED TO THE TOP</span><h2>Top favorites</h2><p>{topFilteredBreeds.length ? 'Your most-loved horses.' : 'Tap the star beside any favorite breed to pin it here.'}</p></div></div>}
         {topFilteredBreeds.map(breed => (
           <article className={`guide-card ${passportIds.includes(breed.id) ? 'guide-card--passport-earned' : ''}`} key={breed.id}>
             <MagnifiableImage src={defaultPhotoForBreed(breed).src} photos={photosForBreed(breed)} fallbacks={photosForBreed(breed).map(photo => photo.src)} alt={breed.name} breedId={breed.id} loading="lazy" showFullViewButton={false} clickToExpand />

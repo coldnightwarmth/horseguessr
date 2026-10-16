@@ -51,6 +51,12 @@ for (const id of ['dutch-warmblood', 'dutch-harness', 'friesian']) {
   assert.equal(m.distanceToOriginZone({lat: 50.85, lng: 4.35}, m.originZones[id]).inside, false)
 }
 for (const hints of [0, 1, 2]) assert.equal(m.pointsForOriginGuess(0, 'world', hints), 5000 - 500 * hints)
+for (const region of ['world', 'europe', 'north-america', 'turan']) {
+  for (const hints of [0, 1, 2]) {
+    assert.equal(m.pointsForOriginGuess(0, region, hints, true), 3750 - 500 * hints)
+    assert.ok(m.pointsForOriginGuess(1000, region, hints, true) >= 0)
+  }
+}
 assert.equal(m.pointsForOriginGuess(0.00001, 'world'), 4999)
 assert.ok(m.pointsForOriginGuess(100, 'europe') < m.pointsForOriginGuess(100, 'world'))
 assert.deepEqual(m.normalizeBreedTags(['cold-weather', 'cold-climate', 'cold-blood', 'coldblood']), ['cold-climate', 'coldblood'])

@@ -1613,7 +1613,7 @@ body,
   margin: 0 auto 27px;
   padding: 14px;
   display: grid;
-  grid-template-columns: minmax(260px, 1.5fr) repeat(3, minmax(150px, .7fr)) auto;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
   align-items: end;
   gap: 10px;
   border: 6px ridge #fff;
@@ -3159,13 +3159,17 @@ html[data-rider-theme='male'] .favorite-crown.is-favorite-of-all { background: l
 .favorite-of-all-card > .magnifiable-image { height: 100%; min-height: 350px; }
 .favorite-of-all-card > div:last-child { padding: 24px; min-width: 0; }
 .favorite-of-all-card img { width: 100%; height: 100%; object-fit: cover; }
-.brand .brand-question { left: 50%; top: 50%; transform: translate(-50%, -50%); color: #fff; }
-html[data-rider-theme='male'] .brand .brand-question { color: #f5d990; }
+.brand .brand-question { left: 50%; top: 50%; transform: translate(-50%, -50%); color: #fe0889; }
+html[data-rider-theme='male'] .brand .brand-question { color: #713e23; }
 html[data-rider-theme='male'] .hero-copy h1 { font-size: clamp(2rem, 4.3vw, 3.5rem); }
 @media (max-width: 760px) {
   .favorite-of-all-card { grid-template-columns: minmax(0, 1fr); }
   .favorite-of-all-card > .magnifiable-image { min-height: 0; aspect-ratio: 4 / 3; }
-  .home-nav-actions .text-button, .collection-nav .text-button, .summary-nav-actions .text-button { display: inline-flex; align-items: center; justify-content: center; }
+  .home-nav-actions .text-button, .collection-nav .text-button, .summary-nav-actions .text-button { display: inline-flex; align-items: center; justify-content: center; gap: 0; padding: 0; letter-spacing: 0; }
   .home-nav-actions .text-button svg, .collection-nav .text-button svg, .summary-nav-actions .text-button svg { display: block; margin: 0; flex-shrink: 0; transform: none; }
   html[data-rider-theme='male'] .hero-copy h1 { font-size: clamp(1.8rem, 9.5vw, 2.7rem); }
 }
+.continent-hint { margin: 12px 0; display: grid; gap: 6px; }
+.continent-hint p { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.continent-hint small { font-size: .75rem; }
+.popularity-note { grid-column: 1 / -1; margin: 0; font-size: .8rem; }

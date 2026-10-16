@@ -162,6 +162,7 @@ export const originZones: Record<string, OriginZone> = {
   ...Object.fromEntries(Object.entries(boundaryAssignments).map(([id, assignment]) => [id,
     polygon(assignment.label, assignment.note, ...assignment.keys),
   ])),
+  'hungarian-sport-horse': polygon('Hungary', broadHomeland, 'Hungary'),
 }
 
 function haversine(a: MapPoint, b: MapPoint) {
