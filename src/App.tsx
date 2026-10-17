@@ -1084,8 +1084,8 @@ function Game({ mode, practiceRegion, dayKey, onFinish, onExit }: { mode: 'daily
           {!result ? (
             <>
               <TraitHints breed={breed} count={hintCount} onReveal={() => setHintCount(count => Math.min(2, count + 1))} />
-              <div className="continent-hint">
-                {continentHint ? <p role="status"><Compass size={17} /> Origin continent: <strong>{continentForBreed(breed)}</strong></p> : <button className="secondary-button" onClick={() => setContinentHint(true)}><Compass size={17} /> Reveal continent (−25%)</button>}
+              <div className={`continent-hint hint-card ${continentHint ? 'hint-card--open' : ''}`}>
+                {continentHint ? <p role="status"><Compass size={18} /> Origin continent: <strong>{continentForBreed(breed)}</strong></p> : <button onClick={() => setContinentHint(true)}><Compass size={18} /><span>Reveal continent</span><small>−25%</small></button>}
                 {(continentHint || hintCount > 0) && <small>Total hint deduction: {hintCount * 10 + (continentHint ? 25 : 0)}% of this round’s score.</small>}
               </div>
               <button className="primary-button submit-button" disabled={!guess} onClick={submitGuess}>

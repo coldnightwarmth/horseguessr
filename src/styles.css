@@ -2860,6 +2860,27 @@ html[data-rider-theme='male'] .shareable-result-card { outline-color: #74351f; c
 html[data-rider-theme='male'] .shareable-result-card__mast,
 html[data-rider-theme='male'] .shareable-result-card__footer { color: #fff0c2; background: #4d2c1c; }
 html[data-rider-theme='male'] .shareable-result-card__brand { color: #edc76f; }
+/* The whole keepsake uses parchment, leather and brass, including shadows. */
+html[data-rider-theme='male'] .shareable-result-intro span { color: #79502c; }
+html[data-rider-theme='male'] .shareable-result-intro h2 { color: #472b1b; font-family: Georgia, serif; font-weight: 900; }
+html[data-rider-theme='male'] .shareable-result-card { border-color: #c69b60; background: linear-gradient(135deg, #f6e8c8, #dfc391); }
+html[data-rider-theme='male'] .shareable-result-card::before { background: none; inset: 6px; border: 1px dashed #9a7546; }
+html[data-rider-theme='male'] .shareable-result-card__headline > span { border-color: #a8793e; color: #51361f; background: #fff1cd; }
+html[data-rider-theme='male'] .shareable-result-card__headline h3 { color: #442918; font-family: Georgia, serif; font-weight: 900; text-shadow: 1px 2px #fff1cd; }
+html[data-rider-theme='male'] .shareable-result-card__headline p,
+html[data-rider-theme='male'] .shareable-result-card__score span,
+html[data-rider-theme='male'] .shareable-result-card__score small { color: #624529; }
+html[data-rider-theme='male'] .shareable-result-card__score strong { color: #422819; font-family: Georgia, serif; font-weight: 900; text-shadow: 2px 2px #fff1cd; }
+html[data-rider-theme='male'] .shareable-result-card__round { border-color: #c6a06a; background: #f9edcf; box-shadow: 2px 2px #886039; }
+html[data-rider-theme='male'] .shareable-result-card__round span { color: #77502b; }
+html[data-rider-theme='male'] .shareable-result-card__round i { border-color: #9b783f; background: linear-gradient(to right, #82602e var(--round-fill), #e1cfaa var(--round-fill)); }
+html[data-rider-theme='male'] .shareable-result-card__round b { color: #442d1c; }
+html[data-rider-theme='male'] .shareable-result-card__ribbons span { border-color: #cba967; color: #422a17; background: linear-gradient(#f1d997, #c69c51); box-shadow: 2px 2px #78502e; }
+html[data-rider-theme='male'] .shareable-result-controls > span { color: #674a30; }
+html[data-rider-theme='male'] .shareable-result-controls .secondary-button { color: #4b301c; border-color: #a77b43; background: #f5e4bf; }
+html[data-rider-theme='male'] .hint-card span,
+html[data-rider-theme='male'] .hint-card small { color: #604528; }
+html[data-rider-theme='male'] .hint-card svg { color: #926522; }
 
 html[data-rider-theme='male'] .favorite-heart,
 html[data-rider-theme='male'] .top-favorite-star { color: #734229; background: linear-gradient(#fff0c7, #d8b477); }
@@ -3170,6 +3191,6 @@ html[data-rider-theme='male'] .hero-copy h1 { font-size: clamp(2rem, 4.3vw, 3.5r
   html[data-rider-theme='male'] .hero-copy h1 { font-size: clamp(1.8rem, 9.5vw, 2.7rem); }
 }
 .continent-hint { margin: 12px 0; display: grid; gap: 6px; }
-.continent-hint p { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
-.continent-hint small { font-size: .75rem; }
+.continent-hint p { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 0; padding: 12px; }
+.continent-hint > small { padding: 0 12px 10px; }
 .popularity-note { grid-column: 1 / -1; margin: 0; font-size: .8rem; }
