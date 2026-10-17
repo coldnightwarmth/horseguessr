@@ -9,6 +9,8 @@ const commons = (file: string) => `https://commons.wikimedia.org/wiki/File:${fil
 // Reviewed after player reports. Explicit pools also remove unsafe archive
 // aliases, so an excluded illustration cannot return as a loading fallback.
 const reviewedPhotoPools: Record<string, BreedPhoto[]> = {
+  'hungarian-coldblood': [{ src: '/horses/expansion/hungarian-coldblood-1.jpg', source: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC12108329/figure/animals-15-01406-f001/', credit: 'János Oláh · CC BY 4.0 · unmodified' }],
+  'timor-pony': [{ src: '/horses/expansion/timor-pony-1.jpg', source: commons('Pferde_in_Maubisse_klein.jpg'), credit: 'J. Patrick Fischer · CC BY 2.5 · unmodified' }],
   barb: [{ src: '/horses/reviewed/barb.jpg', source: commons('Jument_Barbe_Tunis.jpg'), credit: 'Issam Barhoumi · CC BY-SA 4.0' }],
   'new-forest-pony': [{ src: '/horses/reviewed/new-forest.jpg', source: commons('BrownNFStallion.jpg'), credit: 'ThatPeskyCommoner · CC BY 3.0' }],
   'jaca-navarra': [{ src: '/horses/expansion/jaca-navarra-1.jpg', source: commons('Nafar_behoka_zaldia1.JPG'), credit: 'Lankide Gorritxiki · CC BY-SA 3.0' }],

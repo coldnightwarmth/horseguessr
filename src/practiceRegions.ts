@@ -49,7 +49,7 @@ const northAmericanCountries = new Set(['Canada', 'United States', 'Mexico'])
 // to Europe. Trakehner is excluded from Europe because its founding stud is in
 // present-day Russia, despite its historic East Prussian/German association.
 const turanBreedIds = new Set([
-  'hungarian-sport-horse', 'miyako-horse',
+  'hungarian-sport-horse', 'hungarian-coldblood', 'miyako-horse',
   'akhal-teke', 'mongolian', 'orlov-trotter', 'finnhorse', 'nonius', 'gidran',
   'furioso-north-star', 'kisber-felver', 'shagya-arabian', 'hucul', 'yakutian',
   'caspian', 'karabakh', 'don-horse', 'bashkir-horse', 'jeju-horse', 'noma-horse',

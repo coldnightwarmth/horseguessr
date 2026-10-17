@@ -3,6 +3,7 @@ import type { Breed } from './data'
 // Origin, not the modern distribution of the breed. Transcontinental homelands
 // deliberately reveal both continents rather than a misleading single answer.
 export function continentForBreed(breed: Breed): string {
+  if (breed.country === 'Timor-Leste and Indonesia') return 'Asia'
   if (breed.country === 'Puerto Rico and Colombia') return 'North and South America'
   if (breed.country === 'Russia') return breed.lng < 60 ? 'Europe and Asia' : 'Asia'
   if (['Turkey', 'Kazakhstan'].includes(breed.country)) return 'Europe and Asia'

@@ -57,7 +57,8 @@ function dailyBreedPool(day: string) {
   if (day < '2026-09-20') return breeds.filter(breed => breed.id !== 'azteca-horse' && !expansionBreedIds.includes(breed.id))
   if (day < '2026-09-25') return breeds.filter(breed => !expansionBreedIds.includes(breed.id))
   if (day < '2026-10-16') return breeds.filter(breed => !octoberBreedIds.includes(breed.id))
-  if (day < '2026-10-17') return breeds.filter(breed => breed.id !== 'kundudo-horse')
+  if (day < '2026-10-17') return breeds.filter(breed => !['kundudo-horse', 'hungarian-coldblood', 'timor-pony'].includes(breed.id))
+  if (day < '2026-10-18') return breeds.filter(breed => !['hungarian-coldblood', 'timor-pony'].includes(breed.id))
   return breeds
 }
 

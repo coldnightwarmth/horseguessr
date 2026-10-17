@@ -1,6 +1,7 @@
 import geometryData from './originGeometries.json'
 import auditedBoundaries from './auditedBoundaries.json'
 import boundaryAssignments from './boundaryAssignments.json'
+import timorBoundary from './timorBoundary.json'
 import { expansionZoneSeeds } from './breedExpansion'
 
 export type MapPoint = { lat: number; lng: number }
@@ -163,6 +164,8 @@ export const originZones: Record<string, OriginZone> = {
     polygon(assignment.label, assignment.note, ...assignment.keys),
   ])),
   'hungarian-sport-horse': polygon('Hungary', broadHomeland, 'Hungary'),
+  'hungarian-coldblood': polygon('Hungary', broadHomeland, 'Hungary'),
+  'timor-pony': { kind: 'polygon', label: 'Timor Island', note: 'Both the Indonesian and Timor-Leste parts of Timor receive full credit, together with nearby small islands in this island homeland.', geometry: timorBoundary.geometry as RegionGeometry, sources: [timorBoundary.source] },
 }
 
 function haversine(a: MapPoint, b: MapPoint) {
